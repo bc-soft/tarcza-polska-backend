@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarcza Polska – prezentacja</title>
+<link rel="icon" type="image/png" href="img/mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Tokeny design systemu Tarcza (te same co templates/base.html.twig). */
+:root {
+    --canvas: #0D0E10; --surface: #15171A; --surface-2: #1C1F23; --surface-3: #22252A;
+    --primary: #E0262F; --primary-soft: #351719;
+    --n: #F1F2F4; --n700: #C4C8CF; --n600: #A9AEB7; --n500: #8C929C; --n400: #656B75; --n300: #464B53; --n200: #2B2F35; --n100: #202328;
+    --ok: #2EB872; --ok-soft: #11291C; --warn: #E8A33A; --warn-soft: #2E2311; --high: #F26B2A; --tertiary: #5B8DEF; --tertiary-soft: #18233A;
+    --display: "Barlow Condensed", Inter, sans-serif; --sans: Inter, system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #050506; color: var(--n); font-family: var(--sans); -webkit-font-smoothing: antialiased; overflow: hidden; }
+
+/* Scena 1600x900 skalowana do okna. */
+#deck { position: fixed; inset: 0; display: grid; place-items: center; }
+.slide {
+    position: absolute; width: 1600px; height: 900px; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(var(--s, 1)); transform-origin: center;
+    background-color: var(--canvas);
+    background-image: linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+    background-size: 56px 56px;
+    padding: 0 84px; display: none; flex-direction: column; overflow: hidden;
+}
+.slide.active { display: flex; }
+.slide::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 8px; background: var(--primary); }
+
+/* Rama slajdu: nagłówek i stopka jak w wizualizacjach. */
+.top { height: 96px; flex: none; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--n200); }
+.brand { display: flex; align-items: center; gap: 14px; font-family: var(--display); font-weight: 800; font-size: 26px; letter-spacing: .02em; text-transform: uppercase; }
+.brand img { width: 40px; height: 40px; object-fit: contain; }
+.section { font-family: var(--mono); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--n500); }
+.body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 40px; }
+.foot { height: 64px; flex: none; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--n200); font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--n500); }
+
+/* Typografia. */
+.kicker { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 14px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--primary); }
+.kicker::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+h1, h2 { font-family: var(--display); font-weight: 800; line-height: .92; letter-spacing: .005em; }
+h2 { font-size: 76px; }
+h2 + .lead { margin-top: 24px !important; }
+h2 em, h1 em { font-style: normal; color: var(--primary); }
+.lead { font-size: 25px; font-weight: 300; color: var(--n600); line-height: 1.35; }
+.eyebrow { font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--n500); }
+.mono { font-family: var(--mono); }
+.red { color: var(--primary); }
+.muted { color: var(--n500); }
+.card { background: var(--surface); border-radius: 10px; box-shadow: 0 0 0 1px rgba(255,255,255,.05), 0 10px 30px -18px rgba(0,0,0,.8); }
+.card2 { background: var(--surface-2); border-radius: 10px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; padding: 3px 9px; font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.ico { width: 28px; height: 28px; stroke: var(--primary); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.row { display: flex; gap: 24px; }
+.grow { flex: 1; min-width: 0; }
+
+/* Slajd 1 */
+.hero h1 { font-size: 168px; text-transform: uppercase; line-height: .86; }
+.hero .claim { font-family: var(--display); font-weight: 700; font-size: 52px; margin-top: 22px; }
+.team { display: grid; grid-template-columns: 90px 1fr; gap: 6px 22px; font-size: 17px; margin-top: 30px; }
+.team .eyebrow { align-self: center; }
+
+/* Pętla DETECT-VERIFY-MAP-INFORM */
+.loop { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+.loop .step { padding-right: 34px; position: relative; }
+.loop .step:not(:last-child)::after { content: "→"; position: absolute; right: 14px; top: 34px; font-size: 26px; color: var(--n500); }
+.loop .box { width: 72px; height: 72px; display: grid; place-items: center; border: 1px solid var(--n200); background: var(--surface); border-radius: 6px; margin: 12px 0 20px; }
+.loop h3 { font-family: var(--display); font-size: 40px; font-weight: 800; text-transform: uppercase; }
+.loop p { font-size: 19px; color: var(--n600); margin-top: 6px; line-height: 1.35; }
+
+/* Listy numerowane */
+.nlist { list-style: none; }
+.nlist li { display: flex; gap: 18px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--n200); font-size: 22px; }
+.nlist li b { font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--primary); }
+.nlist li small { display: block; font-size: 16px; color: var(--n500); margin-top: 4px; }
+
+/* Telefony */
+.phone { width: 270px; height: 528px; border-radius: 38px; background: #0a0a0b; padding: 10px; box-shadow: 0 0 0 2px #2b2f35, 0 30px 60px -20px rgba(0,0,0,.9); flex: none; }
+.screen { width: 100%; height: 100%; border-radius: 30px; background: #F3F4F6; color: #111; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.screen .bar { display: flex; align-items: center; gap: 8px; padding: 34px 16px 12px; border-bottom: 1px solid #e3e4e7; font-weight: 600; font-size: 15px; }
+.screen .bar img { width: 22px; height: 22px; }
+.screen .notch { position: absolute; top: 9px; left: 50%; transform: translateX(-50%); width: 84px; height: 20px; border-radius: 12px; background: #0a0a0b; }
+.screen .pad { padding: 18px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.screen .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #C8102E; }
+.screen .ttl { font-weight: 700; font-size: 19px; line-height: 1.2; }
+.screen .btn { border-radius: 4px; padding: 11px; text-align: center; font-weight: 600; font-size: 14px; }
+.screen .btn.p { background: #C8102E; color: #fff; }
+.screen .btn.o { border: 1px solid #c9cbd0; }
+.screen .map { height: 210px; background: #17181b; position: relative; overflow: hidden; }
+.screen .sheet { background: #F3F4F6; margin-top: -18px; border-radius: 16px 16px 0 0; position: relative; }
+
+/* Tabela odporności */
+.deg { width: 100%; border-collapse: collapse; font-size: 17px; }
+.deg td { padding: 12px 10px 12px 0; border-bottom: 1px solid var(--n200); vertical-align: top; line-height: 1.35; }
+.deg td:first-child { width: 36%; color: var(--n); font-weight: 600; }
+.deg td:last-child { color: var(--n600); }
+.chk { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.chk li { display: flex; gap: 14px; font-size: 18px; line-height: 1.35; color: var(--n600); }
+.chk li b { color: var(--n); font-weight: 600; }
+.chk .ico { width: 22px; height: 22px; margin-top: 2px; }
+
+.shot { border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 30px 60px -24px rgba(0,0,0,.95); position: relative; }
+.shot img { display: block; width: 100%; }
+.callout { position: absolute; display: flex; align-items: center; gap: 8px; background: var(--primary); color: #fff; border-radius: 999px; padding: 6px 12px 6px 6px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 24px -8px rgba(0,0,0,.8); }
+.callout i { font-style: normal; width: 22px; height: 22px; border-radius: 50%; background: #fff; color: var(--primary); display: grid; place-items: center; font-family: var(--mono); font-size: 12px; font-weight: 700; }
+
+.metric { padding: 18px 20px; }
+.metric .v { font-family: var(--display); font-weight: 800; font-size: 50px; line-height: 1; }
+.metric .l { font-size: 14px; color: var(--n500); margin-top: 6px; line-height: 1.3; }
+
+/* Nawigacja */
+#nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px; opacity: .35; transition: opacity .2s; display: flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12px; color: var(--n500); z-index: 10; }
+#nav button { background: var(--surface-2); color: var(--n); border: 0; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; font-size: 15px; }
+#nav button:hover { background: var(--surface-3); }
+#nav:hover { opacity: 1; }
+
+/* Druk / eksport do PDF: jeden slajd = jedna strona 1600x900 (wymóg regulaminu: PDF, maks. 10 slajdów). */
+@page { size: 1600px 900px; margin: 0; }
+@media print {
+    html, body { overflow: visible; height: auto; background: var(--canvas); }
+    #deck { position: static; display: block; }
+    #nav { display: none; }
+    .slide { display: flex !important; position: relative; left: 0; top: 0; transform: none; break-after: page; page-break-after: always; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div id="deck">
+
+<!-- ============ 01 TYTUŁ ============ -->
+<section class="slide" data-section="HackYeah 2026 · Defence">
+    <div class="body" style="padding-top:56px">
+        <div class="row" style="flex:1; gap:40px">
+            <div class="hero" style="width:760px">
+                <div class="kicker">Społecznościowy system odporności cywilnej</div>
+                <h1 style="margin-top:34px">Tarcza<br>Polska<em>.</em></h1>
+                <div class="claim">Siła jest w nas.</div>
+                <p class="lead" style="margin-top:20px; max-width:700px">Zamieniamy tysiące lokalnych obserwacji mieszkańców w&nbsp;<span style="color:var(--n)">zweryfikowaną mapę zakłóceń</span> i&nbsp;precyzyjny komunikat dla właściwej strefy.</p>
+                <div class="team">
+                    <span class="eyebrow">Zespół</span><span>[Nazwa zespołu]</span>
+                    <span class="eyebrow">Skład</span><span>[Imię Nazwisko · Imię Nazwisko · …]</span>
+                </div>
+            </div>
+            <div class="grow" style="position:relative">
+                <svg id="hero-map" viewBox="0 0 720 600" style="position:absolute; inset:-10px -40px 0 0; width:calc(100% + 40px); height:100%"></svg>
+                <img src="img/mark.png" alt="Godło Tarczy Polskiej" style="position:absolute; width:330px; left:50%; top:46%; transform:translate(-50%,-50%); filter:drop-shadow(0 20px 50px rgba(224,38,47,.35))">
+                <div class="eyebrow" style="position:absolute; left:40px; bottom:6px; display:flex; gap:22px"><span class="red">● Active Crowd Mapping</span><span>Zgłoś / Potwierdź / Reaguj</span></div>
+            </div>
+        </div>
+        <div class="row" style="gap:12px; margin:22px 0 26px">
+            <span class="badge" style="background:var(--surface-2); color:var(--n700)">Wcześniejsze wykrycie</span>
+            <span class="badge" style="background:var(--surface-2); color:var(--n700)">Weryfikacja informacji</span>
+            <span class="badge" style="background:var(--surface-2); color:var(--n700)">Koordynacja w kryzysie</span>
+            <span class="badge" style="background:var(--surface-2); color:var(--n700)">Ciągłość działania</span>
+            <span class="badge" style="background:var(--primary-soft); color:var(--primary); margin-left:auto">Pilotaż: Poznań</span>
+        </div>
+    </div>
+</section>
+
+<!-- ============ 02 PROBLEM ============ -->
+<section class="slide" data-section="Wyzwanie">
+    <div class="body">
+        <h2>Kryzys nie ma<br><em>jednego adresu.</em></h2>
+        <p class="lead" style="margin-top:18px">Podczas awarii informacji nie brakuje. Jest rozproszona, niepełna, szybko się starzeje i&nbsp;trudno ją sprawdzić.</p>
+        <div class="row" style="margin-top:34px; gap:56px; flex:1">
+            <div style="width:640px">
+                <div style="border-left:4px solid var(--primary); padding:4px 0 4px 24px; margin-bottom:10px">
+                    <div style="font-size:30px">„Nie ma prądu w mieście.”</div>
+                    <div class="muted" style="font-size:17px; margin-top:6px">Plotka z czatu to za mało, by zareagować. Trzeba wiedzieć:</div>
+                </div>
+                <ol class="nlist">
+                    <li><b>01</b>Gdzie dokładnie nie ma prądu i&nbsp;wody, a&nbsp;gdzie wszystko działa?</li>
+                    <li><b>02</b>Czy to prawda, czy dezinformacja albo pojedynczy przypadek?</li>
+                    <li><b>03</b>Które schrony są otwarte, a&nbsp;które stacje mają paliwo?</li>
+                    <li><b>04</b>Kogo i&nbsp;gdzie trzeba ostrzec, a&nbsp;kogo nie niepokoić?</li>
+                </ol>
+            </div>
+            <div class="grow" style="display:flex; flex-direction:column; gap:16px">
+                <div class="eyebrow">Kto mierzy się z problemem</div>
+                <div class="card" style="padding:22px 24px; display:flex; gap:18px">
+                    <svg class="ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-5-6.3"/></svg>
+                    <div><div style="font-size:21px; font-weight:600">Mieszkańcy</div><div class="muted" style="font-size:17px; margin-top:4px; line-height:1.4">Widzą tylko swoją ulicę. Nie wiedzą, czy problem jest lokalny, ani dokąd iść po pomoc.</div></div>
+                </div>
+                <div class="card" style="padding:22px 24px; display:flex; gap:18px">
+                    <svg class="ico" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.7 3.2 9 7.5 10 4.3-1 7.5-5.3 7.5-10V6L12 3z"/></svg>
+                    <div><div style="font-size:21px; font-weight:600">Centra zarządzania kryzysowego</div><div class="muted" style="font-size:17px; margin-top:4px; line-height:1.4">Dostają telefony i&nbsp;wpisy z&nbsp;mediów społecznościowych, bez zasięgu, skali i&nbsp;oceny wiarygodności.</div></div>
+                </div>
+                <div class="card2" style="padding:18px 24px; margin-top:auto">
+                    <div class="eyebrow red" style="margin-bottom:8px">Realne warunki kryzysu</div>
+                    <div style="font-size:18px; color:var(--n700); line-height:1.45">Niepełna informacja · ograniczone zasoby służb · niedostępne usługi (sieć, push, zewnętrzne API). Tarcza jest projektowana właśnie na te warunki.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ 03 ROZWIĄZANIE ============ -->
+<section class="slide" data-section="Rozwiązanie">
+    <div class="body">
+        <h2>Od zgłoszenia <em>do działania.</em></h2>
+        <p class="lead" style="margin-top:16px">Jedna pętla łączy obywateli, system i&nbsp;operatora. Pojedyncze zgłoszenie to hipoteza, nie fakt.</p>
+        <div class="loop" style="margin-top:34px">
+            <div class="step"><div class="eyebrow">01 · Detect</div><div class="box"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h3>Zgłoś</h3><p>Obywatel zgłasza prąd, wodę, paliwo, drogę, schron. Typ → lokalizacja → wyślij.</p></div>
+            <div class="step"><div class="eyebrow">02 · Verify</div><div class="box"><svg class="ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-5-6.3"/></svg></div><h3>Potwierdź</h3><p>System sam pyta ludzi w okolicy. Do tego źródła publiczne i&nbsp;research AI.</p></div>
+            <div class="step"><div class="eyebrow">03 · Map</div><div class="box"><svg class="ico" viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9L12 3z"/></svg></div><h3>Wyznacz</h3><p>Odpowiedzi TAK / NIE rysują realny zasięg problemu na siatce heksagonów.</p></div>
+            <div class="step"><div class="eyebrow">04 · Inform</div><div class="box"><svg class="ico" viewBox="0 0 24 24"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4-5.7V5a2 2 0 1 0-4 0v.3A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/></svg></div><h3>Poinformuj</h3><p>Komunikat trafia tylko do urządzeń w wyznaczonej strefie.</p></div>
+        </div>
+        <div class="row" style="margin-top:auto; margin-bottom:30px; gap:20px; align-items:stretch">
+            <div class="card" style="padding:22px 24px; width:470px">
+                <div class="eyebrow" style="color:var(--n)">Tarcza Citizen · aplikacja mobilna</div>
+                <div class="muted" style="font-size:17px; margin-top:8px; line-height:1.45">Zgłoszenia, pytania weryfikacyjne, lokalne alerty, schrony i&nbsp;stacje paliw, tryb offline. Widzi tylko zagregowany obraz.</div>
+            </div>
+            <div class="card" style="padding:22px 24px; width:470px">
+                <div class="eyebrow red">Tarcza Command · panel CMS</div>
+                <div class="muted" style="font-size:17px; margin-top:8px; line-height:1.45">Mapa sytuacyjna na żywo, wskaźnik wiarygodności z&nbsp;rozbiciem, źródła, zdjęcia, komunikaty do obszaru, audyt.</div>
+            </div>
+            <div class="grow card2" style="padding:20px 24px">
+                <div class="eyebrow" style="margin-bottom:10px">Kierunki z opisu zadania „Defence”</div>
+                <div style="font-size:16px; color:var(--n700); line-height:1.7">
+                    <span class="red">✓</span> Weryfikacja podejrzanych informacji<br>
+                    <span class="red">✓</span> Koordynacja i&nbsp;wymiana informacji w&nbsp;sytuacji kryzysowej<br>
+                    <span class="red">✓</span> Mapowanie punktów awarii infrastruktury<br>
+                    <span class="red">✓</span> Procedury łatwe do zastosowania (offline)
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ 04 ACTIVE CROWD MAPPING ============ -->
+<section class="slide" data-section="Kluczowa innowacja">
+    <div class="body">
+        <div class="kicker">Kluczowa innowacja</div>
+        <h2 style="margin-top:14px">Active Crowd Mapping<em>.</em></h2>
+        <p class="lead" style="margin-top:14px">Tarcza nie czeka na zgłoszenia. Sama dopytuje, gdzie problem się zaczyna i&nbsp;kończy.</p>
+        <div class="row" style="margin-top:26px; gap:48px; flex:1; min-height:0">
+            <div style="width:610px">
+                <ol class="nlist">
+                    <li><b>01</b><span>Dwa zgłoszenia tego samego typu blisko siebie tworzą <b style="font-family:var(--sans);font-size:inherit;color:var(--n);font-weight:600">hipotezę incydentu</b>.</span></li>
+                    <li><b>02</b><span>Fala 0: pytanie „Czy masz teraz prąd?” do urządzeń w&nbsp;komórce centralnej i&nbsp;6 sąsiednich.</span></li>
+                    <li><b>03</b><span>TAK / NIE / NIE WIEM zmienia stan komórki: problem, brak problemu, nieznane.</span></li>
+                    <li><b>04</b><span>Kolejne fale co 90 s pytają <b style="font-family:var(--sans);font-size:inherit;color:var(--n);font-weight:600">tylko na niepewnej granicy</b>, więc nikt nie jest zasypywany pytaniami.</span></li>
+                    <li><b>05</b><span>Granica się domyka, a obszar incydentu jest gotowy do alertu.</span></li>
+                </ol>
+                <div class="card2 mono" style="margin-top:20px; padding:14px 18px; font-size:15px; color:var(--n700)">
+                    dowód(komórka) = zgłoszenia + TAK − NIE<br><span class="muted">&gt; 0 problem · ≤ 0 i NIE &gt; 0 brak problemu · inaczej: pytamy</span>
+                </div>
+            </div>
+            <div class="grow" style="display:flex; flex-direction:column">
+                <div class="card" style="flex:1; position:relative; overflow:hidden">
+                    <svg id="acm" viewBox="0 0 760 470" style="width:100%; height:100%; display:block"></svg>
+                    <div class="eyebrow" style="position:absolute; left:18px; top:14px">Siatka H3 · res 9 · ~0,1 km² na komórkę</div>
+                </div>
+                <div class="row" style="gap:22px; margin-top:12px; font-size:14px; color:var(--n600)">
+                    <span><span style="display:inline-block;width:12px;height:12px;background:#E0262F;border-radius:2px;margin-right:6px"></span>problem potwierdzony</span>
+                    <span><span style="display:inline-block;width:12px;height:12px;background:#2EB872;border-radius:2px;margin-right:6px"></span>„u mnie działa”</span>
+                    <span><span style="display:inline-block;width:12px;height:12px;border:1.5px dashed #C4C8CF;border-radius:2px;margin-right:6px"></span>granica, następna fala</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;background:#E8A33A;border-radius:50%;margin-right:6px"></span>zgłoszenie</span>
+                </div>
+            </div>
+        </div>
+        <div style="height:24px"></div>
+    </div>
+</section>
+
+<!-- ============ 05 ZAUFANIE: CONFIDENCE + AI ============ -->
+<section class="slide" data-section="Wiarygodność">
+    <div class="body">
+        <h2>Liczba, którą da się <em>wytłumaczyć.</em></h2>
+        <p class="lead" style="margin-top:16px">Wskaźnik wiarygodności liczy deterministyczny model. AI dostarcza dowody, a&nbsp;nie wyroki.</p>
+        <div class="row" style="margin-top:30px; gap:28px; flex:1; margin-bottom:28px">
+            <div class="card" style="width:760px; padding:26px 28px; display:flex; flex-direction:column">
+                <div class="eyebrow">Model wiarygodności incydentu</div>
+                <div class="mono" style="font-size:18px; margin-top:12px">wynik = <span class="red">świeżość</span> × (zgłoszenia + rozproszenie + tłum) + źródła</div>
+                <div style="margin-top:20px; display:grid; grid-template-columns:150px 1fr 120px; gap:12px 16px; align-items:center; font-size:16px">
+                    <span>zgłoszenia</span><div style="height:10px;background:var(--n200);border-radius:9px"><div style="width:40%;height:10px;background:var(--n700);border-radius:9px"></div></div><span class="mono muted">0 … 0,40</span>
+                    <span>rozproszenie</span><div style="height:10px;background:var(--n200);border-radius:9px"><div style="width:5%;height:10px;background:var(--n700);border-radius:9px"></div></div><span class="mono muted">0 … 0,05</span>
+                    <span>tłum TAK/NIE</span><div style="height:10px;background:var(--n200);border-radius:9px;position:relative"><div style="position:absolute;left:30%;width:40%;height:10px;background:linear-gradient(90deg,#2EB872,#2EB872 50%,#E0262F 50%);border-radius:9px"></div></div><span class="mono muted">−0,40 … 0,40</span>
+                    <span>źródła zewn.</span><div style="height:10px;background:var(--n200);border-radius:9px"><div style="width:25%;height:10px;background:var(--tertiary);border-radius:9px"></div></div><span class="mono muted">0 … 0,25</span>
+                </div>
+                <div class="muted" style="font-size:15px; margin-top:14px; line-height:1.45">Zaprzeczenia tłumu <b style="color:var(--n)">obniżają</b> wynik, więc fałszywka nie urośnie od samego powtarzania. Waga zgłoszenia zależy od reputacji urządzenia; świeżość wygasza stare dowody.</div>
+                <div class="card2 mono" style="margin-top:14px; padding:12px 16px; font-size:14px; color:var(--n700)"><span class="muted">przykład z panelu, „Brak wody”:</span><br>0,98 × (0,40 + 0,05 + 0,24) + źródła zewn. → <span class="red">90% · Potwierdzone</span></div>
+                <div style="margin-top:auto">
+                    <div style="display:grid; grid-template-columns:35fr 25fr 20fr 20fr; height:38px; border-radius:6px; overflow:hidden; font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.08em">
+                        <div style="background:#2B2F35;color:#C4C8CF;display:grid;place-items:center">NIEZWERYFIKOWANE</div>
+                        <div style="background:var(--warn-soft);color:var(--warn);display:grid;place-items:center">PRAWDOPODOBNE</div>
+                        <div style="background:#33190D;color:var(--high);display:grid;place-items:center">WYSOKA</div>
+                        <div style="background:var(--primary);color:#fff;display:grid;place-items:center">POTWIERDZONE</div>
+                    </div>
+                    <div class="mono muted" style="display:grid; grid-template-columns:35fr 25fr 20fr 20fr; font-size:12px; margin-top:6px"><span>0</span><span>0,35</span><span>0,60</span><span>0,80</span></div>
+                    <div style="font-size:15px; margin-top:8px; color:var(--n700)">„Potwierdzone” wymaga dodatkowo źródła zewnętrznego o&nbsp;wiarygodności ≥ 0,5. Operator widzi rozbicie na składowe.</div>
+                </div>
+            </div>
+            <div class="grow" style="display:flex; flex-direction:column; gap:16px">
+                <div class="card" style="padding:22px 24px">
+                    <div class="row" style="gap:12px; align-items:center"><svg class="ico" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg><div style="font-size:21px; font-weight:600">Research AI w tle</div></div>
+                    <div class="muted" style="font-size:16px; margin-top:10px; line-height:1.45">LLM z wyszukiwaniem tylko po zaufanych domenach (operatorzy energii, wodociągi, RCB, PAP, media lokalne). Odpowiedź w ścisłym JSON: URL, wydawca, wiarygodność, czy potwierdza. ~30 s i ok. 0,10 USD na incydent.</div>
+                </div>
+                <div class="card" style="padding:22px 24px">
+                    <div class="row" style="gap:12px; align-items:center"><svg class="ico" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg><div style="font-size:21px; font-weight:600">Silnik źródeł publicznych</div></div>
+                    <div class="muted" style="font-size:16px; margin-top:10px; line-height:1.45">Kanały RSS/Atom co 5 minut, deterministyczne dopasowanie typ + miejsce + czas. Zero kosztu tokenów, uzasadnienie widoczne dla operatora.</div>
+                </div>
+                <div class="card" style="padding:22px 24px">
+                    <div class="row" style="gap:12px; align-items:center"><svg class="ico" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><div style="font-size:21px; font-weight:600">Analiza zdjęć</div></div>
+                    <div class="muted" style="font-size:16px; margin-top:10px; line-height:1.45">Model wizyjny ocenia, czy zdjęcie pasuje do zgłoszenia i czy jest bezpieczne. Wynik jest dowodem dla operatora, nie zmienia wskaźnika.</div>
+                </div>
+                <div class="card2" style="padding:18px 24px; margin-top:auto; font-size:17px; line-height:1.45">
+                    <span class="red mono" style="font-size:13px; letter-spacing:.12em">ODPORNE NA DEZINFORMACJĘ</span><br>
+                    Plotka bez potwierdzeń z&nbsp;okolicy i&nbsp;bez źródła nie przekroczy progu alertu.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ 06 APLIKACJA OBYWATELA ============ -->
+<section class="slide" data-section="Tarcza Citizen">
+    <div class="body">
+        <h2>Aplikacja dla <em>obywatela.</em></h2>
+        <p class="lead" style="margin-top:16px">Lokalna informacja. Zgłoszenie w&nbsp;trzech krokach. Potwierdzenie jednym dotknięciem.</p>
+        <div class="row" style="margin-top:26px; gap:30px; flex:1">
+            <div class="row" style="gap:26px; align-items:flex-start">
+                <!-- Mapa -->
+                <div class="phone"><div class="screen"><div class="notch"></div>
+                    <div class="bar"><img src="img/mark.png" alt="">Tarcza Polska</div>
+                    <div class="map"><svg class="mini-map" viewBox="0 0 250 210" style="width:100%;height:100%"></svg></div>
+                    <div class="pad sheet">
+                        <div class="tag">W Twojej okolicy</div>
+                        <div class="ttl">Aktualne zakłócenia</div>
+                        <div style="font-size:13px; display:flex; flex-direction:column; gap:7px; color:#333">
+                            <span>⚡ Brak prądu · <b style="color:#C8102E">potwierdzone</b></span>
+                            <span>🛡 Schron SP 12 · dużo miejsc</span>
+                            <span>⛽ Orlen Głogowska · brak ON</span>
+                        </div>
+                        <div class="btn p" style="margin-top:auto">+ Zgłoś problem</div>
+                    </div>
+                </div></div>
+                <!-- Weryfikacja -->
+                <div class="phone"><div class="screen"><div class="notch"></div>
+                    <div class="bar"><img src="img/mark.png" alt="">Tarcza Polska</div>
+                    <div class="pad">
+                        <svg viewBox="0 0 24 24" style="width:38px;height:38px;stroke:#C8102E;fill:none;stroke-width:1.8;stroke-linejoin:round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+                        <div class="tag" style="margin-top:6px">Potwierdź sytuację</div>
+                        <div class="ttl">W Twojej okolicy zgłoszono brak prądu.</div>
+                        <div style="font-size:14px; color:#444">Czy w tej chwili masz dostęp do prądu?</div>
+                        <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px">
+                            <div class="btn p">NIE, nie mam</div>
+                            <div class="btn o">TAK, mam</div>
+                            <div class="btn o">NIE WIEM</div>
+                        </div>
+                    </div>
+                </div></div>
+                <!-- Alert -->
+                <div class="phone"><div class="screen"><div class="notch"></div>
+                    <div class="bar"><img src="img/mark.png" alt="">Tarcza Polska</div>
+                    <div class="pad">
+                        <svg viewBox="0 0 24 24" style="width:38px;height:38px;stroke:#C8102E;fill:none;stroke-width:1.8;stroke-linejoin:round"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4-5.7V5a2 2 0 1 0-4 0v.3A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/></svg>
+                        <div class="tag" style="margin-top:6px">Lokalny alert</div>
+                        <div class="ttl">Potwierdzono brak prądu w&nbsp;Twojej okolicy.</div>
+                        <div style="font-size:14px; color:#444">Problem zgłasza 86% odpowiadających. Najbliższy otwarty schron:</div>
+                        <div style="font-family:var(--display); font-weight:800; font-size:56px; line-height:1">1,2 <span style="font-size:26px">km</span></div>
+                        <div class="btn p" style="margin-top:auto">Zobacz na mapie →</div>
+                    </div>
+                </div></div>
+            </div>
+            <div class="grow" style="display:flex; flex-direction:column; gap:14px; padding-top:4px">
+                <ul class="chk">
+                    <li><svg class="ico" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg><span><b>Anonimowo.</b> Urządzenie bez konta i&nbsp;danych osobowych, tylko bieżąca lokalizacja.</span></li>
+                    <li><svg class="ico" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg><span><b>Schrony</b> z rejestru dane.gov.pl (86 tys. punktów) ze statusem i&nbsp;obłożeniem od mieszkańców.</span></li>
+                    <li><svg class="ico" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg><span><b>Stacje paliw</b> z OpenStreetMap, dostępność osobno dla PB95, ON, LPG.</span></li>
+                    <li><svg class="ico" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg><span><b>Zdjęcia</b> jako dowód; EXIF i&nbsp;GPS usuwane na serwerze.</span></li>
+                    <li><svg class="ico" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg><span><b>Tryb offline:</b> schrony, alerty i&nbsp;procedury pobrane zawczasu.</span></li>
+                </ul>
+                <div class="eyebrow" style="margin-top:auto; margin-bottom:26px">Makiety ekranów · Flutter iOS / Android · wspólne API OpenAPI</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ 07 COMMAND CENTER ============ -->
+<section class="slide" data-section="Command Center / CMS">
+    <div class="body" style="padding-top:30px">
+        <div class="row" style="align-items:flex-end; justify-content:space-between">
+            <h2 style="font-size:66px">Wspólny obraz. <em>Precyzyjna reakcja.</em></h2>
+            <div class="badge" style="background:var(--ok-soft); color:var(--ok); margin-bottom:8px">● Działający panel · zrzut z aplikacji</div>
+        </div>
+        <div class="row" style="margin-top:22px; gap:28px; flex:1; min-height:0">
+            <div class="shot" style="width:1010px; align-self:flex-start">
+                <img src="img/dashboard.jpg" alt="Mapa sytuacyjna Command Center">
+                <div class="callout" style="right:14px; top:66px"><i>1</i>Stan na żywo</div>
+                <div class="callout" style="left:150px; top:330px"><i>2</i>Ranking wg wiarygodności</div>
+                <div class="callout" style="left:620px; top:250px"><i>3</i>Zasięg na siatce H3</div>
+                <div class="callout" style="left:500px; top:190px"><i>4</i>Warstwy: schrony, paliwo, alerty</div>
+            </div>
+            <div class="grow" style="display:flex; flex-direction:column; gap:0">
+                <ol class="nlist" style="margin-top:-12px">
+                    <li><b>1</b><span>Liczniki i&nbsp;mapa odświeżają się bez przeładowania (Mercure SSE).<small>Operator nie klika „odśwież” w&nbsp;trakcie kryzysu.</small></span></li>
+                    <li><b>2</b><span>Incydenty od najpewniejszych.<small>Zgłoszenia, odpowiedzi, % zgodności tłumu.</small></span></li>
+                    <li><b>3</b><span>Obszar zamiast pinezki.<small>Kolor = poziom wiarygodności.</small></span></li>
+                    <li><b>4</b><span>Infrastruktura w&nbsp;jednym widoku.<small>7,5 tys. schronów i&nbsp;stacje paliw regionu.</small></span></li>
+                    <li><b>5</b><span>Komunikaty do obszaru.<small>Waga, czas ważności, liczba dostarczeń.</small></span></li>
+                </ol>
+                <div class="card2" style="padding:16px 18px; margin-top:auto; margin-bottom:26px; font-size:15px; color:var(--n700); line-height:1.5">
+                    Role: <b style="color:var(--n)">analityk · operator · administrator</b>. Każdy odczyt szczegółów i&nbsp;każda akcja trafia do dziennika audytu.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ 08 DEMO FLOW ============ -->
+<section class="slide" data-section="Demo flow">
+    <div class="body" style="padding-top:30px">
+        <h2 style="font-size:66px">Od jednego sygnału <em>do lokalnego alertu.</em></h2>
+        <div class="row" style="margin-top:24px; gap:30px; flex:1; min-height:0">
+            <div style="width:560px; display:flex; flex-direction:column">
+                <div class="eyebrow" style="margin-bottom:6px">Scenariusz demo · ok. 3 minuty na żywo</div>
+                <ol class="nlist" id="flow">
+                    <li><b>01</b><span>Mieszkańcy Jeżyc zgłaszają brak prądu.</span><span class="badge" style="margin-left:auto;background:var(--warn-soft);color:var(--warn)">~36%</span></li>
+                    <li><b>02</b><span>Fala 0: telefony w&nbsp;okolicy dostają pytanie.</span><span class="badge" style="margin-left:auto;background:var(--tertiary-soft);color:var(--tertiary)">push</span></li>
+                    <li><b>03</b><span>Większość odpowiada NIE, hexy robią się czerwone.</span><span class="badge" style="margin-left:auto;background:#33190D;color:var(--high)">~70%</span></li>
+                    <li><b>04</b><span>Dalej „mam prąd”, granica się domyka.</span><span class="badge" style="margin-left:auto;background:var(--ok-soft);color:var(--ok)">obszar</span></li>
+                    <li><b>05</b><span>AI lub RSS znajduje komunikat operatora.</span><span class="badge" style="margin-left:auto;background:var(--primary);color:#fff">90%+</span></li>
+                    <li><b>06</b><span>Operator (lub auto-alert) wysyła komunikat.</span><span class="badge" style="margin-left:auto;background:var(--primary-soft);color:var(--primary)">alert</span></li>
+                    <li><b>07</b><span>Telefon w&nbsp;strefie dostaje push, ten poza nią nie.</span><span class="badge" style="margin-left:auto;background:var(--surface-2);color:var(--n700)">✓</span></li>
+                </ol>
+                <div class="card2" style="padding:14px 18px; margin-top:auto; margin-bottom:26px; font-size:15px; color:var(--n700); line-height:1.5">
+                    Symulator tłumu (kilkaset wirtualnych urządzeń, ukryta „prawda” awarii) pozwala pokazać pełną pętlę z&nbsp;dwoma prawdziwymi telefonami.
+                </div>
+            </div>
+            <div class="grow" style="display:flex; flex-direction:column">
+                <div class="shot">
+                    <img src="img/incident.jpg" alt="Szczegóły incydentu w Command Center">
+                    <div class="callout" style="left:150px; top:168px"><i>A</i>Wynik 90%: 23 × problem, 3 × brak</div>
+                    <div class="callout" style="left:300px; top:330px"><i>B</i>Granica wyznaczona przez tłum</div>
+                    <div class="callout" style="right:40px; top:250px"><i>C</i>Komunikat do obszaru</div>
+                </div>
+                <div class="muted" style="font-size:14px; margin-top:10px">Szczegóły incydentu: mapa komórek, research AI, rozbicie wskaźnika, fale weryfikacji, akcje operatora.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ 09 ODPORNOŚĆ + BEZPIECZEŃSTWO ============ -->
+<section class="slide" data-section="Odporność i bezpieczeństwo">
+    <div class="body">
+        <h2>Działa, gdy <em>brakuje danych i&nbsp;usług.</em></h2>
+        <p class="lead" style="margin-top:16px">Każda zależność zewnętrzna ma plan B. Wrażliwe dane nie wychodzą poza panel.</p>
+        <div class="row" style="margin-top:28px; gap:44px; flex:1">
+            <div style="width:780px">
+                <div class="eyebrow red" style="margin-bottom:6px">Ciągłość działania</div>
+                <table class="deg">
+                    <tr><td>Brak sieci u obywatela</td><td>Paczka offline: schrony w&nbsp;okolicy, aktywne alerty, procedury krok po kroku, z&nbsp;datą ważności.</td></tr>
+                    <tr><td>Nie działają pushe</td><td>Aplikacja sama pobiera oczekujące pytania (ETag, 304), backend działa bez FCM.</td></tr>
+                    <tr><td>Brak AI lub klucza API</td><td>Research pominięty z&nbsp;wpisem w&nbsp;logu; potwierdzenia nadal z RSS i&nbsp;od operatora.</td></tr>
+                    <tr><td>Padło zewnętrzne API danych</td><td>Równoległe serwery zapasowe i&nbsp;lokalna kopia danych regionu.</td></tr>
+                    <tr><td>W komórce nikt nie odpowiada</td><td>Po dwóch falach komórka przestaje blokować granicę: brak ludzi to brak danych, nie „brak problemu”.</td></tr>
+                    <tr><td>Błąd przetwarzania</td><td>Asynchroniczne kolejki z&nbsp;ponowieniem i&nbsp;kolejką błędów do inspekcji.</td></tr>
+                </table>
+            </div>
+            <div class="grow">
+                <div class="eyebrow red" style="margin-bottom:14px">Bezpieczeństwo i prywatność</div>
+                <ul class="chk">
+                    <li><svg class="ico" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.7 3.2 9 7.5 10 4.3-1 7.5-5.3 7.5-10V6L12 3z"/></svg><span><b>Dwa poziomy szczegółowości.</b> Obywatel widzi poligon i&nbsp;poziom pewności, nigdy punktów zgłoszeń.</span></li>
+                    <li><svg class="ico" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12 20 3M16 7l3 3M13 10l2 2"/></svg><span><b>RBAC i&nbsp;audyt.</b> Trzy role, osobne strefy API, dziennik odczytów i&nbsp;pobrań zdjęć.</span></li>
+                    <li><svg class="ico" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span><b>Zdjęcia bez metadanych.</b> Re-enkodowanie usuwa EXIF i&nbsp;GPS.</span></li>
+                    <li><svg class="ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/></svg><span><b>Przeciw botom.</b> Limity zgłoszeń, reputacja urządzeń, werdykt „fałszywy alarm”. Docelowo mObywatel.</span></li>
+                    <li><svg class="ico" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5M5 10v10h14V10"/></svg><span><b>Dane w&nbsp;UE</b>, bez historii lokalizacji.</span></li>
+                </ul>
+                <div class="card" style="margin-top:28px; padding:20px 24px; border-left:4px solid var(--primary); font-size:19px; line-height:1.45">
+                    „Obywatel widzi obszar i&nbsp;poziom pewności. Operator widzi źródła. Ten sam system, dwa poziomy szczegółowości.”
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ 10 WDROŻENIE ============ -->
+<section class="slide" data-section="Gotowość wdrożenia">
+    <div class="body" style="padding-top:34px">
+        <div class="row" style="gap:40px; align-items:center">
+            <div class="grow">
+                <div class="kicker">Informacja buduje odporność</div>
+                <h2 style="margin-top:14px; font-size:84px; text-transform:uppercase">Tarcza Polska<em>.</em><br><em>Siła jest w nas.</em></h2>
+                <p class="lead" style="margin-top:14px; font-size:22px">Nie zastępujemy systemów alarmowych. Uzupełniamy je o&nbsp;lokalną, zweryfikowaną i&nbsp;aktualną informację.</p>
+            </div>
+            <img src="img/mark.png" alt="" style="width:230px; filter:drop-shadow(0 20px 50px rgba(224,38,47,.3))">
+        </div>
+        <div class="row" style="margin-top:26px; gap:16px">
+            <div class="card metric grow"><div class="v">15</div><div class="l">modułów domenowych<br>w modularnym monolicie</div></div>
+            <div class="card metric grow"><div class="v">38</div><div class="l">endpointów API<br>opisanych w OpenAPI</div></div>
+            <div class="card metric grow"><div class="v">11</div><div class="l">decyzji architektonicznych<br>spisanych jako ADR</div></div>
+            <div class="card metric grow"><div class="v">L8</div><div class="l">PHPStan, testy PHPUnit,<br>bramka <span class="mono">make qa</span></div></div>
+            <div class="card metric grow"><div class="v">1</div><div class="l">komenda do uruchomienia:<br><span class="mono">make up</span> (Docker)</div></div>
+        </div>
+        <div class="row" style="margin-top:16px; gap:16px">
+            <div class="card2" style="padding:18px 22px; width:700px">
+                <div class="eyebrow" style="margin-bottom:10px">Droga wdrożenia</div>
+                <div class="row" style="gap:10px; font-size:15px; line-height:1.4; color:var(--n700)">
+                    <div class="grow"><b class="red mono">01</b><br>Pilotaż: Poznań z&nbsp;miejskim CZK. Nowe miasto = 4 parametry i&nbsp;import danych.</div>
+                    <div class="grow"><b class="red mono">02</b><br>Integracje z&nbsp;operatorami energii, wodociągami, zarządcami dróg.</div>
+                    <div class="grow"><b class="red mono">03</b><br>Weryfikacja tożsamości przez mObywatel, usługa publiczna.</div>
+                </div>
+            </div>
+            <div class="card2 grow" style="padding:18px 22px; font-size:13.5px; line-height:1.5; color:var(--n600)">
+                <div class="eyebrow" style="margin-bottom:8px">Ujawnienie zasobów i AI</div>
+                Stos: Symfony 7.4, PostgreSQL/PostGIS, H3, Redis, Mercure, FrankenPHP, MapLibre, Flutter. Dane: OpenStreetMap (ODbL), dane.gov.pl „Punkty schronienia”, OpenFreeMap. AI w&nbsp;produkcie: OpenAI GPT-5 lub Claude (research, analiza zdjęć). Przy kodzie i&nbsp;dokumentacji korzystaliśmy z&nbsp;asystentów AI; każdą decyzję uzasadniają ADR w&nbsp;repozytorium.
+                <div class="mono" style="margin-top:6px; color:var(--n700)">github.com/bc-soft/tarcza-polska-backend</div>
+            </div>
+        </div>
+        <div class="card" style="margin-top:auto; margin-bottom:24px; padding:14px 22px; display:flex; align-items:center; gap:16px; font-family:var(--mono); font-size:13.5px; color:var(--n700); letter-spacing:.02em">
+            <span class="eyebrow red">Architektura</span>
+            <span>Zgłoszenie</span><span class="red">→</span><span>Messenger / Redis</span><span class="red">→</span><span>klastrowanie PostGIS + H3</span><span class="red">→</span><span>fale weryfikacji</span><span class="red">→</span><span>wskaźnik</span><span class="red">→</span><span>Mercure + push FCM</span>
+        </div>
+    </div>
+</section>
+
+</div>
+
+<div id="nav"><button id="prev" aria-label="Poprzedni slajd">←</button><button id="next" aria-label="Następny slajd">→</button></div>
+
+<script>
+// Wspólna rama slajdów: nagłówek z marką i sekcją, stopka z numerem.
+const slides = [...document.querySelectorAll('.slide')];
+slides.forEach((s, i) => {
+    s.insertAdjacentHTML('afterbegin', `<header class="top"><div class="brand"><img src="img/mark.png" alt="">Tarcza Polska</div><div class="section">${s.dataset.section}</div></header>`);
+    s.insertAdjacentHTML('beforeend', `<footer class="foot"><span>Odporność cywilna · wspólny obraz sytuacji</span><span>${String(i + 1).padStart(2, '0')} / ${slides.length}</span></footer>`);
+});
+
+// Siatka heksagonów (pointy-top, offset rows).
+const SVGNS = 'http://www.w3.org/2000/svg';
+function hexPath(cx, cy, r) {
+    return Array.from({length: 6}, (_, k) => { const a = Math.PI / 180 * (60 * k - 30); return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`; }).join(' ');
+}
+function el(name, attrs, parent) { const e = document.createElementNS(SVGNS, name); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); parent.appendChild(e); return e; }
+// Odległość heksagonalna w układzie offset "odd-r".
+function cube(col, row) { const x = col - (row - (row & 1)) / 2; return [x, row, -x - row]; }
+function dist(a, b) { const p = cube(...a), q = cube(...b); return Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]), Math.abs(p[2] - q[2])); }
+
+function drawGrid(svg, {cols, rows, r, ox, oy, state}) {
+    const w = Math.sqrt(3) * r, h = 1.5 * r;
+    for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
+        const cx = ox + col * w + (row & 1 ? w / 2 : 0), cy = oy + row * h;
+        const st = state(col, row);
+        const styles = {
+            pos: {fill: 'rgba(224,38,47,.55)', stroke: '#E0262F', 'stroke-width': 1.5},
+            neg: {fill: 'rgba(46,184,114,.28)', stroke: '#2EB872', 'stroke-width': 1.2},
+            ask: {fill: 'rgba(196,200,207,.10)', stroke: '#C4C8CF', 'stroke-width': 1.5, 'stroke-dasharray': '5 4'},
+            idle: {fill: 'rgba(255,255,255,.025)', stroke: '#2B2F35', 'stroke-width': 1},
+        }[st];
+        el('polygon', {points: hexPath(cx, cy, r - 1.5), ...styles}, svg);
+    }
+}
+
+// Slajd 4: wynik kilku fal; środek (5,4).
+(() => {
+    const svg = document.getElementById('acm');
+    const c = [5, 4];
+    const pos = new Set(['5,4', '4,4', '6,4', '4,3', '5,3', '5,5', '4,5', '6,3', '3,4', '6,5', '5,2', '7,4']);
+    const neg = new Set(['2,4', '3,2', '2,3', '8,4', '8,3', '7,6', '3,6', '6,1', '4,7', '7,2']);
+    drawGrid(svg, {cols: 12, rows: 9, r: 34, ox: 40, oy: 50, state: (col, row) => {
+        const k = col + ',' + row;
+        if (pos.has(k)) return 'pos';
+        if (neg.has(k)) return 'neg';
+        const d = dist([col, row], c);
+        if (d <= 3 && [...pos].some(p => dist(p.split(',').map(Number), [col, row]) === 1)) return 'ask';
+        return 'idle';
+    }});
+    const w = Math.sqrt(3) * 34;
+    const at = (col, row) => [40 + col * w + (row & 1 ? w / 2 : 0), 50 + row * 51];
+    [[5,4,-8,6],[4,3,10,-4],[6,4,4,10],[5,5,-6,-8],[4,4,6,4]].forEach(([col,row,dx,dy]) => { const [x,y] = at(col,row); el('circle', {cx: x + dx, cy: y + dy, r: 6, fill: '#E8A33A', stroke: '#0D0E10', 'stroke-width': 2}, svg); });
+    const [x0, y0] = at(5, 4);
+    el('circle', {cx: x0, cy: y0, r: 16, fill: 'none', stroke: '#fff', 'stroke-width': 1.5}, svg);
+    el('path', {d: `M${x0-24},${y0}h48M${x0},${y0-24}v48`, stroke: '#fff', 'stroke-width': 1.2}, svg);
+})();
+
+// Slajd 1: tło z mapą monitoringu.
+(() => {
+    const svg = document.getElementById('hero-map');
+    const pos = new Set(['4,3','5,3','3,4','4,4','5,4','4,5','5,5','3,3','6,4']);
+    drawGrid(svg, {cols: 10, rows: 9, r: 40, ox: 30, oy: 40, state: (col, row) => pos.has(col + ',' + row) ? 'pos' : ([2,3,4,5,6,7].includes(col) && [2,3,4,5,6].includes(row) && (col * 7 + row * 3) % 5 < 2 ? 'ask' : 'idle')});
+    [[90,80],[640,120],[600,430],[110,520],[680,300]].forEach(([x,y]) => { el('circle', {cx: x, cy: y, r: 22, fill: 'none', stroke: 'rgba(224,38,47,.4)'}, svg); el('circle', {cx: x, cy: y, r: 12, fill: '#E0262F'}, svg); el('circle', {cx: x, cy: y, r: 3.5, fill: '#fff'}, svg); });
+})();
+
+// Mini-mapa w telefonie.
+document.querySelectorAll('.mini-map').forEach(svg => {
+    const pos = new Set(['3,2','4,2','3,3','4,3','2,3','3,4']);
+    drawGrid(svg, {cols: 8, rows: 7, r: 19, ox: 10, oy: 14, state: (col, row) => pos.has(col + ',' + row) ? 'pos' : (['2,2','5,2','5,3','2,4','4,4'].includes(col + ',' + row) ? 'ask' : 'idle')});
+    el('circle', {cx: 150, cy: 110, r: 7, fill: '#5B8DEF', stroke: '#fff', 'stroke-width': 2.5}, svg);
+});
+
+// Nawigacja: strzałki, spacja, PageUp/PageDown, Home/End, #numer w URL.
+let cur = Math.min(Math.max(parseInt(location.hash.slice(1), 10) || 1, 1), slides.length) - 1;
+function show(i) {
+    cur = Math.min(Math.max(i, 0), slides.length - 1);
+    slides.forEach((s, k) => s.classList.toggle('active', k === cur));
+    history.replaceState(null, '', '#' + (cur + 1));
+}
+function fit() { const s = Math.min(innerWidth / 1600, innerHeight / 900); document.documentElement.style.setProperty('--s', s); }
+addEventListener('resize', fit); fit(); show(cur);
+addEventListener('keydown', e => {
+    if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); show(cur + 1); }
+    if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); show(cur - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+});
+document.getElementById('prev').onclick = () => show(cur - 1);
+document.getElementById('next').onclick = () => show(cur + 1);
+let tx = null;
+addEventListener('touchstart', e => tx = e.touches[0].clientX, {passive: true});
+addEventListener('touchend', e => { if (tx === null) return; const dx = e.changedTouches[0].clientX - tx; if (Math.abs(dx) > 40) show(cur + (dx < 0 ? 1 : -1)); tx = null; });
+</script>
+</body>
+</html>
