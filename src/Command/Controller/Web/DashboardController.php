@@ -8,6 +8,8 @@ use App\Alerting\Entity\Alert;
 use App\Alerting\Repository\AlertRepository;
 use App\Alerting\View\AlertView;
 use App\Command\View\IncidentCommandView;
+use App\Fuel\Repository\FuelStationRepository;
+use App\Fuel\View\FuelStationView;
 use App\Identity\Repository\DeviceRepository;
 use App\Incident\Repository\IncidentRepository;
 use App\Reporting\Repository\ReportRepository;
@@ -31,7 +33,7 @@ final class DashboardController extends AbstractController
     }
 
     #[Route('', name: 'command_dashboard', methods: ['GET'])]
-    public function dashboard(DeviceRepository $devices, ReportRepository $reports, AlertRepository $alerts, ShelterRepository $shelters): Response
+    public function dashboard(DeviceRepository $devices, ReportRepository $reports, AlertRepository $alerts, ShelterRepository $shelters, FuelStationRepository $fuelStations): Response
     {
         $open = $this->incidents->findOpen();
         $shelterCounts = $shelters->countByStatus();
@@ -41,6 +43,7 @@ final class DashboardController extends AbstractController
             'alerts' => $alerts->findRecent(8),
             'alertFeatures' => array_map(AlertView::toFeature(...), array_values(array_filter($alerts->findRecent(50), static fn (Alert $a) => $a->isActive()))),
             'shelterFeatures' => array_map(ShelterView::toFeature(...), $shelters->findAllOrdered()),
+            'fuelFeatures' => array_map(FuelStationView::toFeature(...), $fuelStations->findAllOrdered()),
             'stats' => [
                 'activeDevices24h' => $devices->countActive(24),
                 'reportsLastHour' => $reports->countSince(new DateTimeImmutable('-1 hour')),

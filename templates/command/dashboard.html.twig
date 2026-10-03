@@ -42,6 +42,7 @@
                 <div class="flex items-center gap-1 rounded-full bg-surface-3/95 shadow-card p-1 pointer-events-auto" id="layer-toggles">
                     <button type="button" data-layer="incidents" class="chip-on">{{ ui.icon('hex', 'w-3.5 h-3.5') }}Incydenty</button>
                     <button type="button" data-layer="shelters" class="chip-off">{{ ui.icon('home', 'w-3.5 h-3.5') }}Schrony</button>
+                    <button type="button" data-layer="fuel" class="chip-off">{{ ui.icon('fuel', 'w-3.5 h-3.5') }}Stacje paliw</button>
                     <button type="button" data-layer="alerts" class="chip-off">{{ ui.icon('bell', 'w-3.5 h-3.5') }}Komunikaty</button>
                 </div>
                 <div class="hidden items-center gap-1 rounded-full bg-surface-3/95 shadow-card p-1 pointer-events-auto" id="shelter-filters">
@@ -87,6 +88,7 @@
     const incidents = {{ incidents|json_encode|raw }};
     const shelterFeatures = {{ shelterFeatures|json_encode|raw }};
     const alertFeatures = {{ alertFeatures|json_encode|raw }};
+    const fuelFeatures = {{ fuelFeatures|json_encode|raw }};
     const {levelColor, severityColor, esc} = window.TARCZA;
     const levelLabel = {unverified: 'Niezweryfikowane', likely: 'Prawdopodobne', high: 'Wysoka pewność', confirmed: 'Potwierdzone'};
     const statusLabel = {detected: 'Wykryty', verifying: 'Weryfikacja', active: 'Aktywny', resolved: 'Zamknięty'};
@@ -97,6 +99,8 @@
     const shelterColor = {free: '#15803D', full: '#D97706', closed: '#D4213D', unknown: '#8A93A8'};
     shelterFeatures.forEach(f => f.properties.bucket = shelterBucket(f.properties));
     const shelterBuckets = new Set(Object.keys(shelterColor));
+    // Map feature properties must be flat: pre-render the per-fuel availability for the tooltip.
+    fuelFeatures.forEach(f => f.properties.fuelsHtml = f.properties.fuels.map(x => `${esc(x.label)}: ${esc(x.statusLabel)}`).join('<br>'));
 
     const map = window.TARCZA.autosize(new maplibregl.Map({container: 'map', style: window.TARCZA.mapStyle, center: [{{ region.center.lng }}, {{ region.center.lat }}], zoom: 11.5, attributionControl: false}));
     map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
@@ -142,12 +146,18 @@
             'circle-color': ['match', ['get', 'bucket'], ...Object.entries(shelterColor).flat(), '#8A93A8'],
             'circle-radius': 6, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2}});
 
+        map.addSource('fuel', {type: 'geojson', data: {type: 'FeatureCollection', features: fuelFeatures}});
+        map.addLayer({id: 'fuel-point', type: 'circle', source: 'fuel', layout: {visibility: 'none'}, paint: {
+            'circle-color': ['case', ['get', 'shortage'], '#D4213D', '#14213D'],
+            'circle-radius': 5, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
+
         map.addSource('alerts', {type: 'geojson', data: {type: 'FeatureCollection', features: alertFeatures}});
         map.addLayer({id: 'alert-fill', type: 'fill', source: 'alerts', layout: {visibility: 'none'}, paint: {'fill-color': ['match', ['get', 'severity'], 'danger', severityColor.danger, 'warning', severityColor.warning, severityColor.info], 'fill-opacity': 0.12}});
         map.addLayer({id: 'alert-line', type: 'line', source: 'alerts', layout: {visibility: 'none'}, paint: {'line-color': ['match', ['get', 'severity'], 'danger', severityColor.danger, 'warning', severityColor.warning, severityColor.info], 'line-width': 2, 'line-dasharray': [3, 2]}});
 
         ['incident-fill', 'incident-point'].forEach(layer => map.on('click', layer, e => window.location = `/command/incidents/${e.features[0].properties.id}`));
         window.TARCZA.hover(map, [
+            {layers: ['fuel-point'], html: p => `<b>${esc(p.name)}</b>${p.address ? '<br>' + esc(p.address) : ''}${p.fuelsHtml ? '<br>' + p.fuelsHtml : ''}${p.shortage ? '<br><b style="color:#D4213D">Zgłoszone braki paliwa</b>' : ''}`},
             {layers: ['shelter-point'], html: p => `<b>${esc(p.name)}</b>${p.address ? '<br>' + esc(p.address) : ''}<br>${esc(p.statusLabel)} · ${esc(p.occupancyLabel)}<br>pojemność ${esc(p.capacity ?? '—')} · potwierdzeń ${esc(p.confirmationCount)}`},
             {layers: ['incident-point', 'incident-fill'], html: p => `<b>${esc(p.label)}</b>${p.poi ? '<br>' + esc(p.poi) : ''}<br>${esc(p.status)} · ${esc(levelLabel[p.level])} ${Math.round(p.score * 100)}%<br>${p.reports} zgłoszeń · ${p.answers} odp.${p.agreement !== '' ? ' · ' + p.agreement + '% zgodności' : ''}<br><span style="color:#5B6478">Kliknij, aby otworzyć</span>`},
             {layers: ['alert-fill'], html: p => `<b>${esc(p.title)}</b><br>${esc(p.body)}<br><span style="color:#5B6478">wygasa ${new Date(p.expiresAt).toLocaleString('pl-PL', {dateStyle: 'short', timeStyle: 'short'})}</span>`},
@@ -163,7 +173,7 @@
         document.querySelectorAll('#type-filters button').forEach(b => b.className = b === btn ? 'chip-on' : 'chip-off');
         renderList(); refreshMap();
     });
-    const layerIds = {incidents: ['incident-fill', 'incident-line', 'incident-point'], shelters: ['shelter-point'], alerts: ['alert-fill', 'alert-line']};
+    const layerIds = {incidents: ['incident-fill', 'incident-line', 'incident-point'], shelters: ['shelter-point'], fuel: ['fuel-point'], alerts: ['alert-fill', 'alert-line']};
     document.getElementById('layer-toggles').addEventListener('click', e => {
         const btn = e.target.closest('button[data-layer]'); if (!btn) return;
         const on = btn.classList.contains('chip-off');
