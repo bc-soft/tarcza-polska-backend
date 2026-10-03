@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarcza Polska – scena 1</title>
+<link rel="icon" type="image/png" href="img/mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&display=swap" rel="stylesheet">
+<style>
+/* Scena 1 filmu: dwa hasła u góry, pod nimi telefon (lewo) i laptop (prawo).
+   Klik / spacja / R odtwarza od nowa; ?delay=2 opóźnia start (sekundy). Kadr projektowany pod 16:9. */
+:root {
+    --canvas: #0D0E10; --primary: #E0262F; --n: #F1F2F4; --delay: 0.6s;
+    /* Obrót telefonu: roll (Z) i yaw (Y) w prawą stronę. */
+    --phone-roll: 8deg; --phone-yaw: -24deg;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; cursor: none; }
+body {
+    background-color: var(--canvas);
+    background-image: linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+    background-size: 56px 56px; background-position: center;
+    color: var(--n);
+}
+.bar { position: fixed; z-index: 2; inset: 0 auto 0 0; width: 8px; background: var(--primary); }
+.vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 35%, rgba(5,5,6,.85) 100%); }
+
+.titles { position: absolute; top: 7vh; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 1.6vh; z-index: 1; }
+.title { font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 6.6vh; line-height: 1; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; opacity: 0; clip-path: inset(0 100% 0 0); }
+.title em { font-style: normal; color: var(--primary); }
+
+.devices { position: absolute; top: 27vh; bottom: 4vh; left: 0; right: 0; perspective: 1400px; }
+.device { position: absolute; top: 50%; opacity: 0; }
+.phone { left: 27%; height: 60vh; transform: translate(-50%, -50%) rotateZ(var(--phone-roll)) rotateY(var(--phone-yaw)); filter: drop-shadow(-2vh 3vh 4vh rgba(0,0,0,.7)); }
+.laptop { left: 65%; width: 52vw; transform: translate(-50%, -50%); filter: drop-shadow(0 3vh 5vh rgba(0,0,0,.75)); }
+/* Czerwona poświata pod urządzeniami, jak przy logo w intro. */
+.halo { position: absolute; top: 50%; width: 40vh; height: 40vh; border-radius: 50%; transform: translate(-50%, -50%) scale(.6);
+    background: radial-gradient(circle, rgba(224,38,47,.28), rgba(224,38,47,0) 65%); filter: blur(10px); opacity: 0; }
+.halo.p { left: 27%; }
+.halo.l { left: 65%; width: 70vh; height: 50vh; }
+
+.play .t1 { animation: reveal .9s cubic-bezier(.7,0,.2,1) var(--delay) forwards; }
+.play .phone { animation: phoneIn 1.3s cubic-bezier(.16,1,.3,1) calc(var(--delay) + .6s) forwards; }
+.play .halo.p { animation: halo 1.6s ease-out calc(var(--delay) + 1s) forwards; }
+.play .t2 { animation: reveal .9s cubic-bezier(.7,0,.2,1) calc(var(--delay) + 2.4s) forwards; }
+.play .laptop { animation: laptopIn 1.3s cubic-bezier(.16,1,.3,1) calc(var(--delay) + 3s) forwards; }
+.play .halo.l { animation: halo 1.6s ease-out calc(var(--delay) + 3.4s) forwards; }
+
+@keyframes reveal { 0% { opacity: 1; clip-path: inset(0 100% 0 0); } 100% { opacity: 1; clip-path: inset(0 0 0 0); } }
+@keyframes phoneIn {
+    0% { opacity: 0; transform: translate(calc(-50% - 60vw), -50%) rotateZ(calc(var(--phone-roll) - 14deg)) rotateY(calc(var(--phone-yaw) - 30deg)); }
+    40% { opacity: 1; }
+    100% { opacity: 1; transform: translate(-50%, -50%) rotateZ(var(--phone-roll)) rotateY(var(--phone-yaw)); }
+}
+@keyframes laptopIn {
+    0% { opacity: 0; transform: translate(calc(-50% + 60vw), -50%); }
+    40% { opacity: 1; }
+    100% { opacity: 1; transform: translate(-50%, -50%); }
+}
+@keyframes halo { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .play * { animation-duration: .01s !important; animation-delay: 0s !important; }
+}
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<div class="vignette"></div>
+<div class="titles">
+    <h1 class="title t1">Natychmiastowa <em>agregacja zgłoszeń</em></h1>
+    <h1 class="title t2">Natychmiastowa <em>weryfikacja</em></h1>
+</div>
+<div class="devices">
+    <div class="halo p"></div>
+    <div class="halo l"></div>
+    <img class="device phone" src="img/phone_ph.png" alt="Aplikacja Tarcza Citizen">
+    <img class="device laptop" src="img/laptop_ph.png" alt="Panel Tarcza Command">
+</div>
+<script>
+const delay = parseFloat(new URLSearchParams(location.search).get('delay'));
+if (!Number.isNaN(delay)) document.documentElement.style.setProperty('--delay', delay + 's');
+
+function play() {
+    document.body.classList.remove('play');
+    void document.body.offsetWidth; // restart animacji
+    document.body.classList.add('play');
+}
+// Start po załadowaniu fontu i obrazków, żeby nic nie mignęło w trakcie nagrania.
+const images = [...document.images].map(img => new Promise(r => { img.complete ? r() : (img.onload = img.onerror = r); }));
+Promise.all([document.fonts.ready, ...images]).then(play);
+addEventListener('click', play);
+addEventListener('keydown', e => { if (e.key === ' ' || e.key.toLowerCase() === 'r') { e.preventDefault(); play(); } });
+</script>
+</body>
+</html>
