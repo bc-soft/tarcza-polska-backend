@@ -9,6 +9,7 @@ use App\Reporting\Dto\CreateReportRequest;
 use App\Reporting\Entity\Report;
 use App\Reporting\Enum\ReportType;
 use App\Reporting\Service\ReportSubmitter;
+use App\Reporting\View\ReportStatusView;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -40,11 +41,7 @@ final class ReportController extends AbstractController
 
         $report = $submitter->submit($device, $request);
 
-        return new JsonResponse([
-            'reportId' => $report->getId()->toRfc4122(),
-            'h3Cell' => $report->getH3Cell(),
-            'createdAt' => $report->getCreatedAt()->format(\DATE_ATOM),
-        ], Response::HTTP_ACCEPTED);
+        return new JsonResponse(ReportStatusView::accepted($report), Response::HTTP_ACCEPTED);
     }
 
     #[Route('/types', name: 'api_report_types', methods: ['GET'])]
@@ -67,23 +64,6 @@ final class ReportController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $incident = $report->getIncident();
-
-        return new JsonResponse([
-            'reportId' => $report->getId()->toRfc4122(),
-            'type' => $report->getType()->value,
-            'typeLabel' => $report->getType()->label(),
-            'createdAt' => $report->getCreatedAt()->format(\DATE_ATOM),
-            'incident' => null === $incident ? null : [
-                'id' => $incident->getId()->toRfc4122(),
-                'type' => $incident->getType()->value,
-                'typeLabel' => $incident->getType()->label(),
-                'status' => $incident->getStatus()->value,
-                'statusLabel' => $incident->getStatus()->label(),
-                'confidenceLevel' => $incident->getConfidenceLevel()->value,
-                'confidenceLabel' => $incident->getConfidenceLevel()->label(),
-                'confidenceScore' => round($incident->getConfidenceScore(), 2),
-            ],
-        ]);
+        return new JsonResponse(ReportStatusView::toArray($report));
     }
 }

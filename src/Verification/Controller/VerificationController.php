@@ -11,6 +11,7 @@ use App\Verification\Dto\RespondRequest;
 use App\Verification\Entity\VerificationRequest;
 use App\Verification\Repository\VerificationRequestRepository;
 use App\Verification\Service\VerificationResponder;
+use App\Verification\View\VerificationQuestionView;
 use DateTimeImmutable;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
@@ -37,7 +38,7 @@ final class VerificationController
     #[OA\Response(response: 200, description: 'List of pending questions')]
     public function pending(#[CurrentUser] Device $device, Request $httpRequest): JsonResponse
     {
-        return ConditionalJsonResponse::create($httpRequest, array_map(self::toArray(...), $this->requests->findPendingForDevice($device)));
+        return ConditionalJsonResponse::create($httpRequest, array_map(VerificationQuestionView::toArray(...), $this->requests->findPendingForDevice($device)));
     }
 
     #[Route('/{id}', name: 'api_verification_show', methods: ['GET'])]
@@ -47,7 +48,7 @@ final class VerificationController
     {
         $this->assertOwner($device, $request);
 
-        return new JsonResponse(self::toArray($request));
+        return new JsonResponse(VerificationQuestionView::toArray($request));
     }
 
     #[Route('/{id}/response', name: 'api_verification_respond', methods: ['POST'])]
@@ -68,11 +69,7 @@ final class VerificationController
 
         $this->responder->respond($request, $body->answer);
 
-        return new JsonResponse([
-            'verificationId' => $request->getId()->toRfc4122(),
-            'incidentId' => $request->getIncident()->getId()->toRfc4122(),
-            'thanks' => 'Dziękujemy. Twoja odpowiedź pomaga wyznaczyć zasięg problemu.',
-        ]);
+        return new JsonResponse(VerificationQuestionView::result($request));
     }
 
     private function assertOwner(Device $device, VerificationRequest $request): void
@@ -80,22 +77,5 @@ final class VerificationController
         if ($request->getDevice()->getId()->toRfc4122() !== $device->getId()->toRfc4122()) {
             throw new NotFoundHttpException();
         }
-    }
-
-    /** @return array<string, mixed> */
-    private static function toArray(VerificationRequest $r): array
-    {
-        return [
-            'verificationId' => $r->getId()->toRfc4122(),
-            'incidentId' => $r->getIncident()->getId()->toRfc4122(),
-            'type' => $r->getIncident()->getType()->value,
-            'typeLabel' => $r->getIncident()->getType()->label(),
-            'question' => $r->getQuestion(),
-            'context' => \sprintf('W Twojej okolicy zgłoszono: %s.', mb_strtolower($r->getIncident()->getType()->label())),
-            'options' => ['yes', 'no', 'unknown'],
-            'sentAt' => $r->getSentAt()->format(\DATE_ATOM),
-            'expiresAt' => $r->getExpiresAt()->format(\DATE_ATOM),
-            'answered' => $r->isAnswered(),
-        ];
     }
 }

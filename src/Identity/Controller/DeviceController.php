@@ -11,6 +11,7 @@ use App\Identity\Dto\UpdatePushTokenRequest;
 use App\Identity\Entity\Device;
 use App\Identity\Enum\LocationSource;
 use App\Identity\Service\DeviceRegistrar;
+use App\Identity\View\DeviceProfileView;
 use App\Shared\Geo\H3;
 use App\Shared\Geo\Point;
 use Doctrine\ORM\EntityManagerInterface;
@@ -56,16 +57,7 @@ final class DeviceController extends AbstractController
     #[OA\Response(response: 200, description: 'Device')]
     public function me(#[CurrentUser] Device $device): JsonResponse
     {
-        return new JsonResponse([
-            'deviceId' => $device->getId()->toRfc4122(),
-            'platform' => $device->getPlatform(),
-            'hasPushToken' => null !== $device->getPushToken(),
-            'lastLocation' => $device->getLastLocation()?->toGeoJson(),
-            'h3Cell' => $device->getH3Cell(),
-            'locationUpdatedAt' => $device->getLocationUpdatedAt()?->format(\DATE_ATOM),
-            'locationSource' => $device->getLocationSource()?->value,
-            'preferences' => ['locationRefresh' => $device->isLocationRefreshEnabled()],
-        ]);
+        return new JsonResponse(DeviceProfileView::toArray($device));
     }
 
     #[Route('/me/location', name: 'api_device_location', methods: ['PUT'])]
