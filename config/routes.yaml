@@ -1,0 +1,6 @@
+# Controllers live inside their modules (src/<Module>/Controller).
+controllers:
+    resource:
+        path: ../src/
+        namespace: App
+    type: attribute

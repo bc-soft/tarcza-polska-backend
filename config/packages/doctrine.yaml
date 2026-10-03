@@ -1,0 +1,88 @@
+doctrine:
+    dbal:
+        url: '%env(resolve:DATABASE_URL)%'
+        profiling_collect_backtrace: '%kernel.debug%'
+        # PostGIS / H3 own these objects, keep them out of schema diffs
+        schema_filter: '~^(?!(spatial_ref_sys|geography_columns|geometry_columns|raster_columns|raster_overviews|topology|layer))~'
+        types:
+            geo_point: App\Shared\Doctrine\Type\GeoPointType
+            geo_geometry: App\Shared\Doctrine\Type\GeoGeometryType
+        mapping_types:
+            geometry: geo_geometry
+            geography: geo_geometry
+    orm:
+        validate_xml_mapping: true
+        naming_strategy: doctrine.orm.naming_strategy.underscore
+        identity_generation_preferences:
+            Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
+        auto_mapping: true
+        mappings:
+            Identity:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Identity/Entity'
+                prefix: 'App\Identity\Entity'
+            Reporting:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Reporting/Entity'
+                prefix: 'App\Reporting\Entity'
+            Incident:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Incident/Entity'
+                prefix: 'App\Incident\Entity'
+            Verification:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Verification/Entity'
+                prefix: 'App\Verification\Entity'
+            Intelligence:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Intelligence/Entity'
+                prefix: 'App\Intelligence\Entity'
+            Alerting:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Alerting/Entity'
+                prefix: 'App\Alerting\Entity'
+            Shelter:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Shelter/Entity'
+                prefix: 'App\Shelter\Entity'
+            Audit:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Audit/Entity'
+                prefix: 'App\Audit\Entity'
+            Simulation:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Simulation/Entity'
+                prefix: 'App\Simulation\Entity'
+
+when@test:
+    doctrine:
+        dbal:
+            # "TEST_TOKEN" is typically set by ParaTest
+            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+
+when@prod:
+    doctrine:
+        orm:
+            query_cache_driver:
+                type: pool
+                pool: doctrine.system_cache_pool
+            result_cache_driver:
+                type: pool
+                pool: doctrine.result_cache_pool
+
+    framework:
+        cache:
+            pools:
+                doctrine.result_cache_pool:
+                    adapter: cache.app
+                doctrine.system_cache_pool:
+                    adapter: cache.system

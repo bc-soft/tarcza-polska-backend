@@ -1,0 +1,31 @@
+nelmio_api_doc:
+    documentation:
+        info:
+            title: Tarcza Polska API
+            description: |
+                Backend for the Tarcza Polska civil resilience platform.
+
+                * `/api/v1/*` - Citizen mobile app (Flutter). Authenticate with the JWT returned by `POST /api/v1/devices`.
+                * `/api/command/*` - Command Center. Authenticate with the JWT returned by `POST /api/command/login`.
+
+                All spatial payloads are GeoJSON (WGS84, `[lng, lat]` order).
+            version: 1.0.0
+        components:
+            securitySchemes:
+                Bearer:
+                    type: http
+                    scheme: bearer
+                    bearerFormat: JWT
+        security:
+            - Bearer: []
+        tags:
+            - { name: Devices, description: Anonymous device identity and location }
+            - { name: Reports, description: Citizen reports (DETECT) }
+            - { name: Incidents, description: Public incident view and map }
+            - { name: Verification, description: Active crowd verification prompts (VERIFY / MAP) }
+            - { name: Alerts, description: Area alerts for citizens (INFORM) }
+            - { name: Shelters, description: Shelter map and status confirmations }
+            - { name: Command, description: Operator endpoints }
+    areas:
+        path_patterns:
+            - ^/api(?!/doc$)

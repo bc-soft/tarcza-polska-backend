@@ -1,0 +1,89 @@
+security:
+    password_hashers:
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_OPERATOR]
+        ROLE_OPERATOR: [ROLE_ANALYST]
+        ROLE_ANALYST: []
+
+    providers:
+        # Citizen app: anonymous device identity, JWT subject = device uuid
+        app_device:
+            entity:
+                class: App\Identity\Entity\Device
+                property: id
+        # Command Center: named operators with roles
+        app_operator:
+            entity:
+                class: App\Identity\Entity\Operator
+                property: email
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js|assets)/
+            security: false
+
+        api_doc:
+            pattern: ^/api/doc
+            security: false
+
+        # POST /api/command/login {email, password} -> {token}
+        command_login:
+            pattern: ^/api/command/login
+            stateless: true
+            provider: app_operator
+            json_login:
+                check_path: /api/command/login
+                username_path: email
+                password_path: password
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+        api_command:
+            pattern: ^/api/command
+            stateless: true
+            provider: app_operator
+            jwt: ~
+
+        api_citizen:
+            pattern: ^/api/v1
+            stateless: true
+            provider: app_device
+            jwt: ~
+
+        # Twig Command Center (session based, same operator accounts)
+        command_web:
+            pattern: ^/command
+            lazy: true
+            provider: app_operator
+            form_login:
+                login_path: command_login
+                check_path: command_login
+                default_target_path: command_dashboard
+                enable_csrf: true
+            logout:
+                path: command_logout
+                target: command_login
+
+        main:
+            lazy: true
+            provider: app_operator
+
+    access_control:
+        - { path: ^/api/v1/devices$, methods: [POST], roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1/health$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1, roles: ROLE_CITIZEN }
+        - { path: ^/api/command/login, roles: PUBLIC_ACCESS }
+        - { path: ^/api/command, roles: ROLE_ANALYST }
+        - { path: ^/command/login, roles: PUBLIC_ACCESS }
+        - { path: ^/command, roles: ROLE_ANALYST }
+
+when@test:
+    security:
+        password_hashers:
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4
+                time_cost: 3
+                memory_cost: 10

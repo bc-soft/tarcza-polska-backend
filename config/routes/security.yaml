@@ -1,0 +1,8 @@
+_security_logout:
+    resource: security.route_loader.logout
+    type: service
+
+# Intercepted by the "command_login" firewall (json_login); the controller is never reached.
+api_command_login:
+    path: /api/command/login
+    methods: [POST]

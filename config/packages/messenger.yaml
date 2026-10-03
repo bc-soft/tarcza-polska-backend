@@ -1,0 +1,32 @@
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    # Redis: a message claimed by a crashed worker is handed to another one after 2 min (default 1 h)
+                    redeliver_timeout: 120
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
+            failed: 'doctrine://default?queue_name=failed'
+
+        routing:
+            # Every message under a module's Message\ namespace is asynchronous.
+            # Domain events (ReportCreated, IncidentUpdated, ...) and commands (ResearchIncident, ...) alike.
+            'App\Reporting\Message\*': async
+            'App\Incident\Message\*': async
+            'App\Verification\Message\*': async
+            'App\Confidence\Message\*': async
+            'App\Intelligence\Message\*': async
+            'App\Alerting\Message\*': async
+            'App\Simulation\Message\*': async
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                async: 'in-memory://'
+                failed: 'in-memory://'

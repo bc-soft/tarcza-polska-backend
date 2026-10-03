@@ -1,0 +1,4 @@
+# Symfony Scheduler is consumed by the worker: messenger:consume async scheduler_tarcza
+# The schedule itself is declared in App\Shared\Scheduler\TarczaSchedule.
+framework:
+    lock: '%env(LOCK_DSN)%'

@@ -1,0 +1,41 @@
+parameters:
+    app.h3_resolution: '%env(int:H3_RESOLUTION)%'
+    app.incident.cluster_radius_m: '%env(int:INCIDENT_CLUSTER_RADIUS_M)%'
+    app.incident.cluster_window_min: '%env(int:INCIDENT_CLUSTER_WINDOW_MIN)%'
+    app.verification.wave_ttl_sec: '%env(int:VERIFICATION_WAVE_TTL_SEC)%'
+    app.verification.max_ring: '%env(int:VERIFICATION_MAX_RING)%'
+    app.verification.devices_per_cell: '%env(int:VERIFICATION_DEVICES_PER_CELL)%'
+    app.verification.cooldown_min: '%env(int:VERIFICATION_COOLDOWN_MIN)%'
+    app.anthropic.api_key: '%env(ANTHROPIC_API_KEY)%'
+    app.anthropic.model: '%env(ANTHROPIC_MODEL)%'
+    app.firebase.credentials: '%env(FIREBASE_CREDENTIALS)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            int $h3Resolution: '%app.h3_resolution%'
+            int $clusterRadiusMeters: '%app.incident.cluster_radius_m%'
+            int $clusterWindowMinutes: '%app.incident.cluster_window_min%'
+            int $waveTtlSeconds: '%app.verification.wave_ttl_sec%'
+            int $maxRing: '%app.verification.max_ring%'
+            int $devicesPerCell: '%app.verification.devices_per_cell%'
+            int $cooldownMinutes: '%app.verification.cooldown_min%'
+            string $anthropicApiKey: '%app.anthropic.api_key%'
+            string $anthropicModel: '%app.anthropic.model%'
+            string $firebaseCredentials: '%app.firebase.credentials%'
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Kernel.php'
+            - '../src/**/Entity/'
+            - '../src/**/Dto/'
+            - '../src/**/Message/'
+            - '../src/**/Model/'
+            - '../src/**/Enum/'
+
+    # Push delivery: FCM when FIREBASE_CREDENTIALS is set, otherwise a logging no-op sender.
+    App\Notification\PushSenderInterface:
+        factory: ['@App\Notification\PushSenderFactory', 'create']

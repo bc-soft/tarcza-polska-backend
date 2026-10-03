@@ -1,0 +1,12 @@
+framework:
+    rate_limiter:
+        # One device may file at most 10 reports per 10 minutes (anti-spam / anti-flood)
+        report_submission:
+            policy: sliding_window
+            limit: 10
+            interval: '10 minutes'
+        # Location pings: generous, but bounded
+        location_update:
+            policy: token_bucket
+            limit: 60
+            rate: { interval: '1 minute', amount: 30 }
