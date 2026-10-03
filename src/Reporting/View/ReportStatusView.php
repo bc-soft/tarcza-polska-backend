@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Reporting\View;
 
+use App\Fuel\Enum\FuelType;
 use App\Reporting\Entity\Report;
 
 /** GET /api/v1/reports/{id} (OpenAPI: ReportStatusView). */
@@ -39,6 +40,13 @@ final class ReportStatusView
             'reportId' => $report->getId()->toRfc4122(),
             'h3Cell' => $report->getH3Cell(),
             'createdAt' => $report->getCreatedAt()->format(\DATE_ATOM),
+            'scope' => $report->getType()->scope()->value,
+            'poi' => null === $report->getPoiKind() || null === $report->getPoiId() ? null : [
+                'kind' => $report->getPoiKind()->value,
+                'id' => $report->getPoiId()->toRfc4122(),
+                'name' => (string) $report->getPoiName(),
+            ],
+            'fuelTypes' => array_map(static fn (FuelType $t) => $t->value, $report->getFuelTypes()),
         ];
     }
 }

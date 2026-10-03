@@ -19,6 +19,11 @@ final readonly class AreaCalculator
 
     public function recompute(Incident $incident): void
     {
+        if ($incident->isPointScoped()) {
+            $incident->setArea(null); // a station or a shelter is a pin, never a polygon
+
+            return;
+        }
         $incident->setArea($this->h3->cellsToMultiPolygon($incident->positiveCells()));
     }
 

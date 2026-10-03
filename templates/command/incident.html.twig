@@ -55,6 +55,19 @@
             {% endif %}
 
             <div class="grid md:grid-cols-2 gap-4">
+                {% if detail.scope == 'point' and detail.poi %}
+                <section class="card p-5 border-l-4 border-primary">
+                    <h3 class="font-bold mb-1">Zgłoszenie punktowe · {{ detail.poi.kind == 'fuel_station' ? 'stacja paliw' : 'schron' }}</h3>
+                    <div class="text-sm">{{ detail.poi.name }}</div>
+                    {% if detail.fuelTypes is not empty %}
+                        <div class="mt-2 flex flex-wrap gap-1">
+                            {% for f in detail.fuelTypes %}<span class="text-[11px] px-2 py-0.5 rounded-full bg-neutral-100 border border-neutral-200">brak: {{ {pb95: 'Benzyna 95', pb98: 'Benzyna 98', diesel: 'Olej napędowy', lpg: 'LPG'}[f]|default(f) }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                    <p class="mt-2 text-[11px] text-neutral-500">Incydent nie ma obszaru: weryfikacja pyta osoby przy tym obiekcie i przy sąsiednich obiektach tego samego rodzaju, a odpowiedzi zmieniają status obiektów na mapie.</p>
+                </section>
+                {% endif %}
+
                 <section class="card p-5">
                     <h3 class="font-bold mb-3">Jak policzono wskaźnik</h3>
                     {% set c = detail.confidenceBreakdown.components ?? {} %}
@@ -117,6 +130,41 @@
         </div>
 
         <aside class="flex flex-col gap-4">
+            <section class="card p-5">
+                <h3 class="font-bold mb-3">Zdjęcia od obywateli <span class="text-neutral-500 font-normal text-sm">({{ detail.photos|length }})</span></h3>
+                {% if detail.photos is empty %}
+                    <p class="text-sm text-neutral-500">Brak zdjęć. Obywatel może dołączyć do 3 zdjęć do zgłoszenia; EXIF i GPS są usuwane po stronie serwera.</p>
+                {% else %}
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {% for p in detail.photos %}
+                            <figure class="rounded-lg overflow-hidden border border-neutral-200 {% if p.unsafe %}opacity-60{% endif %}">
+                                <a href="{{ p.url }}" target="_blank" rel="noopener" title="{{ p.description ?? 'Otwórz zdjęcie' }}">
+                                    {% if p.unsafe %}
+                                        <div class="aspect-[4/3] bg-neutral-100 flex items-center justify-center text-xs text-neutral-500 px-2 text-center">Ukryte przez moderację{% if p.unsafeReason %}: {{ p.unsafeReason }}{% endif %}</div>
+                                    {% else %}
+                                        <img src="{{ p.url }}" alt="" loading="lazy" class="aspect-[4/3] w-full object-cover">
+                                    {% endif %}
+                                </a>
+                                <figcaption class="px-2 py-1.5 text-[11px] leading-snug">
+                                    {% if p.analyzedAt is null %}
+                                        <span class="text-neutral-500">analiza w toku</span>
+                                    {% elseif p.relevant is null %}
+                                        <span class="text-neutral-500">bez analizy ({{ p.analyzer }})</span>
+                                    {% else %}
+                                        <span class="{{ p.matchesType ? 'text-ok' : (p.relevant ? 'text-tertiary' : 'text-neutral-500') }} font-semibold">
+                                            {{ p.matchesType ? 'pasuje do zgłoszenia' : (p.relevant ? 'powiązane, inny typ' : 'niezwiązane') }}
+                                        </span>
+                                        {% if p.confidence is not null %}<span class="text-neutral-500"> · {{ (p.confidence * 100)|round }}%</span>{% endif %}
+                                        {% if p.description %}<div class="text-neutral-600">{{ p.description }}</div>{% endif %}
+                                    {% endif %}
+                                    <div class="text-neutral-400">{{ p.createdAt|date('H:i:s') }} · {{ p.width }}×{{ p.height }}</div>
+                                </figcaption>
+                            </figure>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </section>
+
             {% if is_granted('ROLE_OPERATOR') and open %}
             <section class="card p-5">
                 <h3 class="font-bold mb-3">Akcje operatora</h3>
@@ -125,9 +173,15 @@
                         <input type="hidden" name="_token" value="{{ csrf_token('research' ~ id) }}">
                         <button class="btn-tertiary w-full" {% if not research.available %}title="Brak klucza API dla {{ research.provider }}"{% endif %}>{{ ui.icon('sparkles', 'w-4 h-4') }}Research AI</button>
                     </form>
-                    <form method="post" action="{{ path('command_incident_resolve', {id: id}) }}" onsubmit="return confirm('Zamknąć incydent? Obywatele przestaną go widzieć na mapie.')">
+                    <form method="post" action="{{ path('command_incident_resolve', {id: id}) }}" onsubmit="return confirm('Zamknąć incydent jako potwierdzony? Zgłaszający zyskają reputację, obywatele przestaną go widzieć na mapie.')">
                         <input type="hidden" name="_token" value="{{ csrf_token('resolve' ~ id) }}">
-                        <button class="btn-inverted w-full">{{ ui.icon('check', 'w-4 h-4') }}Zamknij</button>
+                        <input type="hidden" name="resolution" value="confirmed">
+                        <button class="btn-inverted w-full">{{ ui.icon('check', 'w-4 h-4') }}Zamknij (potwierdzony)</button>
+                    </form>
+                    <form method="post" action="{{ path('command_incident_resolve', {id: id}) }}" class="col-span-2" onsubmit="return confirm('Oznaczyć jako fałszywy alarm? Zgłaszający stracą reputację, a odpowiedzi tłumu zostaną ocenione odwrotnie.')">
+                        <input type="hidden" name="_token" value="{{ csrf_token('resolve' ~ id) }}">
+                        <input type="hidden" name="resolution" value="false_alarm">
+                        <button class="btn-tertiary w-full">{{ ui.icon('x', 'w-4 h-4') }}Fałszywy alarm</button>
                     </form>
                 </div>
                 <p class="mt-2 text-[11px] text-neutral-500">Dostawca research: {{ research.provider }}{% if not research.available %} (brak klucza API){% endif %}.</p>
@@ -193,19 +247,31 @@
 
             <section class="card p-5">
                 <h3 class="font-bold mb-3">Oś czasu</h3>
+                {% set dotColor = {
+                    created: 'bg-secondary', report_attached: 'bg-neutral-400', wave_started: 'bg-tertiary', wave_closed: 'bg-tertiary',
+                    area_changed: 'bg-tertiary', confidence_changed: 'bg-primary', research_completed: 'bg-tertiary', source_added: 'bg-tertiary',
+                    alert_published: 'bg-primary', photo_attached: 'bg-neutral-400', resolved: 'bg-ok',
+                } %}
                 <ol class="relative border-l border-neutral-200 ml-2 space-y-3 text-sm">
-                    {% set events = [{t: detail.startedAt, label: 'Wykryto klaster zgłoszeń', color: 'bg-secondary'}] %}
-                    {% for w in waves %}{% set events = events|merge([{t: w.startedAt|date(constant('DATE_ATOM')), label: 'Fala weryfikacji · ring ' ~ w.ring ~ ' · ' ~ w.requestsSent ~ ' urządzeń', color: 'bg-tertiary'}]) %}{% endfor %}
-                    {% for s in detail.sources %}{% set events = events|merge([{t: s.foundAt, label: 'Źródło: ' ~ s.title, color: 'bg-tertiary'}]) %}{% endfor %}
-                    {% if detail.researchedAt %}{% set events = events|merge([{t: detail.researchedAt, label: 'Research AI zakończony', color: 'bg-tertiary'}]) %}{% endif %}
-                    {% if detail.lastConfirmedAt %}{% set events = events|merge([{t: detail.lastConfirmedAt, label: 'Wysoka wiarygodność osiągnięta', color: 'bg-primary'}]) %}{% endif %}
-                    {% if incident.resolvedAt %}{% set events = events|merge([{t: incident.resolvedAt|date(constant('DATE_ATOM')), label: 'Incydent zamknięty', color: 'bg-ok'}]) %}{% endif %}
-                    {% for e in events|sort((a, b) => a.t <=> b.t) %}
+                    {% for e in detail.timeline %}
+                        {% set d = e.details %}
                         <li class="ml-4">
-                            <span class="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full {{ e.color }}"></span>
-                            <div class="text-[11px] text-neutral-500 tabular-nums">{{ e.t|date('d.m H:i:s') }}</div>
+                            <span class="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full {{ dotColor[e.type]|default('bg-neutral-400') }}"></span>
+                            <div class="text-[11px] text-neutral-500 tabular-nums">{{ e.at|date('d.m H:i:s') }}</div>
                             <div class="leading-snug">{{ e.label }}</div>
+                            <div class="text-[11px] text-neutral-500">
+                                {%- if e.type == 'created' or e.type == 'report_attached' %}zgłoszeń: {{ d.reports }}
+                                {%- elseif e.type == 'wave_started' %}ring {{ d.ring }} · {% if d.pois is defined %}{{ d.pois }} obiekt(y){% if d.poiNames is defined and d.poiNames %}: {{ d.poiNames }}{% endif %}{% else %}{{ d.cells|default('?') }} komórek{% endif %} · {{ d.devices }} urządzeń
+                                {%- elseif e.type == 'wave_closed' %}ring {{ d.ring }}
+                                {%- elseif e.type == 'area_changed' %}problem: {{ d.positiveCells }} · brak problemu: {{ d.negativeCells }} · nieznane: {{ d.unknownCells }} · TAK {{ d.yes }} / NIE {{ d.no }}
+                                {%- elseif e.type == 'confidence_changed' %}{{ d.from }} → {{ d.to }} ({{ (d.score * 100)|round }}%)
+                                {%- elseif e.type == 'alert_published' %}{{ d.severity }} · {{ d.devices }} urządzeń · {{ d.createdBy }}
+                                {%- elseif e.type == 'resolved' and d.resolution is defined and d.resolution %}{{ d.resolution }}
+                                {%- endif -%}
+                            </div>
                         </li>
+                    {% else %}
+                        <li class="ml-4 text-neutral-500">Brak zapisanych zdarzeń (incydent sprzed włączenia historii).</li>
                     {% endfor %}
                 </ol>
             </section>

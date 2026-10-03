@@ -6,6 +6,7 @@ namespace App\Identity\Repository;
 
 use App\Identity\Entity\Device;
 use App\Shared\Geo\H3;
+use App\Shared\Geo\Point;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -59,6 +60,38 @@ final class DeviceRepository extends ServiceEntityRepository
             'min_seen' => $now->modify(\sprintf('-%d hours', $maxAgeHours))->format('Y-m-d H:i:s'),
             'cooldown' => $now->modify(\sprintf('-%d minutes', $cooldownMinutes))->format('Y-m-d H:i:s'),
             'per_cell' => $perCell,
+        ]);
+
+        return $this->findByIds($ids);
+    }
+
+    /**
+     * Devices standing at a point of interest (point verification): within $radiusMeters of the object,
+     * seen recently, not asked within the cooldown. Nearest first.
+     *
+     * @return list<Device>
+     */
+    public function findNearPoint(Point $point, int $radiusMeters, int $limit, int $cooldownMinutes, int $maxAgeHours = 12): array
+    {
+        $sql = <<<SQL
+            SELECT id FROM device
+            WHERE last_location IS NOT NULL
+              AND last_seen_at > :min_seen
+              AND (last_asked_at IS NULL OR last_asked_at < :cooldown)
+              AND ST_DWithin(last_location::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radius)
+            ORDER BY last_location::geography <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+            LIMIT :limit
+            SQL;
+
+        $now = new DateTimeImmutable();
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn($sql, [
+            'min_seen' => $now->modify(\sprintf('-%d hours', $maxAgeHours))->format('Y-m-d H:i:s'),
+            'cooldown' => $now->modify(\sprintf('-%d minutes', $cooldownMinutes))->format('Y-m-d H:i:s'),
+            'lng' => $point->lng,
+            'lat' => $point->lat,
+            'radius' => $radiusMeters,
+            'limit' => $limit,
         ]);
 
         return $this->findByIds($ids);

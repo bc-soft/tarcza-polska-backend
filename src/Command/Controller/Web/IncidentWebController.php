@@ -14,6 +14,7 @@ use App\Identity\Entity\Operator;
 use App\Incident\Dto\IncidentSearchCriteria;
 use App\Incident\Entity\Incident;
 use App\Incident\Enum\ConfidenceLevel;
+use App\Incident\Enum\IncidentResolution;
 use App\Incident\Enum\IncidentStatus;
 use App\Incident\Message\ResolveIncident;
 use App\Incident\Repository\IncidentRepository;
@@ -164,9 +165,10 @@ final class IncidentWebController extends AbstractCommandController
         $id = $incident->getId()->toRfc4122();
         $this->assertCsrf('resolve'.$id, $request);
 
-        $bus->dispatch(new ResolveIncident($id, $operator->getUserIdentifier()));
-        $this->audit->log($operator, AuditLogger::RESOLVE_INCIDENT, 'incident', $id);
-        $this->addFlash('success', 'Incydent oznaczony do zamknięcia.');
+        $resolution = IncidentResolution::tryFrom($request->request->getString('resolution', 'confirmed')) ?? IncidentResolution::Confirmed;
+        $bus->dispatch(new ResolveIncident($id, $operator->getUserIdentifier(), $resolution->value));
+        $this->audit->log($operator, AuditLogger::RESOLVE_INCIDENT, 'incident', $id, ['resolution' => $resolution->value]);
+        $this->addFlash('success', \sprintf('Incydent oznaczony do zamknięcia: %s.', mb_strtolower($resolution->label())));
 
         return $this->redirectToRoute('command_incident', ['id' => $id]);
     }

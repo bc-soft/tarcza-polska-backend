@@ -20,6 +20,10 @@ final class ShelterView
             'capacity' => $s->getCapacity(),
             'status' => $s->getStatus()->value,
             'statusLabel' => $s->getStatus()->label(),
+            'occupancy' => $s->getOccupancy()->value,
+            'occupancyLabel' => $s->getOccupancy()->label(),
+            'availability' => $s->getAvailability()->value,
+            'availabilityLabel' => $s->getAvailability()->label(),
             'lastConfirmedAt' => $s->getLastConfirmedAt()?->format(\DATE_ATOM),
             'confirmationCount' => $s->getConfirmationCount(),
         ];

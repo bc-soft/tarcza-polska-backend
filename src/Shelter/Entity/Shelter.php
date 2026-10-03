@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Shelter\Entity;
 
 use App\Shared\Geo\Point;
+use App\Shelter\Enum\ShelterAvailability;
+use App\Shelter\Enum\ShelterOccupancy;
 use App\Shelter\Enum\ShelterStatus;
 use App\Shelter\Repository\ShelterRepository;
 use DateTimeImmutable;
@@ -35,6 +37,10 @@ class Shelter
     #[ORM\Column(length: 16, enumType: ShelterStatus::class)]
     private ShelterStatus $status = ShelterStatus::Unknown;
 
+    /** Room left, meaningful only while the shelter is open. */
+    #[ORM\Column(length: 16, enumType: ShelterOccupancy::class, options: ['default' => 'unknown'])]
+    private ShelterOccupancy $occupancy = ShelterOccupancy::Unknown;
+
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $lastConfirmedAt = null;
 
@@ -44,6 +50,17 @@ class Shelter
     /** Source of the record: 'seed', 'import:<name>', 'operator'. */
     #[ORM\Column(length: 64)]
     private string $source;
+
+    /** Identifier in the source register (e.g. "OZO-6D94271C9708" on dane.gov.pl). */
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $externalId = null;
+
+    #[ORM\Column(length: 16, enumType: ShelterAvailability::class, options: ['default' => 'unknown'])]
+    private ShelterAvailability $availability = ShelterAvailability::Unknown;
+
+    /** @var list<string> gmina, powiat, województwo (from the register) */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    private array $region = [];
 
     public function __construct(string $name, Point $location, string $source = 'seed')
     {
@@ -108,6 +125,38 @@ class Shelter
         return $this->source;
     }
 
+    public function getExternalId(): ?string
+    {
+        return $this->externalId;
+    }
+
+    public function setExternalId(?string $externalId): void
+    {
+        $this->externalId = null === $externalId ? null : mb_substr($externalId, 0, 64);
+    }
+
+    public function getAvailability(): ShelterAvailability
+    {
+        return $this->availability;
+    }
+
+    public function setAvailability(ShelterAvailability $availability): void
+    {
+        $this->availability = $availability;
+    }
+
+    /** @return list<string> */
+    public function getRegion(): array
+    {
+        return $this->region;
+    }
+
+    /** @param list<string> $region */
+    public function setRegion(array $region): void
+    {
+        $this->region = array_values($region);
+    }
+
     public function rename(string $name): void
     {
         $this->name = $name;
@@ -119,16 +168,36 @@ class Shelter
     }
 
     /** Operator decision: sets the status without counting it as a citizen confirmation. */
-    public function overrideStatus(ShelterStatus $status): void
+    public function getOccupancy(): ShelterOccupancy
     {
-        $this->status = $status;
-        $this->lastConfirmedAt = new DateTimeImmutable();
+        return $this->occupancy;
     }
 
-    public function confirmStatus(ShelterStatus $status): void
+    public function overrideStatus(ShelterStatus $status, ?ShelterOccupancy $occupancy = null): void
     {
-        $this->status = $status;
-        $this->lastConfirmedAt = new DateTimeImmutable();
+        $this->applyStatus($status, $occupancy);
+    }
+
+    public function confirmStatus(ShelterStatus $status, ?ShelterOccupancy $occupancy = null): void
+    {
+        $this->applyStatus($status, $occupancy);
         ++$this->confirmationCount;
+    }
+
+    /**
+     * Legacy "full" status is folded into open + occupancy=full; a closed shelter has no occupancy.
+     */
+    private function applyStatus(ShelterStatus $status, ?ShelterOccupancy $occupancy): void
+    {
+        if (ShelterStatus::Full === $status) {
+            $status = ShelterStatus::Open;
+            $occupancy = ShelterOccupancy::Full;
+        }
+        $this->status = $status;
+        $this->occupancy = match ($status) {
+            ShelterStatus::Open => $occupancy ?? ShelterOccupancy::Unknown,
+            default => ShelterOccupancy::Unknown,
+        };
+        $this->lastConfirmedAt = new DateTimeImmutable();
     }
 }

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Reporting\Entity;
 
+use App\Fuel\Enum\FuelType;
 use App\Identity\Entity\Device;
 use App\Incident\Entity\Incident;
 use App\Reporting\Enum\ReportType;
 use App\Reporting\Repository\ReportRepository;
 use App\Shared\Geo\Point;
+use App\Shared\Poi\PoiKind;
+use App\Shared\Poi\PoiRef;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -56,6 +59,20 @@ class Report
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $photoPath = null;
+
+    /** Point-scoped reports: which object the report is about (fuel station / shelter). */
+    #[ORM\Column(length: 32, nullable: true, enumType: PoiKind::class)]
+    private ?PoiKind $poiKind = null;
+
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?Uuid $poiId = null;
+
+    #[ORM\Column(length: 160, nullable: true)]
+    private ?string $poiName = null;
+
+    /** @var list<string> fuel types reported missing (fuel_shortage only) */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    private array $fuelTypes = [];
 
     public function __construct(Device $device, ReportType $type, Point $location, string $h3Cell, ?string $description = null)
     {
@@ -127,5 +144,44 @@ class Report
     public function setPhotoPath(?string $photoPath): void
     {
         $this->photoPath = $photoPath;
+    }
+
+    public function attachPoi(PoiRef $poi): void
+    {
+        $this->poiKind = $poi->kind;
+        $this->poiId = $poi->id;
+        $this->poiName = mb_substr($poi->name, 0, 160);
+    }
+
+    public function getPoiKind(): ?PoiKind
+    {
+        return $this->poiKind;
+    }
+
+    public function getPoiId(): ?Uuid
+    {
+        return $this->poiId;
+    }
+
+    public function getPoiName(): ?string
+    {
+        return $this->poiName;
+    }
+
+    public function isPointScoped(): bool
+    {
+        return null !== $this->poiId;
+    }
+
+    /** @return list<FuelType> */
+    public function getFuelTypes(): array
+    {
+        return FuelType::fromValues($this->fuelTypes);
+    }
+
+    /** @param list<FuelType> $types */
+    public function setFuelTypes(array $types): void
+    {
+        $this->fuelTypes = array_values(array_unique(array_map(static fn (FuelType $t) => $t->value, $types)));
     }
 }

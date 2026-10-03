@@ -6,18 +6,34 @@ namespace App\Tests\Contract;
 
 use App\Alerting\Entity\Alert;
 use App\Alerting\View\AlertView;
+use App\Fuel\Entity\FuelStation;
+use App\Fuel\Enum\FuelAvailability;
+use App\Fuel\Enum\FuelType;
+use App\Fuel\View\FuelStationView;
+use App\Guidance\Model\OfflineBundle;
+use App\Guidance\Service\ProcedureCatalog;
+use App\Guidance\View\OfflineBundleView;
+use App\Guidance\View\ProcedureView;
 use App\Identity\Entity\Device;
 use App\Identity\Enum\LocationSource;
 use App\Identity\View\DeviceProfileView;
 use App\Incident\Entity\Incident;
+use App\Incident\Enum\IncidentEventType;
+use App\Incident\Model\TimelineEntry;
 use App\Incident\View\IncidentPublicView;
+use App\Incident\View\IncidentTimelineView;
 use App\Reporting\Entity\Report;
+use App\Reporting\Entity\ReportPhoto;
 use App\Reporting\Enum\ReportType;
+use App\Reporting\View\ReportPhotoView;
 use App\Reporting\View\ReportStatusView;
+use App\Reporting\View\ReportTypeOptionView;
 use App\Shared\Api\ApiExceptionListener;
 use App\Shared\Api\ApiProblemException;
 use App\Shared\Api\GeoJson;
 use App\Shared\Geo\Point;
+use App\Shared\Poi\PoiKind;
+use App\Shared\Poi\PoiRef;
 use App\Shelter\Entity\Shelter;
 use App\Shelter\Enum\ShelterStatus;
 use App\Shelter\View\ShelterView;
@@ -113,6 +129,55 @@ final class CitizenApiContractTest extends KernelTestCase
         $this->assertMatches('MapFeature', IncidentPublicView::toFeature($withArea));
     }
 
+    public function testIncidentTimelineEntry(): void
+    {
+        $entries = [
+            new TimelineEntry(IncidentEventType::Created, new DateTimeImmutable(), ['reports' => 1, 'cell' => self::CELL, 'ring' => 0]),
+            new TimelineEntry(IncidentEventType::WaveStarted, new DateTimeImmutable(), ['ring' => 0, 'cells' => 7, 'devices' => 3]),
+            new TimelineEntry(IncidentEventType::AreaChanged, new DateTimeImmutable(), ['positiveCells' => 4, 'negativeCells' => 2, 'unknownCells' => 5, 'yes' => 6, 'no' => 2]),
+            new TimelineEntry(IncidentEventType::ConfidenceChanged, new DateTimeImmutable(), ['from' => 'likely', 'to' => 'high', 'score' => 0.612, 'reason' => 'verification_response']),
+            new TimelineEntry(IncidentEventType::ResearchCompleted, new DateTimeImmutable(), ['hasSummary' => true]),
+            new TimelineEntry(IncidentEventType::Resolved, new DateTimeImmutable(), ['resolution' => null]),
+        ];
+        foreach (IncidentTimelineView::list($entries) as $entry) {
+            $this->assertMatches('IncidentTimelineEntry', $entry);
+        }
+    }
+
+    public function testProceduresAndOfflineBundle(): void
+    {
+        $catalog = new ProcedureCatalog();
+        foreach (ProcedureView::list($catalog->all()) as $procedure) {
+            $this->assertMatches('Procedure', $procedure);
+        }
+
+        $center = new Point(52.4121, 16.9012);
+        $incident = $this->incident();
+        $incident->setArea($this->polygon());
+        $alert = new Alert('Test', 'Treść', Alert::SEVERITY_WARNING, $this->polygon(), 'system', new DateTimeImmutable('+1 hour'), $incident);
+        $bundle = new OfflineBundle(
+            center: $center,
+            radiusMeters: 15000,
+            generatedAt: new DateTimeImmutable(),
+            validUntil: new DateTimeImmutable('+24 hours'),
+            shelters: [new Shelter('Schron Jeżyce', new Point(52.41, 16.9))],
+            alerts: [$alert],
+            incidents: [$incident, $this->incident()],
+            procedures: $catalog->forType(ReportType::PowerOutage),
+        );
+
+        $this->assertMatches('OfflineBundle', OfflineBundleView::toArray($bundle));
+        $this->assertMatches('OfflineBundle', OfflineBundleView::toArray(new OfflineBundle($center, 1000, new DateTimeImmutable(), new DateTimeImmutable('+1 day'), [], [], [], [])));
+    }
+
+    public function testPhotoAccepted(): void
+    {
+        $report = new Report($this->device(), ReportType::PowerOutage, new Point(52.41, 16.9), self::CELL, null);
+        $photo = new ReportPhoto($report, '2026/10/x/y.jpg', 'image/jpeg', 1600, 1200, 123456, str_repeat('a', 64));
+
+        $this->assertMatches('PhotoAccepted', ReportPhotoView::accepted($photo));
+    }
+
     public function testShelterViewAndFeature(): void
     {
         $bare = new Shelter('Schron Jeżyce', new Point(52.41, 16.9));
@@ -166,7 +231,36 @@ final class CitizenApiContractTest extends KernelTestCase
         $report->assignTo($this->incident());
         $this->assertMatches('ReportStatusView', ReportStatusView::toArray($report));
 
-        $this->assertMatches('ReportTypeOption', ['value' => ReportType::RoadBlocked->value, 'label' => ReportType::RoadBlocked->label()]);
+        foreach (ReportTypeOptionView::all() as $option) {
+            $this->assertMatches('ReportTypeOption', $option);
+        }
+    }
+
+    public function testPointScopedViews(): void
+    {
+        $station = new FuelStation('Orlen Jeżyce', new Point(52.41, 16.9), self::CELL, 'fixture', 'node/1');
+        $station->setBrand('Orlen');
+        $station->setFuelTypes([FuelType::Pb95, FuelType::Diesel]);
+        $this->assertMatches('FuelStationView', FuelStationView::toArray($station));
+        $station->confirmAvailability([FuelType::Diesel], FuelAvailability::Unavailable);
+        $this->assertMatches('FuelStationView', FuelStationView::toArray($station, 123.4));
+        $this->assertMatches('MapFeature', FuelStationView::toFeature($station));
+
+        $poi = new PoiRef(PoiKind::FuelStation, $station->getId(), 'Orlen Jeżyce', $station->getLocation());
+        $report = new Report($this->device(), ReportType::FuelShortage, new Point(52.4, 16.9), self::CELL, null);
+        $report->attachPoi($poi);
+        $report->setFuelTypes([FuelType::Diesel]);
+        $this->assertMatches('ReportAccepted', ReportStatusView::accepted($report));
+
+        $incident = new Incident(ReportType::FuelShortage, $station->getLocation(), self::CELL);
+        $incident->bindToPoi($poi, self::CELL);
+        $incident->mergeFuelTypes([FuelType::Diesel]);
+        $this->assertMatches('IncidentView', IncidentPublicView::toArray($incident));
+        $this->assertMatches('MapFeature', IncidentPublicView::toFeature($incident));
+
+        $wave = new VerificationWave($incident, 0, [$station->getId()->toRfc4122()], 90);
+        $question = new VerificationRequest($wave, $this->device(), self::CELL, ReportType::FuelShortage->pointVerificationQuestion('Orlen Jeżyce', 'Olej napędowy'), $poi);
+        $this->assertMatches('VerificationQuestion', VerificationQuestionView::toArray($question));
     }
 
     public function testErrorEnvelopes(): void

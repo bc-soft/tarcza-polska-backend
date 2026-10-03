@@ -76,7 +76,64 @@ Push FCM niesie `data: {type: "alert", alertId}`.
 |---|---|---|
 | GET | `/api/v1/shelters?lat&lng` | 10 najbliższych z `distanceMeters`. |
 | GET | `/api/v1/shelters?bbox=` | Schrony w oknie mapy. |
-| POST | `/api/v1/shelters/{id}/status` | `{status: "open" | "closed" | "full" | "unknown", comment?}`. |
+| POST | `/api/v1/shelters/{id}/status` | `{status: "open" | "closed" | "unknown", occupancy?: "plenty" | "limited" | "full", comment?}`. `status: "full"` nadal działa i oznacza `open` + `occupancy: full`. |
+
+Każdy schron ma `occupancy` i `occupancyLabel` (`unknown` · Brak danych o miejscach, `plenty` · Dużo miejsc, `limited` · Mało miejsc, `full` · Pełny). Pole ma sens tylko przy `status: open`.
+
+### Zgłoszenia punktowe: stacje paliw i schrony
+
+Typy dzielą się na **obszarowe** (`power_outage`, `water_outage`, `road_blocked`, `other_threat`) i **punktowe**
+(`fuel_shortage`, `shelter_issue`). `GET /api/v1/reports/types` zwraca dla każdego typu `scope`, `poiKind`
+(`fuel_station` | `shelter` | null) oraz, dla `fuel_shortage`, listę `fuelTypes` do wyboru
+(`pb95` Benzyna 95, `pb98` Benzyna 98, `diesel` Olej napędowy, `lpg` LPG).
+
+Zgłoszenie punktowe dotyczy konkretnego obiektu, nie okolicy:
+
+| Pole `POST /api/v1/reports` | Kiedy | Znaczenie |
+|---|---|---|
+| `poiId` | opcjonalnie dla typów punktowych | id stacji / schronu, o który chodzi. Bez niego backend bierze najbliższy obiekt w promieniu 750 m (stacja) / 500 m (schron). |
+| `fuelTypes` | wymagane dla `fuel_shortage` | lista brakujących paliw, np. `["diesel", "pb95"]`. |
+
+Odpowiedź 202 (`ReportAccepted`) zawiera `scope`, `poi {kind, id, name, location}` i `fuelTypes`. Błędy:
+422 `poi_required` (brak obiektu w pobliżu: pokaż użytkownikowi wybór z `GET /api/v1/fuel-stations?lat&lng`
+albo `GET /api/v1/shelters?lat&lng` i wyślij `poiId`), 422 `poi_not_found` (nieznane id), 422 `validation_failed`
+(brak `fuelTypes`).
+
+Co dalej robi backend: incydent punktowy siedzi na obiekcie (`IncidentView.scope = "point"`, `poi`, `fuelTypes`,
+`area = null`, na mapie `Point`), a weryfikacja pyta ludzi stojących przy tym obiekcie i przy sąsiednich obiektach
+tego samego rodzaju: „Czy na stacji Orlen Dąbrowskiego jest teraz dostępne paliwo: Olej napędowy?”.
+`VerificationQuestion.poi` mówi, o który obiekt chodzi (może to być sąsiednia stacja, nie ta zgłoszona).
+Odpowiedzi aktualizują status obiektu, więc mapa pokazuje braki paliwa i zamknięte schrony jako pinezki.
+
+### Stacje paliw
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/api/v1/fuel-stations?lat&lng` | 15 najbliższych z `distanceMeters`. ETag. |
+| GET | `/api/v1/fuel-stations?bbox=` | Stacje w oknie mapy. |
+| GET | `/api/v1/fuel-stations/{id}` | Szczegóły: `fuels[] {type, label, status: available|unavailable|unknown, statusLabel, confirmedAt}`, `shortage`, `missingFuelTypes`. |
+| POST | `/api/v1/fuel-stations/{id}/status` | `{fuelTypes: ["diesel"], available: false, comment?}` - potwierdzenie przez osobę stojącą na stacji. |
+
+Na mapie (`GET /api/v1/map`) stacje mają `properties.kind = "fuel_station"` z tymi samymi polami co widok stacji.
+
+### Historia incydentu
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/api/v1/incidents/{id}/timeline` | Oś czasu, najstarsze pierwsze, z ETag. Wpisy `{type, label, at, details}`; typy: `created`, `wave_started`, `wave_closed`, `area_changed`, `confidence_changed`, `research_completed`, `source_added`, `alert_published`, `photo_attached`, `resolved`. `details` to małe liczby/etykiety (np. `{positiveCells, negativeCells, unknownCells, yes, no}` dla `area_changed`, `{from, to, score}` dla `confidence_changed`), nigdy pozycje. |
+
+### Procedury i tryb offline
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/api/v1/procedures?type=` | Listy kontrolne „co robić, gdy…” po polsku, posortowane po priorytecie. Z `type` zwraca procedury dla typu plus ogólne. ETag. |
+| GET | `/api/v1/offline-bundle?lat&lng&radiusMeters=15000` | Paczka do cache: schrony w promieniu (najbliższe pierwsze, z `distanceMeters`), aktywne alerty, otwarte incydenty i procedury, plus `generatedAt` i `validUntil` (24 h). ETag. Odśwież po `validUntil` albo przy powrocie na pierwszy plan. |
+
+### Zdjęcia do zgłoszenia
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| POST | `/api/v1/reports/{id}/photo` | `multipart/form-data`, pole `photo` (JPEG/PNG/WebP, do 10 MB, maks. 3 na zgłoszenie). Backend usuwa EXIF/GPS, skaluje do 1600 px i zwraca 202 `{photoId, reportId, status: "processing", width, height, bytes, createdAt}`. Błędy: 409 `photo_limit`, 413 `payload_too_large`, 415 `unsupported_media_type`, 429. Zdjęcia widzi tylko operator; analiza (czy pasuje do zgłoszenia, moderacja) działa w tle. |
 
 ### Zdrowie
 
@@ -97,10 +154,12 @@ Push FCM niesie `data: {type: "alert", alertId}`.
 | POST | `/api/command/login` | - | `{email, password}` → `{token}`. |
 | GET | `/api/command/stats` | analyst | liczniki do nagłówka panelu. |
 | GET | `/api/command/incidents?all=1` | analyst | feed incydentów (podsumowania + centroid + liczby komórek). |
-| GET | `/api/command/incidents/{id}` | analyst | pełny detal: surowe raporty, hexy jako GeoJSON, źródła, rozbicie confidence, statystyki fal. Zapis w audit logu. |
+| GET | `/api/command/incidents/{id}` | analyst | pełny detal: surowe raporty (z `reporterReputation`), hexy jako GeoJSON, źródła, rozbicie confidence, statystyki fal, pełna `timeline`, `photos`, `resolution`. Zapis w audit logu. |
 | GET | `/api/command/incidents/{id}/sources` | analyst | źródła zewnętrzne. |
 | POST | `/api/command/incidents/{id}/sources` | operator | ręczne dodanie oficjalnego źródła `{url, title, kind, credibility, publisher?, excerpt?}`. |
-| POST | `/api/command/incidents/{id}/resolve` | operator | zamknięcie incydentu. |
+| POST | `/api/command/incidents/{id}/resolve` | operator | zamknięcie incydentu z werdyktem: body opcjonalne `{resolution: "confirmed" | "false_alarm", note?}` (domyślnie `confirmed`). Werdykt zasila reputację zgłaszających i odpowiadających. |
+| GET | `/api/command/incidents/{id}/photos?includeUnsafe=1` | analyst | zdjęcia od obywateli z analizą (`relevant`, `matchesType`, `description`, `unsafe`, `confidence`) i `url` do pliku. |
+| GET | `/api/command/photos/{id}/file` | analyst | plik JPEG (po usunięciu metadanych); każde pobranie w `audit_log`. |
 | GET | `/api/command/alerts` | analyst | ostatnie komunikaty. |
 | POST | `/api/command/alerts` | operator | `{title, body, severity, incidentId?, area?, ttlMinutes}`. Obszar = `area` albo aktualny obszar incydentu. |
 | GET | `/api/command/shelters` | analyst | rejestr schronów (wszystkie, alfabetycznie). |

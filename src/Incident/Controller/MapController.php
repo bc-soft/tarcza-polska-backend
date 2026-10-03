@@ -6,6 +6,8 @@ namespace App\Incident\Controller;
 
 use App\Alerting\Repository\AlertRepository;
 use App\Alerting\View\AlertView;
+use App\Fuel\Repository\FuelStationRepository;
+use App\Fuel\View\FuelStationView;
 use App\Incident\Repository\IncidentRepository;
 use App\Incident\View\IncidentPublicView;
 use App\Shared\Api\ConditionalJsonResponse;
@@ -29,6 +31,7 @@ final class MapController
     public function __construct(
         private readonly IncidentRepository $incidents,
         private readonly ShelterRepository $shelters,
+        private readonly FuelStationRepository $fuelStations,
         private readonly AlertRepository $alerts,
     ) {
     }
@@ -50,6 +53,7 @@ final class MapController
         $features = [
             ...array_map(IncidentPublicView::toFeature(...), $this->incidents->findOpenInBoundingBox($bbox)),
             ...array_map(ShelterView::toFeature(...), $this->shelters->findInBoundingBox($bbox)),
+            ...array_map(FuelStationView::toFeature(...), $this->fuelStations->findInBoundingBox($bbox)),
             ...array_map(AlertView::toFeature(...), $this->alerts->findActiveInBoundingBox($bbox)),
         ];
 

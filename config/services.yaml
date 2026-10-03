@@ -12,6 +12,8 @@ parameters:
     app.openai.api_key: '%env(OPENAI_API_KEY)%'
     app.openai.model: '%env(OPENAI_MODEL)%'
     app.firebase.credentials: '%env(resolve:FIREBASE_CREDENTIALS)%'
+    app.alerting.auto_alert_level: '%env(AUTO_ALERT_LEVEL)%'
+    app.overpass_url: '%env(OVERPASS_URL)%'
 
 services:
     _defaults:
@@ -31,6 +33,10 @@ services:
             string $openAiApiKey: '%app.openai.api_key%'
             string $openAiModel: '%app.openai.model%'
             string $firebaseCredentials: '%app.firebase.credentials%'
+            string $autoAlertLevel: '%app.alerting.auto_alert_level%'
+            string $overpassUrl: '%app.overpass_url%'
+            array $externalSourceFeeds: '%app.external_sources.feeds%'
+            int $externalSourcesPollMinutes: '%app.external_sources.poll_minutes%'
 
     App\:
         resource: '../src/'
@@ -50,6 +56,10 @@ services:
     App\Shared\Api\OpenApi\ErrorResponsesDescriber:
         tags:
             - { name: nelmio_api_doc.describer.default, priority: -500 }
+
+    # Vision analysis of citizen photos follows the same provider switch (openai | none).
+    App\Intelligence\Service\PhotoAnalyzerInterface:
+        factory: ['@App\Intelligence\Service\PhotoAnalyzerFactory', 'create']
 
     # Push delivery: FCM when FIREBASE_CREDENTIALS is set, otherwise a logging no-op sender.
     App\Notification\PushSenderInterface:

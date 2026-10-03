@@ -6,6 +6,8 @@ namespace App\Verification\Entity;
 
 use App\Identity\Entity\Device;
 use App\Incident\Entity\Incident;
+use App\Shared\Poi\PoiKind;
+use App\Shared\Poi\PoiRef;
 use App\Verification\Enum\VerificationAnswer;
 use App\Verification\Repository\VerificationRequestRepository;
 use DateTimeImmutable;
@@ -60,8 +62,23 @@ class VerificationRequest
     #[ORM\Column(length: 8, nullable: true)]
     private ?string $normalisedAnswer = null;
 
-    public function __construct(VerificationWave $wave, Device $device, string $h3Cell, string $question)
+    /** Point verification: the object this question is about (may be a neighbour of the incident's object). */
+    #[ORM\Column(length: 32, nullable: true, enumType: PoiKind::class)]
+    private ?PoiKind $poiKind = null;
+
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?Uuid $poiId = null;
+
+    #[ORM\Column(length: 160, nullable: true)]
+    private ?string $poiName = null;
+
+    public function __construct(VerificationWave $wave, Device $device, string $h3Cell, string $question, ?PoiRef $poi = null)
     {
+        if (null !== $poi) {
+            $this->poiKind = $poi->kind;
+            $this->poiId = $poi->id;
+            $this->poiName = mb_substr($poi->name, 0, 160);
+        }
         $this->id = Uuid::v7();
         $this->wave = $wave;
         $this->incident = $wave->getIncident();
@@ -100,6 +117,29 @@ class VerificationRequest
     public function getQuestion(): string
     {
         return $this->question;
+    }
+
+    public function getPoiKind(): ?PoiKind
+    {
+        return $this->poiKind;
+    }
+
+    public function getPoiId(): ?Uuid
+    {
+        return $this->poiId;
+    }
+
+    public function getPoiName(): ?string
+    {
+        return $this->poiName;
+    }
+
+    /** True when the question is about the incident's own object (not a neighbouring one). */
+    public function isAboutIncidentPoi(): bool
+    {
+        $incidentPoi = $this->incident->getPoiId();
+
+        return null !== $this->poiId && null !== $incidentPoi && $this->poiId->equals($incidentPoi);
     }
 
     public function getSentAt(): DateTimeImmutable

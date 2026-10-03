@@ -6,11 +6,17 @@ namespace App\Command\View;
 
 use App\Incident\Entity\Incident;
 use App\Incident\Entity\IncidentCell;
+use App\Incident\Service\IncidentTimeline;
 use App\Incident\View\IncidentPublicView;
+use App\Incident\View\IncidentTimelineView;
 use App\Intelligence\Entity\ExternalSource;
 use App\Reporting\Entity\Report;
+use App\Reporting\Entity\ReportPhoto;
+use App\Reporting\Repository\ReportPhotoRepository;
+use App\Reporting\View\ReportPhotoView;
 use App\Shared\Api\GeoJson;
 use App\Shared\Geo\H3;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
  * Operator view: everything the public view has plus raw reports, cells, sources and the confidence breakdown.
@@ -18,8 +24,12 @@ use App\Shared\Geo\H3;
  */
 final readonly class IncidentCommandView
 {
-    public function __construct(private H3 $h3)
-    {
+    public function __construct(
+        private H3 $h3,
+        private IncidentTimeline $timeline,
+        private ReportPhotoRepository $photos,
+        private UrlGeneratorInterface $urls,
+    ) {
     }
 
     /** @return array<string, mixed> */
@@ -55,10 +65,18 @@ final readonly class IncidentCommandView
                 'weight' => round($r->getWeight(), 2),
                 'createdAt' => $r->getCreatedAt()->format(\DATE_ATOM),
                 'simulated' => $r->getDevice()->isSimulated(),
+                'reporterReputation' => round($r->getDevice()->getReputation(), 2),
             ], self::sortedReports($incident)),
             'cellsGeoJson' => $this->cellsCollection($incident),
             'sources' => array_map(static fn (ExternalSource $s) => $s->toArray(), $sources),
             'verification' => $verificationStats,
+            'resolution' => $incident->getResolution()?->value,
+            'resolutionLabel' => $incident->getResolution()?->label(),
+            'timeline' => IncidentTimelineView::list($this->timeline->entries($incident)),
+            'photos' => array_map(
+                fn (ReportPhoto $p) => ReportPhotoView::command($p, $this->urls->generate('command_photo_file', ['id' => $p->getId()->toRfc4122()])),
+                $this->photos->findByIncident($incident, includeUnsafe: true),
+            ),
         ];
     }
 

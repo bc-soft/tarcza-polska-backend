@@ -1,0 +1,14 @@
+# Read the documentation at https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md
+#
+# Citizen photos are re-encoded (EXIF/GPS stripped) before they land here. Local disk is enough for the
+# hackathon and a single VPS; for object storage swap the adapter for 'aws' (S3 / R2 / Hetzner Object
+# Storage) and keep the same storage name, nothing else in the code changes.
+flysystem:
+    storages:
+        photos.storage:
+            adapter: 'local'
+            options:
+                directory: '%kernel.project_dir%/var/storage/photos'
+                permissions:
+                    file: { public: 0o640, private: 0o600 }
+                    dir: { public: 0o750, private: 0o700 }

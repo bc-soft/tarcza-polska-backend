@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Incident\Entity;
 
+use App\Fuel\Enum\FuelType;
 use App\Incident\Enum\CellState;
 use App\Incident\Enum\ConfidenceLevel;
+use App\Incident\Enum\IncidentResolution;
 use App\Incident\Enum\IncidentStatus;
 use App\Incident\Repository\IncidentRepository;
 use App\Reporting\Entity\Report;
+use App\Reporting\Enum\ReportScope;
 use App\Reporting\Enum\ReportType;
 use App\Shared\Geo\Point;
+use App\Shared\Poi\PoiKind;
+use App\Shared\Poi\PoiRef;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -69,6 +74,26 @@ class Incident
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $resolvedAt = null;
 
+    #[ORM\Column(length: 16, nullable: true, enumType: IncidentResolution::class)]
+    private ?IncidentResolution $resolution = null;
+
+    /** area = polygon of cells; point = one object (fuel station / shelter), never an area. */
+    #[ORM\Column(length: 8, enumType: ReportScope::class, options: ['default' => 'area'])]
+    private ReportScope $scope = ReportScope::Area;
+
+    #[ORM\Column(length: 32, nullable: true, enumType: PoiKind::class)]
+    private ?PoiKind $poiKind = null;
+
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?Uuid $poiId = null;
+
+    #[ORM\Column(length: 160, nullable: true)]
+    private ?string $poiName = null;
+
+    /** @var list<string> fuel types reported missing (fuel shortage incidents) */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    private array $fuelTypes = [];
+
     /** Highest verification ring asked so far (0 = core only). */
     #[ORM\Column(type: Types::SMALLINT, options: ['default' => -1])]
     private int $currentRing = -1;
@@ -91,6 +116,7 @@ class Incident
     {
         $this->id = Uuid::v7();
         $this->type = $type;
+        $this->scope = $type->scope();
         $this->centroid = $centroid;
         $this->centerCell = $centerCell;
         $this->startedAt = new DateTimeImmutable();
@@ -114,12 +140,81 @@ class Incident
         return $this->status;
     }
 
-    public function setStatus(IncidentStatus $status): void
+    public function setStatus(IncidentStatus $status, ?IncidentResolution $resolution = null): void
     {
         $this->status = $status;
         if (IncidentStatus::Resolved === $status) {
             $this->resolvedAt = new DateTimeImmutable();
+            $this->resolution = $resolution ?? IncidentResolution::Confirmed;
         }
+    }
+
+    public function getResolution(): ?IncidentResolution
+    {
+        return $this->resolution;
+    }
+
+    public function getScope(): ReportScope
+    {
+        return $this->scope;
+    }
+
+    public function isPointScoped(): bool
+    {
+        return ReportScope::Point === $this->scope;
+    }
+
+    /** Binds a point-scoped incident to its object; the centroid and center cell follow the object. */
+    public function bindToPoi(PoiRef $poi, string $poiCell): void
+    {
+        $this->scope = ReportScope::Point;
+        $this->poiKind = $poi->kind;
+        $this->poiId = $poi->id;
+        $this->poiName = mb_substr($poi->name, 0, 160);
+        $this->centroid = $poi->location;
+        $this->centerCell = $poiCell;
+    }
+
+    public function getPoiKind(): ?PoiKind
+    {
+        return $this->poiKind;
+    }
+
+    public function getPoiId(): ?Uuid
+    {
+        return $this->poiId;
+    }
+
+    public function getPoiName(): ?string
+    {
+        return $this->poiName;
+    }
+
+    public function poiRef(): ?PoiRef
+    {
+        if (null === $this->poiKind || null === $this->poiId) {
+            return null;
+        }
+
+        return new PoiRef($this->poiKind, $this->poiId, (string) $this->poiName, $this->centroid);
+    }
+
+    /** @return list<FuelType> */
+    public function getFuelTypes(): array
+    {
+        return FuelType::fromValues($this->fuelTypes);
+    }
+
+    /** @param list<FuelType> $types */
+    public function mergeFuelTypes(array $types): void
+    {
+        $merged = $this->fuelTypes;
+        foreach ($types as $type) {
+            if (!\in_array($type->value, $merged, true)) {
+                $merged[] = $type->value;
+            }
+        }
+        $this->fuelTypes = $merged;
     }
 
     public function getConfidenceScore(): float

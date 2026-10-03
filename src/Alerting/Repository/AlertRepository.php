@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Alerting\Repository;
 
 use App\Alerting\Entity\Alert;
+use App\Incident\Entity\Incident;
 use App\Shared\Geo\BoundingBox;
 use App\Shared\Geo\Point;
 use DateTimeImmutable;
@@ -49,6 +50,19 @@ final class AlertRepository extends ServiceEntityRepository
             ->setParameter('now', new DateTimeImmutable())
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    /** True when an alert for this incident was already created by $createdBy (e.g. the automatic "system" author). */
+    public function existsForIncidentBy(Incident $incident, string $createdBy): bool
+    {
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->where('a.incident = :incident')
+            ->andWhere('a.createdBy = :createdBy')
+            ->setParameter('incident', $incident)
+            ->setParameter('createdBy', $createdBy)
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
     }
 
     /** @return list<Alert> */

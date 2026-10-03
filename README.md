@@ -26,3 +26,13 @@ INFORM  POST /api/command/alerts        -> push do urządzeń wewnątrz poligonu
 
 Confidence jest deterministyczne i wyjaśnialne; AI (OpenAI lub Claude z web search) dostarcza tylko źródła.
 Integracja aplikacji mobilnej: [docs/flutter-agent-guide.md](docs/flutter-agent-guide.md).
+
+Post-MVP (zrealizowane): historia incydentu, zdjęcia bez EXIF z analizą wizji, External Sources Engine (RSS),
+reputacja zgłaszających z werdyktem zamknięcia, automatyczne alerty geograficzne, dostępność schronów,
+paczka offline z procedurami. Szczegóły: `docs/architecture.md` §3.7 i ADR 0007–0009.
+
+Zgłoszenia punktowe (ADR 0010): brak paliwa i problemy ze schronami odnoszą się do konkretnego obiektu, są
+weryfikowane przy obiekcie i jego sąsiadach i pokazywane jako pinezki, nie jako obszar. Dane obiektów:
+`make console c="tarcza:shelters:import --wojewodztwo=wielkopolskie"` (rejestr krajowy z dane.gov.pl),
+`make console c="tarcza:fuel-stations:import --around=52.41,16.90"` (OpenStreetMap). Dane demo do panelu:
+`make console c="tarcza:fixtures:load --reset"`.

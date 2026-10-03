@@ -1,0 +1,13 @@
+# External Sources Engine (post-MVP): RSS/Atom feeds polled by the worker and matched against open incidents.
+# A matching item becomes an ExternalSource (found_by = rss) and raises the incident's confidence like any other
+# evidence. Add operator / municipal feeds here as they become available; the list below is a starting set of
+# nationwide news feeds. Credibility follows the same scale as AI research (official 0.9, media 0.6-0.7).
+parameters:
+    app.external_sources.poll_minutes: 5
+    app.external_sources.feeds:
+        - { name: 'TVN24 - najnowsze', url: 'https://tvn24.pl/najnowsze.xml', kind: 'media', credibility: 0.7 }
+        - { name: 'RMF24 - fakty', url: 'https://www.rmf24.pl/fakty/feed', kind: 'media', credibility: 0.7 }
+        - { name: 'Polsat News', url: 'https://www.polsatnews.pl/rss/wszystkie.xml', kind: 'media', credibility: 0.7 }
+        # Examples of higher-credibility feeds to plug in when the URLs are confirmed with the operator:
+        # - { name: 'Enea Operator - komunikaty', url: 'https://www.operator.enea.pl/rss', kind: 'infrastructure_operator', credibility: 0.9 }
+        # - { name: 'Aquanet - awarie', url: 'https://www.aquanet.pl/rss', kind: 'infrastructure_operator', credibility: 0.9 }

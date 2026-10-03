@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Incident\MessageHandler;
 
+use App\Incident\Enum\IncidentResolution;
 use App\Incident\Enum\IncidentStatus;
+use App\Incident\Message\IncidentResolved;
 use App\Incident\Message\IncidentUpdated;
 use App\Incident\Message\ResolveIncident;
 use App\Incident\Repository\IncidentRepository;
@@ -29,8 +31,12 @@ final readonly class ResolveIncidentHandler
         if (null === $incident || IncidentStatus::Resolved === $incident->getStatus()) {
             return;
         }
-        $incident->setStatus(IncidentStatus::Resolved);
+        $resolution = IncidentResolution::tryFrom($command->resolution) ?? IncidentResolution::Confirmed;
+
+        $incident->setStatus(IncidentStatus::Resolved, $resolution);
         $this->em->flush();
+
         $this->bus->dispatch(new IncidentUpdated($command->incidentId, 'resolved'));
+        $this->bus->dispatch(new IncidentResolved($command->incidentId, $resolution->value, $command->operatorEmail));
     }
 }

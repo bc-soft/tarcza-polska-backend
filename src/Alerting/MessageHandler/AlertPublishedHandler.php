@@ -7,6 +7,8 @@ namespace App\Alerting\MessageHandler;
 use App\Alerting\Message\AlertPublished;
 use App\Alerting\Repository\AlertRepository;
 use App\Identity\Repository\DeviceRepository;
+use App\Incident\Enum\IncidentEventType;
+use App\Incident\Service\IncidentTimeline;
 use App\Notification\PushMessage;
 use App\Notification\PushSenderInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,6 +23,7 @@ final readonly class AlertPublishedHandler
         private AlertRepository $alerts,
         private DeviceRepository $devices,
         private PushSenderInterface $push,
+        private IncidentTimeline $timeline,
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
     ) {
@@ -37,6 +40,15 @@ final readonly class AlertPublishedHandler
         $sent = $this->push->send($targets, PushMessage::alert($event->alertId, $alert->getTitle(), $alert->getBody()));
 
         $alert->setDeliveredCount(\count($targets));
+        $incident = $alert->getIncident();
+        if (null !== $incident) {
+            $this->timeline->record($incident, IncidentEventType::AlertPublished, [
+                'alertId' => $event->alertId,
+                'severity' => $alert->getSeverity(),
+                'devices' => \count($targets),
+                'createdBy' => $alert->getCreatedBy(),
+            ]);
+        }
         $this->em->flush();
 
         $this->logger->info('Alert {id}: {targets} devices in area, {sent} pushes sent', [

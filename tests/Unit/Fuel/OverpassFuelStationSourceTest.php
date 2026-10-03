@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\Fuel;
+
+use App\Fuel\Entity\FuelStation;
+use App\Fuel\Enum\FuelAvailability;
+use App\Fuel\Enum\FuelType;
+use App\Fuel\Service\OverpassFuelStationSource;
+use App\Shared\Geo\Point;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+
+final class OverpassFuelStationSourceTest extends TestCase
+{
+    private const string OVERPASS = <<<'JSON'
+        {"version":0.6,"elements":[
+          {"type":"node","id":101,"lat":52.4125,"lon":16.9020,"tags":{"amenity":"fuel","name":"Orlen Jeżyce","brand":"Orlen","fuel:diesel":"yes","fuel:octane_95":"yes","fuel:lpg":"no","addr:street":"Dąbrowskiego","addr:housenumber":"12","addr:city":"Poznań"}},
+          {"type":"way","id":202,"center":{"lat":52.4200,"lon":16.9100},"tags":{"amenity":"fuel","operator":"BP","fuel:octane_98":"yes"}},
+          {"type":"node","id":303,"tags":{"amenity":"fuel","name":"bez współrzędnych"}},
+          {"type":"node","id":404,"lat":52.43,"lon":16.92,"tags":{"amenity":"fuel"}}
+        ]}
+        JSON;
+
+    #[Test]
+    public function parsesNodesAndWaysWithBrandAddressAndFuels(): void
+    {
+        $stations = OverpassFuelStationSource::parse(self::OVERPASS);
+
+        self::assertCount(3, $stations, 'the element without coordinates is skipped');
+        self::assertSame('node/101', $stations[0]->externalId);
+        self::assertSame('Orlen Jeżyce', $stations[0]->name);
+        self::assertSame('Orlen', $stations[0]->brand);
+        self::assertSame('Dąbrowskiego 12, Poznań', $stations[0]->address);
+        self::assertSame([FuelType::Pb95, FuelType::Diesel], $stations[0]->fuelTypes);
+        self::assertEqualsWithDelta(52.4125, $stations[0]->location->lat, 1e-6);
+
+        self::assertSame('way/202', $stations[1]->externalId);
+        self::assertSame('BP', $stations[1]->name, 'operator is the fallback name');
+        self::assertSame([FuelType::Pb98], $stations[1]->fuelTypes);
+        self::assertNull($stations[1]->address);
+
+        self::assertSame('Stacja paliw', $stations[2]->name);
+        self::assertSame([], $stations[2]->fuelTypes);
+    }
+
+    #[Test]
+    public function stationTracksAvailabilityPerFuelType(): void
+    {
+        $station = new FuelStation('Test', new Point(52.4, 16.9), '891e24aa0b3ffff', 'fixture');
+        $station->setFuelTypes([FuelType::Pb95, FuelType::Diesel]);
+
+        self::assertFalse($station->hasShortage());
+        self::assertSame(FuelAvailability::Unknown, $station->availabilityOf(FuelType::Diesel));
+
+        $station->confirmAvailability([FuelType::Diesel], FuelAvailability::Unavailable);
+
+        self::assertTrue($station->hasShortage());
+        self::assertSame([FuelType::Diesel], $station->missingFuelTypes());
+        self::assertSame(FuelAvailability::Unknown, $station->availabilityOf(FuelType::Pb95));
+        self::assertSame(1, $station->getConfirmationCount());
+        self::assertNotNull($station->availabilityConfirmedAt(FuelType::Diesel));
+
+        $station->confirmAvailability([FuelType::Diesel], FuelAvailability::Available);
+        self::assertFalse($station->hasShortage());
+    }
+
+    #[Test]
+    public function fuelTypeHelpers(): void
+    {
+        self::assertSame([FuelType::Pb95, FuelType::Lpg], FuelType::fromValues(['pb95', 'nope', 'lpg', 'pb95']));
+        self::assertSame('Benzyna 95, LPG', FuelType::labels([FuelType::Pb95, FuelType::Lpg]));
+        self::assertSame(['pb95', 'pb98', 'diesel', 'lpg'], FuelType::values());
+    }
+}

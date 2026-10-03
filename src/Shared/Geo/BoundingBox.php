@@ -29,6 +29,20 @@ final readonly class BoundingBox
         return new self($parts[0], $parts[1], $parts[2], $parts[3]);
     }
 
+    /** Square box of +/- $radiusMeters around a point (good enough for pre-filtering at city scale). */
+    public static function around(Point $center, int $radiusMeters): self
+    {
+        $dLat = $radiusMeters / 111_320.0;
+        $dLng = $radiusMeters / (111_320.0 * max(0.01, cos(deg2rad($center->lat))));
+
+        return new self(
+            max(-180.0, $center->lng - $dLng),
+            max(-90.0, $center->lat - $dLat),
+            min(180.0, $center->lng + $dLng),
+            min(90.0, $center->lat + $dLat),
+        );
+    }
+
     /** Whole of Poland, used when the client sends no bbox. */
     public static function poland(): self
     {

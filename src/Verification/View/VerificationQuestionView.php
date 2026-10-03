@@ -19,7 +19,14 @@ final class VerificationQuestionView
             'type' => $r->getIncident()->getType()->value,
             'typeLabel' => $r->getIncident()->getType()->label(),
             'question' => $r->getQuestion(),
-            'context' => \sprintf('W Twojej okolicy zgłoszono: %s.', mb_strtolower($r->getIncident()->getType()->label())),
+            'context' => null !== $r->getPoiName()
+                ? \sprintf('Zgłoszono: %s. Pytamy o obiekt: %s.', mb_strtolower($r->getIncident()->getType()->label()), $r->getPoiName())
+                : \sprintf('W Twojej okolicy zgłoszono: %s.', mb_strtolower($r->getIncident()->getType()->label())),
+            'poi' => null === $r->getPoiKind() || null === $r->getPoiId() ? null : [
+                'kind' => $r->getPoiKind()->value,
+                'id' => $r->getPoiId()->toRfc4122(),
+                'name' => (string) $r->getPoiName(),
+            ],
             'options' => array_map(static fn (VerificationAnswer $a) => $a->value, VerificationAnswer::cases()),
             'sentAt' => $r->getSentAt()->format(\DATE_ATOM),
             'expiresAt' => $r->getExpiresAt()->format(\DATE_ATOM),

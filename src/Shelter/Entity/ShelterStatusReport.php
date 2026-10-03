@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shelter\Entity;
 
 use App\Identity\Entity\Device;
+use App\Shelter\Enum\ShelterOccupancy;
 use App\Shelter\Enum\ShelterStatus;
 use App\Shelter\Repository\ShelterStatusReportRepository;
 use DateTimeImmutable;
@@ -33,14 +34,18 @@ class ShelterStatusReport
     #[ORM\Column(length: 16, enumType: ShelterStatus::class)]
     private ShelterStatus $status;
 
+    #[ORM\Column(length: 16, enumType: ShelterOccupancy::class, options: ['default' => 'unknown'])]
+    private ShelterOccupancy $occupancy;
+
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $comment = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
 
-    public function __construct(Shelter $shelter, Device $device, ShelterStatus $status, ?string $comment = null)
+    public function __construct(Shelter $shelter, Device $device, ShelterStatus $status, ?string $comment = null, ShelterOccupancy $occupancy = ShelterOccupancy::Unknown)
     {
+        $this->occupancy = $occupancy;
         $this->id = Uuid::v7();
         $this->shelter = $shelter;
         $this->device = $device;
@@ -67,6 +72,11 @@ class ShelterStatusReport
     public function getStatus(): ShelterStatus
     {
         return $this->status;
+    }
+
+    public function getOccupancy(): ShelterOccupancy
+    {
+        return $this->occupancy;
     }
 
     public function getComment(): ?string

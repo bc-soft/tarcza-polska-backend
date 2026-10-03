@@ -173,6 +173,45 @@ Scheduler co 10 s każe wirtualnym mieszkańcom odpowiadać na pytania weryfikac
 (z szumem). Dzięki temu na scenie wystarczą dwa prawdziwe telefony, a system i tak wyznaczy granicę
 awarii w ciągu minuty. Wirtualne urządzenia mają flagę `simulated` i nigdy nie dostają pushy.
 
+### 3.7 Funkcje post-MVP (zrealizowane)
+
+Lista z sekcji 10 opisu produktu jest wdrożona w całości po stronie backendu; szczegóły decyzji w ADR 0007–0009.
+
+| Funkcja | Gdzie | Jak działa |
+|---|---|---|
+| Historia incydentu | `Incident\Entity\IncidentEvent`, `IncidentTimeline` | append-only log zdarzeń (wykrycie, fale, zmiany zasięgu i poziomu, research, źródła, alerty, zdjęcia, zamknięcie); `GET /api/v1/incidents/{id}/timeline`, pełna wersja w detalu operatora i panelu |
+| Zdjęcia | `Reporting\Service\ImageSanitizer`, `PhotoUploader`, `ReportPhoto` | `POST /api/v1/reports/{id}/photo`; re-enkodowanie do JPEG bez EXIF/GPS, maks. 1600 px, 3 na zgłoszenie; Flysystem `photos.storage`; analiza wizji przez `PhotoAnalyzerInterface` (OpenAI przy `RESEARCH_PROVIDER=openai`); galeria i pobieranie tylko dla operatorów, z audytem |
+| External Sources Engine | `Intelligence\Service\Feed\*`, `ExternalSourcesTick` | kanały RSS/Atom z `config/packages/external_sources.yaml`, pobierane co 5 min z cache; deterministyczny matcher (słowa kluczowe typu + tokeny miejsca + okno czasu) dokłada `ExternalSource` z `found_by=rss`; `tarcza:sources:poll` do podglądu |
+| Reputacja użytkownika | `Identity\Service\ReputationPolicy`, `ReputationUpdater` | po zamknięciu incydentu z werdyktem: zgłaszający +0,10 / -0,25, odpowiadający +0,02 / -0,05 względem końcowego stanu komórki; reputacja mnoży wagę zgłoszeń w confidence |
+| Werdykt zamknięcia | `Incident\Enum\IncidentResolution` | `confirmed` / `false_alarm` (operator, API i panel) / `expired` (wygaszenie); zdarzenie `IncidentResolved` |
+| Automatyczne alerty geograficzne | `Alerting\MessageHandler\AutoAlertOnConfidenceHandler` | pierwsze przekroczenie `AUTO_ALERT_LEVEL` (domyślnie `confirmed`) publikuje alert autora `system` do urządzeń w obszarze |
+| Dostępność schronów | `Shelter\Enum\ShelterOccupancy` | `plenty` / `limited` / `full` na schronie i w potwierdzeniach; `status: full` z MVP mapuje się na `open` + `full` |
+| Tryb offline / degraded | moduł `Guidance` | `GET /api/v1/offline-bundle?lat&lng` (schrony w promieniu, aktywne alerty, otwarte incydenty, procedury, `validUntil`) i `GET /api/v1/procedures` z wbudowanymi listami kontrolnymi po polsku |
+| Zaawansowane wyznaczanie zasięgu | `Incident\Service\AreaCalculator`, `VerificationScheduler` | granica rośnie po heksagonach H3 w kierunku niepewnych komórek, dziury są wypełniane; to już nie promień |
+| RBAC i audit log | `security.yaml`, moduł `Audit` | role analityk / operator / administrator, dziennik odczytów i akcji, w tym pobrań zdjęć |
+
+Nowe wiadomości w Messengerze: `IncidentResolved`, `PhotoUploaded`, `ExternalSourcesTick`. Nowe tabele:
+`incident_event`, `report_photo`, kolumny `incident.resolution`, `shelter.occupancy`,
+`shelter_status_report.occupancy`.
+
+### 3.8 Zgłoszenia obszarowe i punktowe (ADR 0010)
+
+| | Obszarowe: prąd, woda, drogi, inne zagrożenia | Punktowe: brak paliwa, problem ze schronem |
+|---|---|---|
+| Do czego odnosi się zgłoszenie | okolica reportera (komórka H3) | konkretny obiekt: `poiId` z aplikacji albo najbliższa stacja (750 m) / schron (500 m) |
+| Klastrowanie | ten sam typ + okno czasu + promień | ten sam typ + ten sam obiekt |
+| Weryfikacja | fale po pierścieniach heksagonów, granica rośnie w kierunku nieznanych komórek | fala 0 przy obiekcie, kolejne przy 3 najbliższych obiektach tego rodzaju; pytanie nazywa obiekt i paliwo |
+| Co robi odpowiedź | zmienia stan komórki, obszar i pewność | zmienia status obiektu (paliwo per rodzaj, dostępność schronu); do pewności liczą się odpowiedzi o zgłoszonym obiekcie |
+| Mapa | wielokąt obszaru | pinezka obiektu; stacje jako warstwa `fuel_station`, schrony jak dotąd |
+
+Kod: `Shared\Poi` (abstrakcja obiektów), moduł `Fuel` (stacje, dostępność per `FuelType`, import z OSM),
+`Shelter` (import z dane.gov.pl, `ShelterAvailability`), `ReportSubmitter::resolvePoi`,
+`IncidentClusterer::attachToPoi`, `VerificationScheduler::planPointWave`, `VerificationResponder`.
+
+Dane: `tarcza:shelters:import` (rejestr krajowy, 86 tys. punktów, filtry po województwie / obszarze),
+`tarcza:fuel-stations:import` (Overpass, `--around` / `--bbox`), `tarcza:fixtures:load --reset`
+(deterministyczne dane demo: 4 miasta, wszystkie typy i stany, stacje, schrony, fale, źródła, alerty, zdjęcia, historia).
+
 ## 4. Infrastruktura
 
 ```
