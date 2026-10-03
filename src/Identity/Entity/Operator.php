@@ -75,6 +75,11 @@ class Operator implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->displayName;
     }
 
+    public function rename(string $displayName): void
+    {
+        $this->displayName = $displayName;
+    }
+
     public function getOrganisation(): ?string
     {
         return $this->organisation;
