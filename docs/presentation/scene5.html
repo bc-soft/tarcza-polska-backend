@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarcza Polska – scena 5</title>
+<link rel="icon" type="image/png" href="img/mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scene.css">
+<style>
+/* Scena 5: kolejne pary „napis + laptop” przejeżdżają z lewej do prawej, zwalniając prawie do zera na środku.
+   Para jest obrócona (roll + yaw); --pass to czas przejazdu jednej pary, --gap odstęp między startami par. */
+:root { --pass: 3.6s; --gap: 3s; --card-roll: -4deg; --card-yaw: 22deg; }
+.card { position: absolute; top: 50%; left: 50%; display: flex; flex-direction: column; align-items: center; gap: 4vh;
+    opacity: 0; transform: translate(-50%, -50%) translateX(-110vw) rotateZ(var(--card-roll)) rotateY(var(--card-yaw)); }
+.card h2 { font-size: 8vh; line-height: 1; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
+.card h2 em { font-style: normal; color: var(--primary); }
+.card img { width: 50vw; filter: drop-shadow(0 3vh 5vh rgba(0,0,0,.75)); }
+.halo { top: 50%; left: 50%; width: 90vh; height: 70vh; }
+
+.play .card { animation: pass var(--pass) linear forwards; animation-delay: calc(var(--delay) + var(--i) * var(--gap)); }
+.play .halo { animation: halo 1.6s ease-out var(--delay) forwards; }
+
+/* Szybki wjazd, prawie zatrzymanie w środku (ruch o kilka vw), szybki wyjazd za prawą krawędź. */
+@keyframes pass {
+    0% { opacity: 1; transform: translate(-50%, -50%) translateX(-110vw) rotateZ(var(--card-roll)) rotateY(var(--card-yaw)); animation-timing-function: cubic-bezier(.1,.7,.25,1); }
+    35% { transform: translate(-50%, -50%) translateX(-2.5vw) rotateZ(var(--card-roll)) rotateY(var(--card-yaw)); animation-timing-function: linear; }
+    65% { transform: translate(-50%, -50%) translateX(2.5vw) rotateZ(var(--card-roll)) rotateY(var(--card-yaw)); animation-timing-function: cubic-bezier(.75,0,.9,.3); }
+    100% { opacity: 1; transform: translate(-50%, -50%) translateX(110vw) rotateZ(var(--card-roll)) rotateY(var(--card-yaw)); }
+}
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<div class="vignette"></div>
+<div class="stage3d">
+    <div class="halo"></div>
+    <div class="card" style="--i:0"><h2>Realtime <em>weryfikacja informacji AI</em></h2><img src="img/laptop_ph.png" alt=""></div>
+    <div class="card" style="--i:1"><h2>Złożony wzór <em>kalkulacji wiarygodności</em></h2><img src="img/laptop_ph.png" alt=""></div>
+    <div class="card" style="--i:2"><h2>Foto <em>relacje</em></h2><img src="img/laptop_ph.png" alt=""></div>
+    <div class="card" style="--i:3"><h2>Opisy <em>tekstowe</em></h2><img src="img/laptop_ph.png" alt=""></div>
+</div>
+<script src="scene.js"></script>
+</body>
+</html>

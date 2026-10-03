@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarcza Polska – scena 4</title>
+<link rel="icon" type="image/png" href="img/mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scene.css">
+<style>
+/* Scena 4: hasło u góry, laptop wjeżdża z lewej, potem telefon z prawej (zwrócony w stronę laptopa). */
+.headline { position: absolute; top: 7vh; left: 8vw; right: 8vw; text-align: center; z-index: 1;
+    font-size: 6.6vh; line-height: 1.05; letter-spacing: .03em; text-transform: uppercase;
+    opacity: 0; clip-path: inset(0 100% 0 0); }
+.headline em { font-style: normal; color: var(--primary); }
+.laptop { top: 61%; left: 38%; width: 48vw; }
+.phone { top: 61%; left: 79%; height: 58vh; }
+.halo.l { top: 61%; left: 38%; width: 75vh; height: 50vh; }
+.halo.p { top: 61%; left: 79%; }
+
+.play .headline { animation: wipe 1.1s cubic-bezier(.7,0,.2,1) var(--delay) forwards; }
+.play .laptop { animation-name: laptopFromLeft; animation-delay: calc(var(--delay) + 1s); }
+.play .halo.l { animation-delay: calc(var(--delay) + 1.4s); }
+.play .phone { animation-delay: calc(var(--delay) + 2.2s); }
+.play .halo.p { animation-delay: calc(var(--delay) + 2.6s); }
+
+@keyframes wipe { to { opacity: 1; clip-path: inset(0 0 0 0); } }
+@keyframes laptopFromLeft {
+    0% { opacity: 0; transform: translate(calc(-50% - 60vw), -50%); }
+    40% { opacity: 1; }
+    100% { opacity: 1; transform: translate(-50%, -50%); }
+}
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<div class="vignette"></div>
+<h1 class="headline">Inteligentne mapowanie obszaru incydentu<br><em>przy użyciu aktywnego crowdsourcingu</em></h1>
+<div class="stage3d">
+    <div class="halo l"></div>
+    <div class="halo p"></div>
+    <img class="device laptop" src="img/laptop_ph.png" alt="Panel Tarcza Command">
+    <img class="device phone" src="img/phone_ph.png" alt="Aplikacja Tarcza Citizen">
+</div>
+<script src="scene.js"></script>
+</body>
+</html>
