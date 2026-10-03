@@ -8,29 +8,34 @@
         <link rel="apple-touch-icon" href="{{ asset('images/tarcza-polska-logo.png') }}">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
         <script src="https://cdn.tailwindcss.com"></script>
         <script>
-            // Design tokens of the Tarcza Polska design system (shared with the mobile app).
+            // Design tokens of the Tarcza Polska design system: dark "civil resilience" look - near-black canvas,
+            // graphite surfaces, one red accent; condensed display type and mono labels.
             tailwind.config = {
                 theme: {
                     extend: {
-                        fontFamily: {sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif']},
-                        colors: {
-                            canvas: '#DCE0F3',
-                            surface: {DEFAULT: '#E7E9F7', 2: '#F3F4FB', 3: '#FFFFFF'},
-                            primary: {DEFAULT: '#D4213D', hover: '#B61A33', soft: '#FBE3E7', 50: '#FDF2F4'},
-                            secondary: {DEFAULT: '#14213D', hover: '#0E1830', soft: '#DEE2EF'},
-                            tertiary: {DEFAULT: '#1B4DB1', hover: '#163F92', soft: '#DCE5F8'},
-                            neutral: {DEFAULT: '#0F172A', 700: '#334155', 500: '#5B6478', 400: '#8A93A8', 300: '#B7BDCF', 200: '#D4D8E8'},
-                            ok: {DEFAULT: '#15803D', soft: '#DCFCE7'},
-                            warn: {DEFAULT: '#D97706', soft: '#FEF3C7'},
-                            danger: {DEFAULT: '#B91C1C', soft: '#FEE2E2'},
+                        fontFamily: {
+                            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                            display: ['"Barlow Condensed"', 'Inter', 'ui-sans-serif', 'sans-serif'],
+                            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
                         },
-                        borderRadius: {'2xl': '1.25rem', '3xl': '1.75rem'},
+                        colors: {
+                            canvas: '#0D0E10',
+                            surface: {DEFAULT: '#15171A', 2: '#1C1F23', 3: '#22252A'},
+                            primary: {DEFAULT: '#E0262F', hover: '#C21F28', soft: '#351719', 50: '#24130F'},
+                            secondary: {DEFAULT: '#2A2E34', hover: '#343941', soft: '#23262B'},
+                            tertiary: {DEFAULT: '#5B8DEF', hover: '#4A7BDC', soft: '#18233A'},
+                            neutral: {DEFAULT: '#F1F2F4', 700: '#C4C8CF', 600: '#A9AEB7', 500: '#8C929C', 400: '#656B75', 300: '#464B53', 200: '#2B2F35', 100: '#202328'},
+                            ok: {DEFAULT: '#2EB872', soft: '#11291C'},
+                            warn: {DEFAULT: '#E8A33A', soft: '#2E2311'},
+                            danger: {DEFAULT: '#EF4444', soft: '#351616'},
+                        },
+                        borderRadius: {lg: '0.375rem', xl: '0.5rem', '2xl': '0.625rem', '3xl': '0.875rem'},
                         boxShadow: {
-                            card: '0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(20, 33, 61, 0.18)',
-                            float: '0 12px 32px -12px rgba(20, 33, 61, 0.35)',
+                            card: '0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 30px -18px rgba(0, 0, 0, 0.8)',
+                            float: '0 0 0 1px rgba(255, 255, 255, 0.07), 0 18px 40px -16px rgba(0, 0, 0, 0.9)',
                         },
                     },
                 },
@@ -38,38 +43,58 @@
         </script>
         <style type="text/tailwindcss">
             @layer base {
-                html { -webkit-font-smoothing: antialiased; }
-                ::selection { background: #FBE3E7; }
+                html { -webkit-font-smoothing: antialiased; color-scheme: dark; }
+                body {
+                    /* Faint monitoring grid, as on the brand key visual. */
+                    background-image: linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+                    background-size: 56px 56px;
+                    background-attachment: fixed;
+                }
+                ::selection { background: rgba(224, 38, 47, 0.35); }
                 input, select, textarea { font: inherit; }
+                h1 { @apply font-display uppercase tracking-wide; }
+                h2, h3 { @apply font-display text-lg uppercase tracking-wider; }
             }
             @layer components {
                 .card { @apply bg-surface rounded-2xl shadow-card; }
                 .card-lite { @apply bg-surface-2 rounded-2xl; }
-                .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-tertiary/40 disabled:opacity-50 disabled:pointer-events-none; }
+                .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:pointer-events-none; }
                 .btn-primary { @apply btn bg-primary text-white hover:bg-primary-hover; }
-                .btn-secondary { @apply btn bg-secondary-soft text-secondary hover:bg-neutral-200; }
-                .btn-inverted { @apply btn bg-secondary text-white hover:bg-secondary-hover; }
+                .btn-secondary { @apply btn bg-secondary text-neutral hover:bg-secondary-hover; }
+                .btn-inverted { @apply btn bg-neutral text-canvas hover:bg-neutral-700; }
+                .btn-quiet { @apply btn bg-surface-3 text-neutral ring-1 ring-inset ring-neutral-200 hover:ring-neutral-400; }
                 .btn-tertiary { @apply btn bg-tertiary text-white hover:bg-tertiary-hover; }
-                .btn-outlined { @apply btn border border-primary/50 text-primary hover:bg-primary-soft; }
+                .btn-outlined { @apply btn border border-primary/60 text-primary hover:bg-primary-soft; }
                 .btn-ghost { @apply btn text-neutral-700 hover:bg-surface-2; }
                 .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
-                .chip { @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition; }
-                .chip-on { @apply chip bg-secondary text-white; }
-                .chip-off { @apply chip bg-surface-2 text-neutral-700 hover:bg-neutral-200; }
-                .badge { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide; }
-                .field { @apply w-full rounded-xl border border-neutral-200 bg-surface-3 px-3.5 py-2.5 text-sm text-neutral placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-tertiary/40 focus:border-tertiary; }
-                .label { @apply block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-1.5; }
-                .eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500; }
-                .stat { @apply card p-4 flex flex-col gap-1; }
-                .stat-value { @apply text-2xl font-bold text-neutral tabular-nums leading-none; }
-                .icon-btn { @apply inline-flex h-10 w-10 items-center justify-center rounded-full transition; }
+                .chip { @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-wider whitespace-nowrap transition; }
+                .chip-on { @apply chip bg-primary text-white; }
+                .chip-off { @apply chip bg-surface-2 text-neutral-500 hover:bg-secondary hover:text-neutral; }
+                .chip-sel { @apply chip bg-secondary text-neutral ring-1 ring-inset ring-neutral-300; }
+                .badge { @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider; }
+                .field { @apply w-full rounded-xl border border-neutral-200 bg-surface-3 px-3.5 py-2.5 text-sm text-neutral placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary; }
+                .label { @apply block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500 mb-1.5; }
+                .eyebrow { @apply font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-500; }
+                .kicker { @apply inline-flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-primary before:h-1.5 before:w-1.5 before:rounded-full before:bg-primary before:content-['']; }
+                .stat { @apply card p-4 flex flex-col gap-1.5; }
+                .stat-value { @apply font-display text-4xl font-bold text-neutral tabular-nums leading-none; }
+                .icon-btn { @apply inline-flex h-10 w-10 items-center justify-center rounded-xl transition; }
                 .table { @apply w-full text-sm; }
-                .table th { @apply text-left eyebrow py-3 px-4 border-b border-neutral-200/70; }
-                .table td { @apply py-3 px-4 border-b border-neutral-200/50 align-top; }
+                .table th { @apply text-left eyebrow py-3 px-4 border-b border-neutral-200; }
+                .table td { @apply py-3 px-4 border-b border-neutral-200/60 align-top; }
                 .table tbody tr:hover { @apply bg-surface-2/70; }
-                .maplibregl-ctrl-group { @apply rounded-2xl overflow-hidden shadow-card; border: 0 !important; }
+                .maplibregl-ctrl-group { @apply rounded-xl overflow-hidden shadow-card; background: #15171A !important; border: 0 !important; }
                 .maplibregl-ctrl-group button { width: 40px !important; height: 40px !important; }
-                .maplibregl-popup-content { @apply rounded-xl shadow-float px-4 py-3 text-neutral text-xs font-sans; }
+                .maplibregl-ctrl-group button + button { border-top-color: #2B2F35 !important; }
+                .maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: invert(0.9); }
+                .maplibregl-ctrl-attrib { background: rgba(13, 14, 16, 0.75) !important; color: #8C929C; }
+                .maplibregl-ctrl-attrib a { color: #C4C8CF !important; }
+                .maplibregl-popup-content { @apply rounded-xl shadow-float px-4 py-3 text-neutral-700 text-xs font-sans; background: #22252A !important; }
+                .maplibregl-popup-content b { @apply text-neutral; }
+                .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: #22252A !important; }
+                .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: #22252A !important; }
+                .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: #22252A !important; }
+                .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: #22252A !important; }
                 .tarcza-hover { pointer-events: none; }
                 .tarcza-hover .maplibregl-popup-content { @apply leading-relaxed; }
             }
@@ -77,12 +102,14 @@
         <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
         <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
         <script>
-            // Shared with the templates' inline scripts: confidence palette + light map style.
+            // Shared with the templates' inline scripts: confidence palette + dark map style.
             window.TARCZA = {
-                mapStyle: 'https://tiles.openfreemap.org/styles/positron',
-                levelColor: {unverified: '#8A93A8', likely: '#F59E0B', high: '#EA580C', confirmed: '#1B4DB1'},
-                cellColor: {positive: '#D4213D', negative: '#15803D', unknown: '#8A93A8'},
-                severityColor: {info: '#1B4DB1', warning: '#D97706', danger: '#D4213D'},
+                mapStyle: 'https://tiles.openfreemap.org/styles/dark',
+                levelColor: {unverified: '#8C929C', likely: '#E8A33A', high: '#F26B2A', confirmed: '#E0262F'},
+                cellColor: {positive: '#E0262F', negative: '#2EB872', unknown: '#656B75'},
+                severityColor: {info: '#5B8DEF', warning: '#E8A33A', danger: '#E0262F'},
+                shelterColor: {free: '#2EB872', full: '#E8A33A', closed: '#E0262F', unknown: '#8C929C'},
+                muted: '#8C929C',
                 // Cards are laid out after fonts/CSS load; keep the WebGL canvas in sync with its container.
                 autosize: map => { new ResizeObserver(() => map.resize()).observe(map.getContainer()); return map; },
                 // Live indicator (hidden until the first event): EventSource retries silently, so only a CLOSED stream means "offline".
@@ -117,6 +144,7 @@
     </head>
     {# Turbo Drive off: page scripts are inline and re-running them in a shared global scope breaks the maps. #}
     <body class="h-full bg-canvas text-neutral font-sans antialiased" data-turbo="false">
+        <div class="fixed inset-y-0 left-0 z-50 w-1.5 bg-primary pointer-events-none" aria-hidden="true"></div>
         {% block body %}{% endblock %}
     </body>
 </html>

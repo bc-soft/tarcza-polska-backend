@@ -41,15 +41,15 @@
 {%- endmacro %}
 
 {% macro level_color(level) -%}
-{{- {'unverified': '#8A93A8', 'likely': '#F59E0B', 'high': '#EA580C', 'confirmed': '#1B4DB1'}[level]|default('#8A93A8') -}}
+{{- {'unverified': '#8C929C', 'likely': '#E8A33A', 'high': '#F26B2A', 'confirmed': '#E0262F'}[level]|default('#8C929C') -}}
 {%- endmacro %}
 
 {% macro confidence_badge(level, label, score = null) -%}
 {%- set styles = {
     'unverified': 'bg-neutral-200 text-neutral-700',
     'likely': 'bg-warn-soft text-warn',
-    'high': 'bg-orange-100 text-orange-700',
-    'confirmed': 'bg-tertiary text-white',
+    'high': 'bg-[#33190D] text-[#F26B2A]',
+    'confirmed': 'bg-primary text-white',
 } -%}
 <span class="badge {{ styles[level]|default(styles.unverified) }}">{{ label }}{% if score is not null %} · {{ (score * 100)|round }}%{% endif %}</span>
 {%- endmacro %}

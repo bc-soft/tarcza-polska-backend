@@ -9,8 +9,8 @@
     <div class="flex flex-wrap items-center gap-3">
         <a href="{{ path('command_incident_list') }}" class="icon-btn bg-surface hover:bg-surface-2 text-neutral-700">{{ ui.icon('chevron-left', 'w-5 h-5') }}</a>
         <div class="min-w-0">
-            <div class="eyebrow">Incydent · {{ id|slice(0, 8) }}</div>
-            <h1 class="text-2xl font-bold tracking-tight truncate">{{ detail.typeLabel }}</h1>
+            <div class="kicker">Incydent · {{ id|slice(0, 8) }}</div>
+            <h1 class="mt-2 text-4xl font-extrabold leading-none truncate">{{ detail.typeLabel }}</h1>
         </div>
         <div class="flex items-center gap-2 ml-auto">
             {{ ui.status_badge(detail.status) }}
@@ -171,17 +171,17 @@
                 <div class="grid grid-cols-2 gap-2">
                     <form method="post" action="{{ path('command_incident_research', {id: id}) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('research' ~ id) }}">
-                        <button class="btn-tertiary w-full" {% if not research.available %}title="Brak klucza API dla {{ research.provider }}"{% endif %}>{{ ui.icon('sparkles', 'w-4 h-4') }}Research AI</button>
+                        <button class="btn-quiet w-full" {% if not research.available %}title="Brak klucza API dla {{ research.provider }}"{% endif %}>{{ ui.icon('sparkles', 'w-4 h-4') }}Research AI</button>
                     </form>
                     <form method="post" action="{{ path('command_incident_resolve', {id: id}) }}" onsubmit="return confirm('Zamknąć incydent jako potwierdzony? Zgłaszający zyskają reputację, obywatele przestaną go widzieć na mapie.')">
                         <input type="hidden" name="_token" value="{{ csrf_token('resolve' ~ id) }}">
                         <input type="hidden" name="resolution" value="confirmed">
-                        <button class="btn-inverted w-full">{{ ui.icon('check', 'w-4 h-4') }}Zamknij (potwierdzony)</button>
+                        <button class="btn-primary w-full">{{ ui.icon('check', 'w-4 h-4') }}Zamknij (potwierdzony)</button>
                     </form>
                     <form method="post" action="{{ path('command_incident_resolve', {id: id}) }}" class="col-span-2" onsubmit="return confirm('Oznaczyć jako fałszywy alarm? Zgłaszający stracą reputację, a odpowiedzi tłumu zostaną ocenione odwrotnie.')">
                         <input type="hidden" name="_token" value="{{ csrf_token('resolve' ~ id) }}">
                         <input type="hidden" name="resolution" value="false_alarm">
-                        <button class="btn-tertiary w-full">{{ ui.icon('x', 'w-4 h-4') }}Fałszywy alarm</button>
+                        <button class="btn-quiet w-full">{{ ui.icon('x', 'w-4 h-4') }}Fałszywy alarm</button>
                     </form>
                 </div>
                 <p class="mt-2 text-[11px] text-neutral-500">Dostawca research: {{ research.provider }}{% if not research.available %} (brak klucza API){% endif %}.</p>
@@ -304,9 +304,9 @@
         map.addLayer({id: 'cells-fill', type: 'fill', source: 'cells', paint: {'fill-color': ['get', 'color'], 'fill-opacity': ['case', ['==', ['get', 'state'], 'unknown'], 0.18, 0.45]}});
         map.addLayer({id: 'cells-line', type: 'line', source: 'cells', paint: {'line-color': ['get', 'color'], 'line-width': 1.2}});
         map.addSource('area', {type: 'geojson', data: {type: 'Feature', geometry: detail.area ?? detail.centroid, properties: {}}});
-        map.addLayer({id: 'area-line', type: 'line', source: 'area', filter: ['!=', '$type', 'Point'], paint: {'line-color': '#14213D', 'line-width': 2.5, 'line-dasharray': [2, 1.5]}});
+        map.addLayer({id: 'area-line', type: 'line', source: 'area', filter: ['!=', '$type', 'Point'], paint: {'line-color': '#F1F2F4', 'line-width': 2, 'line-dasharray': [2, 1.5]}});
         map.addSource('reports', {type: 'geojson', data: {type: 'FeatureCollection', features: detail.reports.map(r => ({type: 'Feature', geometry: r.location, properties: {description: r.description ?? '', createdAt: r.createdAt, weight: r.weight, reputation: r.reporterReputation, simulated: r.simulated}}))}});
-        map.addLayer({id: 'reports', type: 'circle', source: 'reports', paint: {'circle-color': '#D97706', 'circle-radius': 4, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
+        map.addLayer({id: 'reports', type: 'circle', source: 'reports', paint: {'circle-color': window.TARCZA.severityColor.warning, 'circle-radius': 4, 'circle-stroke-color': '#0D0E10', 'circle-stroke-width': 1.5}});
         window.TARCZA.hover(map, [
             {layers: ['reports'], html: p => `<b>Zgłoszenie</b> · ${new Date(p.createdAt).toLocaleString('pl-PL', {dateStyle: 'short', timeStyle: 'short'})}${p.description ? '<br>' + esc(p.description) : ''}<br>waga ${p.weight} · reputacja ${p.reputation}${p.simulated ? ' · symulacja' : ''}`},
             {layers: ['cells-fill'], html: p => `<b class="font-mono">${esc(p.h3)}</b><br>${cellStateLabel[p.state] ?? esc(p.state)} · ring ${p.ring}<br>zgłoszeń ${p.reports} · problem ${p.yes} · brak ${p.no} · pytano ${p.asked}`},
