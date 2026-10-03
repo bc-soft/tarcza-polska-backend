@@ -33,6 +33,8 @@ services:
             string $openAiModel: '%app.openai.model%'
             string $firebaseCredentials: '%app.firebase.credentials%'
             string $autoAlertLevel: '%app.alerting.auto_alert_level%'
+            array $externalSourceFeeds: '%app.external_sources.feeds%'
+            int $externalSourcesPollMinutes: '%app.external_sources.poll_minutes%'
 
     App\:
         resource: '../src/'

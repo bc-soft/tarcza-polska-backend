@@ -30,6 +30,18 @@ final class ExternalSourceRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function existsByUrl(Incident $incident, string $url): bool
+    {
+        return (int) $this->createQueryBuilder('s')
+            ->select('COUNT(s.id)')
+            ->where('s.incident = :incident')
+            ->andWhere('s.url = :url')
+            ->setParameter('incident', $incident)
+            ->setParameter('url', mb_substr($url, 0, 2048))
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
+    }
+
     /** @return array{credibility: float, count: int} */
     public function bestCredibility(Incident $incident): array
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Scheduler;
 
 use App\Identity\Message\LocationRefreshTick;
+use App\Intelligence\Message\ExternalSourcesTick;
 use App\Simulation\Message\SimulatedCrowdTick;
 use App\Verification\Message\VerificationTick;
 use Symfony\Component\Lock\LockFactory;
@@ -36,6 +37,8 @@ final class TarczaSchedule implements ScheduleProviderInterface
                 RecurringMessage::every('10 seconds', new SimulatedCrowdTick()),
                 // Remind devices with a position older than 24 h to reopen the app (push location_refresh).
                 RecurringMessage::every('15 minutes', new LocationRefreshTick()),
+                // External Sources Engine: poll RSS/Atom feeds and attach matching items to open incidents.
+                RecurringMessage::every('5 minutes', new ExternalSourcesTick()),
             )
             ->lock($this->lockFactory->createLock('tarcza-schedule'))
             ->stateful($this->cache);
