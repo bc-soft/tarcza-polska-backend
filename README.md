@@ -2,7 +2,7 @@
 
 Backend platformy odporności cywilnej **Tarcza Polska** („Siła jest w nas”): crowdsourcing, aktywna
 weryfikacja, geolokalizacja i AI do wykrywania zagrożeń, wyznaczania ich zasięgu i informowania ludzi.
-Symfony 7.4 · PHP 8.4 · PostgreSQL + PostGIS + H3 · Redis · Mercure · FCM · Claude API.
+Symfony 7.4 · PHP 8.4 · PostgreSQL + PostGIS + H3 · Redis · Mercure · FCM · OpenAI lub Claude (wybór zmienną `RESEARCH_PROVIDER`).
 
 ```bash
 make build && make up      # https://localhost
@@ -23,4 +23,5 @@ MAP     IncidentCell positive/negative  -> obszar = unia hexów H3, granica = ni
 INFORM  POST /api/command/alerts        -> push do urządzeń wewnątrz poligonu
 ```
 
-Confidence jest deterministyczne i wyjaśnialne; AI (Claude + web search) dostarcza tylko źródła.
+Confidence jest deterministyczne i wyjaśnialne; AI (OpenAI lub Claude z web search) dostarcza tylko źródła.
+Integracja aplikacji mobilnej: [docs/flutter-agent-guide.md](docs/flutter-agent-guide.md).
