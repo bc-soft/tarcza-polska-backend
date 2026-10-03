@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarcza Polska – film</title>
+<link rel="icon" type="image/png" href="img/mark.png">
+<style>
+/* Odtwarza intro i sceny po kolei z przenikaniem. Każda scena startuje dopiero, gdy jest widoczna,
+   a następna zmienia się po zakończeniu animacji + chwila na zatrzymanie kadru.
+   ?delay=3 opóźnia start całości (s), ?hold=2 zmienia czas zatrzymania kadru (s). R = od nowa. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0D0E10; cursor: none; }
+iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; opacity: 0; transition: opacity .8s ease; pointer-events: none; }
+iframe.on { opacity: 1; }
+</style>
+</head>
+<body>
+<script>
+const SCENES = ['intro.html', 'scene1.html', 'scene2.html', 'scene3.html'];
+const FADE_MS = 800;
+const params = new URLSearchParams(location.search);
+const seconds = (name, fallback) => { const v = parseFloat(params.get(name)); return Number.isNaN(v) ? fallback : v; };
+const START_MS = seconds('delay', 0.3) * 1000;
+const HOLD_MS = seconds('hold', 1.8) * 1000;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Wiadomości ze scen (scene.js): gotowość i koniec animacji, rozpoznawane po oknie nadawcy.
+const waiting = new Map();
+addEventListener('message', e => {
+    const handlers = waiting.get(e.source);
+    if (handlers && handlers[e.data?.type]) handlers[e.data.type]();
+});
+
+function load(src) {
+    const frame = document.createElement('iframe');
+    frame.src = src + '?autoplay=0';
+    frame.title = src;
+    document.body.appendChild(frame);
+    const scene = {frame};
+    scene.ready = new Promise(r => scene.onReady = r);
+    scene.done = new Promise(r => scene.onDone = r);
+    // contentWindow jest stałe dla ramki, więc rejestrujemy od razu: scena może zgłosić gotowość przed zdarzeniem load.
+    waiting.set(frame.contentWindow, {'tarcza:scene-ready': scene.onReady, 'tarcza:scene-done': scene.onDone});
+    return scene;
+}
+
+async function run() {
+    let next = load(SCENES[0]);
+    let prev = null;
+    await sleep(START_MS);
+    for (let i = 0; i < SCENES.length; i++) {
+        const cur = next;
+        await cur.ready;
+        if (i + 1 < SCENES.length) next = load(SCENES[i + 1]); // wczytaj następną w tle
+        cur.frame.classList.add('on');
+        cur.frame.contentWindow.postMessage({type: 'tarcza:play'}, '*');
+        if (prev) { prev.frame.classList.remove('on'); const old = prev.frame; setTimeout(() => old.remove(), FADE_MS); }
+        await cur.done;
+        if (i + 1 < SCENES.length) await sleep(HOLD_MS);
+        prev = cur;
+    }
+}
+
+addEventListener('keydown', e => { if (e.key.toLowerCase() === 'r') location.reload(); });
+run();
+</script>
+</body>
+</html>

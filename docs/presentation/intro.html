@@ -81,19 +81,7 @@ const text = claim.firstChild.textContent;
 claim.firstChild.remove();
 [...text].forEach((ch, i) => { const s = document.createElement('span'); s.textContent = ch; s.setAttribute('aria-hidden', 'true'); s.style.setProperty('--i', i); claim.insertBefore(s, dot); });
 dot.style.setProperty('--i', text.length);
-
-const delay = parseFloat(new URLSearchParams(location.search).get('delay'));
-if (!Number.isNaN(delay)) document.documentElement.style.setProperty('--delay', delay + 's');
-
-function play() {
-    document.body.classList.remove('play');
-    void document.body.offsetWidth; // restart animacji
-    document.body.classList.add('play');
-}
-// Start po załadowaniu fontów i logo, żeby nic nie mignęło w trakcie nagrania.
-Promise.all([document.fonts.ready, new Promise(r => { const img = document.querySelector('.logo'); img.complete ? r() : img.onload = r; })]).then(play);
-addEventListener('click', play);
-addEventListener('keydown', e => { if (e.key === ' ' || e.key.toLowerCase() === 'r') { e.preventDefault(); play(); } });
 </script>
+<script src="scene.js"></script>
 </body>
 </html>
