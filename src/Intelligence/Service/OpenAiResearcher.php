@@ -11,6 +11,7 @@ use OpenAI\Client;
 use OpenAI\Responses\Responses\Output\OutputMessage;
 use OpenAI\Responses\Responses\Output\OutputMessageContentOutputText;
 use OpenAI\Responses\Responses\Output\OutputMessageContentRefusal;
+use OpenAI\Responses\Responses\Output\OutputWebSearchToolCall;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -55,7 +56,10 @@ final class OpenAiResearcher implements ResearcherInterface
             ]],
             'tool_choice' => 'auto',
             'max_tool_calls' => 6,
-            'max_output_tokens' => 4096,
+            // Reasoning models spend output tokens on thinking; keep effort low (research is retrieval, not reasoning)
+            // and leave room for the final JSON.
+            'reasoning' => ['effort' => 'low'],
+            'max_output_tokens' => 16000,
             'text' => ['format' => [
                 'type' => 'json_schema',
                 'name' => 'incident_research',
@@ -63,6 +67,14 @@ final class OpenAiResearcher implements ResearcherInterface
                 'schema' => ResearchPrompt::jsonSchema(),
             ]],
             'store' => false,
+        ]);
+
+        $this->logger->info('OpenAI research for incident {id}: status {status}, {in} input / {out} output tokens, {calls} tool calls', [
+            'id' => $incident->getId()->toRfc4122(),
+            'status' => $response->status,
+            'in' => $response->usage?->inputTokens,
+            'out' => $response->usage?->outputTokens,
+            'calls' => \count(array_filter($response->output, static fn ($item) => $item instanceof OutputWebSearchToolCall)),
         ]);
 
         if ('completed' !== $response->status) {

@@ -8,6 +8,7 @@ Symfony 7.4 · PHP 8.4 · PostgreSQL + PostGIS + H3 · Redis · Mercure · FCM �
 make build && make up      # https://localhost
 make seed                  # operator@tarcza.local / tarcza-demo
 make simulate              # scenariusz demo: awaria prądu, 700 wirtualnych urządzeń
+make console c="tarcza:research --dry-run"   # test researchu AI (klucz w .env.local)
 ```
 
 * Command Center: https://localhost/command

@@ -228,6 +228,12 @@ class Incident
         $this->researchedAt = new DateTimeImmutable();
     }
 
+    /** Allows research to run again (operator request or tarcza:research --again). */
+    public function recordResearchReset(): void
+    {
+        $this->researchedAt = null;
+    }
+
     /** @return Collection<int, Report> */
     public function getReports(): Collection
     {

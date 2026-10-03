@@ -9,6 +9,7 @@ use App\Verification\Entity\VerificationRequest;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use SortDirection;
 
 /** @extends ServiceEntityRepository<VerificationRequest> */
 final class VerificationRequestRepository extends ServiceEntityRepository
@@ -28,7 +29,7 @@ final class VerificationRequestRepository extends ServiceEntityRepository
             ->andWhere('r.expiresAt > :now')
             ->setParameter('device', $device)
             ->setParameter('now', new DateTimeImmutable())
-            ->orderBy('r.sentAt', 'DESC')
+            ->orderBy('r.sentAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }

@@ -9,6 +9,7 @@ use App\Verification\Entity\VerificationWave;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use SortDirection;
 
 /** @extends ServiceEntityRepository<VerificationWave> */
 final class VerificationWaveRepository extends ServiceEntityRepository
@@ -49,7 +50,7 @@ final class VerificationWaveRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('w')
             ->where('w.incident = :incident')
             ->setParameter('incident', $incident)
-            ->orderBy('w.ring', 'ASC')
+            ->orderBy('w.ring', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }

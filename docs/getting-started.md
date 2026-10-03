@@ -8,7 +8,7 @@ PHPStan i testów jednostkowych, ale nie są wymagane: wszystko działa w konten
 ## Pierwsze uruchomienie
 
 ```bash
-cp .env .env.local                # opcjonalnie: OPENAI_API_KEY (lub ANTHROPIC_API_KEY), FIREBASE_CREDENTIALS
+echo 'OPENAI_API_KEY=sk-...' > .env.local   # sekrety tylko tu (plik ignorowany przez git), nigdy w .env
 make build                        # obrazy: FrankenPHP + PostGIS/H3
 make up                           # https://localhost  (zaakceptuj lokalny certyfikat Caddy)
 make seed                         # konta operatorów + schrony w Poznaniu
@@ -58,6 +58,21 @@ działają bez Dockera (platforma Composera jest przypięta do rozszerzeń konte
 | `VERIFICATION_MAX_RING` | 6 | maksymalny ring od centrum |
 | `VERIFICATION_DEVICES_PER_CELL` | 5 | ile urządzeń pytamy w jednej komórce |
 | `VERIFICATION_COOLDOWN_MIN` | 10 | minimalna przerwa między pytaniami do tego samego urządzenia |
+
+## Research AI: test i koszty
+
+```bash
+make console c="tarcza:research --dry-run"   # wywołuje dostawcę, drukuje wynik, nic nie zapisuje
+make console c="tarcza:research --again"     # pełna ścieżka: zapis źródeł, podsumowanie, przeliczenie confidence
+```
+
+Zmierzone na `gpt-5` z niskim poziomem rozumowania: 25–35 s na incydent, 5 wyszukiwań, ~27 tys. tokenów
+wejścia i ~2 tys. wyjścia, czyli rząd 10 centów za research. Research uruchamia się automatycznie raz na
+incydent (po osiągnięciu poziomu „prawdopodobne”), więc 9 USD wystarczy na kilkadziesiąt incydentów.
+
+Sekrety (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FIREBASE_CREDENTIALS`) trzymaj w `.env.local`. Plik jest
+ignorowany przez git i bind-mountowany do kontenerów; `compose.yaml` celowo nie wymienia tych zmiennych,
+żeby pusta wartość z compose nie przesłoniła `.env.local`.
 
 ## Debugowanie przepływu
 

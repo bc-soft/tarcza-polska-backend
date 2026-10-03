@@ -12,6 +12,7 @@ use App\Shared\Geo\Point;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use SortDirection;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<Incident> */
@@ -66,7 +67,7 @@ final class IncidentRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('i')
             ->where('i.status <> :resolved')
             ->setParameter('resolved', IncidentStatus::Resolved)
-            ->orderBy('i.lastActivityAt', 'DESC')
+            ->orderBy('i.lastActivityAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -76,7 +77,7 @@ final class IncidentRepository extends ServiceEntityRepository
     {
         /** @var list<Incident> */
         return $this->createQueryBuilder('i')
-            ->orderBy('i.lastActivityAt', 'DESC')
+            ->orderBy('i.lastActivityAt', SortDirection::Descending)
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
@@ -108,7 +109,7 @@ final class IncidentRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('i')
             ->where('i.id IN (:ids)')
             ->setParameter('ids', array_map(static fn (string $id) => Uuid::fromString($id), $ids))
-            ->orderBy('i.confidenceScore', 'DESC')
+            ->orderBy('i.confidenceScore', SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }

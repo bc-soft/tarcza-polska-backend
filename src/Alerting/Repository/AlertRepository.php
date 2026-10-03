@@ -9,6 +9,7 @@ use App\Shared\Geo\BoundingBox;
 use App\Shared\Geo\Point;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use SortDirection;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<Alert> */
@@ -43,7 +44,7 @@ final class AlertRepository extends ServiceEntityRepository
     public function findRecent(int $limit = 50): array
     {
         /** @var list<Alert> */
-        return $this->createQueryBuilder('a')->orderBy('a.createdAt', 'DESC')->setMaxResults($limit)->getQuery()->getResult();
+        return $this->createQueryBuilder('a')->orderBy('a.createdAt', SortDirection::Descending)->setMaxResults($limit)->getQuery()->getResult();
     }
 
     /**
@@ -61,7 +62,7 @@ final class AlertRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('a')
             ->where('a.id IN (:ids)')
             ->setParameter('ids', array_map(static fn (string $id) => Uuid::fromString($id), $ids))
-            ->orderBy('a.createdAt', 'DESC')
+            ->orderBy('a.createdAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }

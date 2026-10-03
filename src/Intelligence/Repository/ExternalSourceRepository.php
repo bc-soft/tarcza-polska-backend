@@ -8,6 +8,7 @@ use App\Incident\Entity\Incident;
 use App\Intelligence\Entity\ExternalSource;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use SortDirection;
 
 /** @extends ServiceEntityRepository<ExternalSource> */
 final class ExternalSourceRepository extends ServiceEntityRepository
@@ -24,7 +25,7 @@ final class ExternalSourceRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('s')
             ->where('s.incident = :incident')
             ->setParameter('incident', $incident)
-            ->orderBy('s.credibility', 'DESC')
+            ->orderBy('s.credibility', SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }

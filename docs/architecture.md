@@ -143,7 +143,9 @@ wybiera zmienna `RESEARCH_PROVIDER` (`openai` domyślnie, `anthropic`, `none`) p
   (operatorzy energetyczni, wodociągi, RCB, PAP, media lokalne) i ścisły JSON schema odpowiedzi
   (lista źródeł z URL, wydawcą, wiarygodnością, datą i flagą „potwierdza to zdarzenie”) oraz parser.
 * `OpenAiResearcher`: Responses API, narzędzie `web_search` z filtrem `allowed_domains` (limit 20 domen),
-  `text.format` = `json_schema` ze `strict: true`, `max_tool_calls` = 6.
+  `text.format` = `json_schema` ze `strict: true`, `max_tool_calls` = 6, `reasoning.effort` = `low`
+  i `max_output_tokens` = 16000 (modele rozumujące zużywają budżet wyjścia na myślenie; przy 4096 odpowiedź
+  była ucinana). Zmierzone: 25–35 s, ~27k/2k tokenów, ~0,10 USD na incydent. Test: `tarcza:research --dry-run`.
 * `ClaudeResearcher`: `messages.create` z `web_search_20260209` i `output_config.format` = JSON schema.
 
 Źródła potwierdzające zapisujemy jako `ExternalSource`, a `ConfidenceCalculator` decyduje, ile są warte.
