@@ -76,7 +76,28 @@ Push FCM niesie `data: {type: "alert", alertId}`.
 |---|---|---|
 | GET | `/api/v1/shelters?lat&lng` | 10 najbliższych z `distanceMeters`. |
 | GET | `/api/v1/shelters?bbox=` | Schrony w oknie mapy. |
-| POST | `/api/v1/shelters/{id}/status` | `{status: "open" | "closed" | "full" | "unknown", comment?}`. |
+| POST | `/api/v1/shelters/{id}/status` | `{status: "open" | "closed" | "unknown", occupancy?: "plenty" | "limited" | "full", comment?}`. `status: "full"` nadal działa i oznacza `open` + `occupancy: full`. |
+
+Każdy schron ma `occupancy` i `occupancyLabel` (`unknown` · Brak danych o miejscach, `plenty` · Dużo miejsc, `limited` · Mało miejsc, `full` · Pełny). Pole ma sens tylko przy `status: open`.
+
+### Historia incydentu
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/api/v1/incidents/{id}/timeline` | Oś czasu, najstarsze pierwsze, z ETag. Wpisy `{type, label, at, details}`; typy: `created`, `wave_started`, `wave_closed`, `area_changed`, `confidence_changed`, `research_completed`, `source_added`, `alert_published`, `photo_attached`, `resolved`. `details` to małe liczby/etykiety (np. `{positiveCells, negativeCells, unknownCells, yes, no}` dla `area_changed`, `{from, to, score}` dla `confidence_changed`), nigdy pozycje. |
+
+### Procedury i tryb offline
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/api/v1/procedures?type=` | Listy kontrolne „co robić, gdy…” po polsku, posortowane po priorytecie. Z `type` zwraca procedury dla typu plus ogólne. ETag. |
+| GET | `/api/v1/offline-bundle?lat&lng&radiusMeters=15000` | Paczka do cache: schrony w promieniu (najbliższe pierwsze, z `distanceMeters`), aktywne alerty, otwarte incydenty i procedury, plus `generatedAt` i `validUntil` (24 h). ETag. Odśwież po `validUntil` albo przy powrocie na pierwszy plan. |
+
+### Zdjęcia do zgłoszenia
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| POST | `/api/v1/reports/{id}/photo` | `multipart/form-data`, pole `photo` (JPEG/PNG/WebP, do 10 MB, maks. 3 na zgłoszenie). Backend usuwa EXIF/GPS, skaluje do 1600 px i zwraca 202 `{photoId, reportId, status: "processing", width, height, bytes, createdAt}`. Błędy: 409 `photo_limit`, 413 `payload_too_large`, 415 `unsupported_media_type`, 429. Zdjęcia widzi tylko operator; analiza (czy pasuje do zgłoszenia, moderacja) działa w tle. |
 
 ### Zdrowie
 
@@ -97,10 +118,12 @@ Push FCM niesie `data: {type: "alert", alertId}`.
 | POST | `/api/command/login` | - | `{email, password}` → `{token}`. |
 | GET | `/api/command/stats` | analyst | liczniki do nagłówka panelu. |
 | GET | `/api/command/incidents?all=1` | analyst | feed incydentów (podsumowania + centroid + liczby komórek). |
-| GET | `/api/command/incidents/{id}` | analyst | pełny detal: surowe raporty, hexy jako GeoJSON, źródła, rozbicie confidence, statystyki fal. Zapis w audit logu. |
+| GET | `/api/command/incidents/{id}` | analyst | pełny detal: surowe raporty (z `reporterReputation`), hexy jako GeoJSON, źródła, rozbicie confidence, statystyki fal, pełna `timeline`, `photos`, `resolution`. Zapis w audit logu. |
 | GET | `/api/command/incidents/{id}/sources` | analyst | źródła zewnętrzne. |
 | POST | `/api/command/incidents/{id}/sources` | operator | ręczne dodanie oficjalnego źródła `{url, title, kind, credibility, publisher?, excerpt?}`. |
-| POST | `/api/command/incidents/{id}/resolve` | operator | zamknięcie incydentu. |
+| POST | `/api/command/incidents/{id}/resolve` | operator | zamknięcie incydentu z werdyktem: body opcjonalne `{resolution: "confirmed" | "false_alarm", note?}` (domyślnie `confirmed`). Werdykt zasila reputację zgłaszających i odpowiadających. |
+| GET | `/api/command/incidents/{id}/photos?includeUnsafe=1` | analyst | zdjęcia od obywateli z analizą (`relevant`, `matchesType`, `description`, `unsafe`, `confidence`) i `url` do pliku. |
+| GET | `/api/command/photos/{id}/file` | analyst | plik JPEG (po usunięciu metadanych); każde pobranie w `audit_log`. |
 | GET | `/api/command/alerts` | analyst | ostatnie komunikaty. |
 | POST | `/api/command/alerts` | operator | `{title, body, severity, incidentId?, area?, ttlMinutes}`. Obszar = `area` albo aktualny obszar incydentu. |
 | GET | `/api/command/shelters` | analyst | rejestr schronów (wszystkie, alfabetycznie). |

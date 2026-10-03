@@ -26,3 +26,7 @@ INFORM  POST /api/command/alerts        -> push do urządzeń wewnątrz poligonu
 
 Confidence jest deterministyczne i wyjaśnialne; AI (OpenAI lub Claude z web search) dostarcza tylko źródła.
 Integracja aplikacji mobilnej: [docs/flutter-agent-guide.md](docs/flutter-agent-guide.md).
+
+Post-MVP (zrealizowane): historia incydentu, zdjęcia bez EXIF z analizą wizji, External Sources Engine (RSS),
+reputacja zgłaszających z werdyktem zamknięcia, automatyczne alerty geograficzne, dostępność schronów,
+paczka offline z procedurami. Szczegóły: `docs/architecture.md` §3.7 i ADR 0007–0009.

@@ -453,8 +453,8 @@ make console c="dbal:run-sql \"DELETE FROM device WHERE simulated\""
 
 * Brak kont użytkowników, logowania, profilu. Tożsamość = instalacja aplikacji.
 * Brak historii lokalizacji; backend zna tylko ostatnią pozycję.
-* Brak uploadu zdjęć (pole istnieje w modelu, endpointu nie ma). Nie buduj na to UI w MVP.
-* Brak trybu offline po stronie serwera; cache schronów i ostatniego stanu mapy to zadanie aplikacji.
+* Zdjęcia: upload istnieje (sekcja 16), ale obywatel nigdy nie ogląda zdjęć innych; nie ma galerii po stronie Citizen.
+* Tryb offline: backend daje paczkę do cache (sekcja 17), ale samo cache'owanie i pokazywanie danych bez sieci to zadanie aplikacji.
 * Brak tłumaczeń: etykiety przychodzą po polsku, wartości enumów są stałe i po angielsku.
 * Brak paginacji: listy są krótkie z założenia (bbox, najbliższe 10, pending).
 * Brak geokodowania adresu po stronie backendu: adres z onboardingu zamieniasz na współrzędne systemowym geokoderem
@@ -462,3 +462,87 @@ make console c="dbal:run-sql \"DELETE FROM device WHERE simulated\""
 
 Jeśli czegoś brakuje w API, najkrótsza droga to zgłoszenie w repo backendu z przykładowym żądaniem i oczekiwaną
 odpowiedzią; dodanie endpointu w istniejącym module to zwykle kilkanaście minut.
+
+---
+
+## 16. Zdjęcie do zgłoszenia (post-MVP)
+
+Po wysłaniu zgłoszenia aplikacja może dołączyć do **3 zdjęć**. Backend usuwa EXIF i GPS, skaluje do 1600 px
+i analizuje zdjęcie w tle. Obywatel nie ogląda zdjęć innych; to materiał dla operatora.
+
+```http
+POST /api/v1/reports/{reportId}/photo
+Content-Type: multipart/form-data   (pole: photo)
+```
+```json
+HTTP 202
+{ "photoId": "01a1…", "reportId": "01a1…", "status": "processing", "width": 1600, "height": 1200, "bytes": 30690, "createdAt": "2026-10-03T16:39:45+00:00" }
+```
+
+| HTTP | `error.code` | Co zrobić |
+|---|---|---|
+| 400 | `bad_request` | brak pola `photo` albo urwany upload |
+| 409 | `photo_limit` | już 3 zdjęcia, schowaj przycisk |
+| 413 | `payload_too_large` | > 10 MB, zmniejsz przed wysłaniem |
+| 415 | `unsupported_media_type` | wyślij JPEG/PNG/WebP; HEIC z iPhone'a skonwertuj (`image_picker` z `imageQuality` oddaje JPEG) |
+| 429 | `too_many_requests` | limit 20 uploadów / 10 min |
+
+Dio: `FormData.fromMap({'photo': await MultipartFile.fromFile(path, filename: 'photo.jpg')})`. Nie trzeba
+samodzielnie usuwać EXIF, ale nie zaszkodzi zmniejszyć zdjęcie do ~1600 px po stronie telefonu, żeby oszczędzić transfer.
+
+## 17. Tryb offline: paczka do cache (post-MVP)
+
+Zanim zniknie sieć, aplikacja pobiera jedną paczkę i trzyma ją lokalnie (Hive / SQLite / plik JSON).
+
+```http
+GET /api/v1/offline-bundle?lat=52.4121&lng=16.9012&radiusMeters=15000
+```
+```json
+{
+  "generatedAt": "2026-10-03T16:39:45+00:00",
+  "validUntil":  "2026-10-04T16:39:45+00:00",
+  "center": { "type": "Point", "coordinates": [16.9012, 52.4121] },
+  "radiusMeters": 15000,
+  "shelters":   [ { "...ShelterView", "distanceMeters": 70 } ],
+  "alerts":     [ { "...AlertView z area" } ],
+  "incidents":  [ { "...IncidentView" } ],
+  "procedures": [ { "id": "power-outage", "title": "Brak prądu", "summary": "...", "steps": ["..."], "appliesTo": ["power_outage"], "priority": 90 } ]
+}
+```
+
+* Odśwież: przy starcie, po powrocie na pierwszy plan, po przemieszczeniu o kilka kilometrów i po `validUntil`.
+  Endpoint zwraca ETag, więc `If-None-Match` daje 304 bez transferu.
+* Bez sieci pokazuj schrony z paczki (najbliższe pierwsze), ostatnie alerty i procedury; zaznacz w UI, że dane są z cache i z której godziny.
+* Same procedury, bez reszty: `GET /api/v1/procedures?type=power_outage` (procedury dla typu plus ogólne). Pokazuj je także
+  na ekranie incydentu i alertu („co robić”).
+
+## 18. Historia incydentu (post-MVP)
+
+```http
+GET /api/v1/incidents/{id}/timeline
+```
+```json
+[
+  { "type": "created",            "label": "Wykryto skupisko zgłoszeń",            "at": "2026-10-03T14:44:11+02:00", "details": { "reports": 1, "cell": "891e…", "ring": 0 } },
+  { "type": "wave_started",       "label": "Wysłano falę pytań weryfikacyjnych",   "at": "…", "details": { "ring": 0, "cells": 7, "devices": 2 } },
+  { "type": "area_changed",       "label": "Zmienił się zasięg incydentu",          "at": "…", "details": { "positiveCells": 4, "negativeCells": 2, "unknownCells": 5, "yes": 6, "no": 2 } },
+  { "type": "confidence_changed", "label": "Zmienił się poziom wiarygodności",      "at": "…", "details": { "from": "likely", "to": "high", "score": 0.612 } },
+  { "type": "alert_published",    "label": "Wysłano komunikat do obszaru",          "at": "…", "details": { "severity": "warning", "devices": 12, "createdBy": "system" } },
+  { "type": "resolved",           "label": "Incydent zamknięty",                    "at": "…", "details": { "resolution": "confirmed" } }
+]
+```
+
+Wyświetl jako pionową oś czasu pod szczegółami incydentu: `label` jest gotowy po polsku, `details` są opcjonalnym
+drobnym drukiem. Lista jest posortowana rosnąco i wspiera ETag. Typy, które mogą się pojawić:
+`created`, `wave_started`, `wave_closed`, `area_changed`, `confidence_changed`, `research_completed`, `source_added`,
+`alert_published`, `photo_attached`, `resolved`.
+
+## 19. Dostępność schronów i alerty automatyczne (post-MVP)
+
+* Schron ma teraz `occupancy` / `occupancyLabel`: `unknown` (Brak danych o miejscach), `plenty` (Dużo miejsc),
+  `limited` (Mało miejsc), `full` (Pełny). Przy potwierdzaniu statusu wyślij `{ "status": "open", "occupancy": "limited" }`;
+  dla `closed` pomiń `occupancy`. Na mapie pokazuj zapełnienie kolorem lub ikoną obok statusu.
+* Gdy incydent osiągnie poziom `confirmed`, backend sam wysyła alert do wszystkich w obszarze (autor `system`).
+  Dla aplikacji to zwykły push `data.type = "alert"` i zwykły wpis w `GET /api/v1/alerts`, nic nowego do obsługi.
+* Operator zamyka incydent z werdyktem (`confirmed` / `false_alarm`). Po zamknięciu incydent znika z mapy,
+  a w `GET /api/v1/reports/{id}` jego `status` to `resolved`. Reputacja urządzenia nie jest widoczna w API obywatela.

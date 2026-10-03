@@ -89,6 +89,11 @@ działają bez Dockera (platforma Composera jest przypięta do rozszerzeń konte
 | `VERIFICATION_MAX_RING` | 6 | maksymalny ring od centrum |
 | `VERIFICATION_DEVICES_PER_CELL` | 5 | ile urządzeń pytamy w jednej komórce |
 | `VERIFICATION_COOLDOWN_MIN` | 10 | minimalna przerwa między pytaniami do tego samego urządzenia |
+| `AUTO_ALERT_LEVEL` | `confirmed` | poziom, przy którym system sam wysyła alert do obszaru (`confirmed`, `high`, `likely`; `off` wyłącza) |
+
+Kanały RSS/Atom dla External Sources Engine konfiguruje się w `config/packages/external_sources.yaml`
+(nazwa, URL, rodzaj, wiarygodność, interwał). Zdjęcia lądują w `var/storage/photos` (`config/packages/flysystem.yaml`;
+na produkcji podmień adapter na S3/R2 i zachowaj nazwę `photos.storage`).
 
 ## Research AI: test i koszty
 
@@ -104,6 +109,20 @@ incydent (po osiągnięciu poziomu „prawdopodobne”), więc 9 USD wystarczy n
 Sekrety (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FIREBASE_CREDENTIALS`) trzymaj w `.env.local`. Plik jest
 ignorowany przez git i bind-mountowany do kontenerów; `compose.yaml` celowo nie wymienia tych zmiennych,
 żeby pusta wartość z compose nie przesłoniła `.env.local`.
+
+## Funkcje post-MVP: szybkie sprawdzenie
+
+```bash
+make console c="tarcza:sources:poll"                 # które kanały odpowiadają i co pasuje do otwartych incydentów
+make console c="tarcza:sources:poll --apply"         # zapisz dopasowania jako źródła (to samo robi tick co 5 min)
+curl -k "https://localhost/api/v1/incidents/<id>/timeline" -H "Authorization: Bearer <token>"
+curl -k "https://localhost/api/v1/offline-bundle?lat=52.4121&lng=16.9012" -H "Authorization: Bearer <token>"
+curl -k -X POST "https://localhost/api/v1/reports/<id>/photo" -H "Authorization: Bearer <token>" -F "photo=@zdjecie.jpg"
+```
+
+Zamknięcie incydentu z werdyktem w panelu (dwa przyciski) albo przez API:
+`POST /api/command/incidents/{id}/resolve` z `{"resolution": "false_alarm"}`. Reputację zgłaszających widać
+w detalu incydentu w kolumnie `reporterReputation`.
 
 ## Debugowanie przepływu
 
