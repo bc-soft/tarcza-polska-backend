@@ -7,6 +7,7 @@ namespace App\Shelter\Controller;
 use App\Identity\Entity\Device;
 use App\Shared\Geo\BoundingBox;
 use App\Shared\Geo\Point;
+use App\Shared\Geo\Region;
 use App\Shelter\Dto\ConfirmShelterStatusRequest;
 use App\Shelter\Entity\Shelter;
 use App\Shelter\Entity\ShelterStatusReport;
@@ -31,6 +32,7 @@ final class ShelterController
     public function __construct(
         private readonly ShelterRepository $shelters,
         private readonly EntityManagerInterface $em,
+        private readonly Region $region,
     ) {
     }
 
@@ -53,7 +55,7 @@ final class ShelterController
         }
 
         try {
-            $bbox = $request->query->has('bbox') ? BoundingBox::fromString((string) $request->query->get('bbox')) : BoundingBox::poland();
+            $bbox = $request->query->has('bbox') ? BoundingBox::fromString((string) $request->query->get('bbox')) : $this->region->boundingBox();
         } catch (InvalidArgumentException $e) {
             throw new BadRequestHttpException($e->getMessage(), $e);
         }

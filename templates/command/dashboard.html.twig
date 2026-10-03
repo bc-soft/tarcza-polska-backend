@@ -90,7 +90,7 @@
     const byId = new Map(incidents.map(i => [i.id, i]));
     let typeFilter = '';
 
-    const map = window.TARCZA.autosize(new maplibregl.Map({container: 'map', style: window.TARCZA.mapStyle, center: [16.93, 52.41], zoom: 11.5, attributionControl: false}));
+    const map = window.TARCZA.autosize(new maplibregl.Map({container: 'map', style: window.TARCZA.mapStyle, center: [{{ region.center.lng }}, {{ region.center.lat }}], zoom: 11.5, attributionControl: false}));
     map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
     map.addControl(new maplibregl.AttributionControl({compact: true}), 'bottom-right');
 

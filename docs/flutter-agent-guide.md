@@ -136,7 +136,9 @@ Jedno wywołanie zwraca wszystko, co ma być na mapie, jako GeoJSON `FeatureColl
 GET /api/v1/map?bbox=16.80,52.35,17.05,52.48
 ```
 
-`bbox` = `minLng,minLat,maxLng,maxLat` (aktualne okno mapy). Bez `bbox` zwracana jest cała Polska (unikaj).
+`bbox` = `minLng,minLat,maxLng,maxLat` (aktualne okno mapy). Bez `bbox` zwracany jest region pilotażu: Poznań,
+prostokąt ±12 km wokół `52.4064, 16.9252`. Mapa w aplikacji powinna startować w tym miejscu (zoom ~11.5); cały pilotaż
+dotyczy Poznania, więc dane spoza miasta nie istnieją.
 
 Każdy `Feature` ma `properties.kind` ∈ `incident` | `shelter` | `alert`:
 

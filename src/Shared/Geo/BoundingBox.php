@@ -43,7 +43,7 @@ final readonly class BoundingBox
         );
     }
 
-    /** Whole of Poland, used when the client sends no bbox. */
+    /** Whole of Poland (sanity bound for imports; API fallbacks use Region::boundingBox()). */
     public static function poland(): self
     {
         return new self(14.07, 49.0, 24.15, 54.85);

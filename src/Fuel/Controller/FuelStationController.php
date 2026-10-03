@@ -15,6 +15,7 @@ use App\Shared\Api\ApiProblemException;
 use App\Shared\Api\ConditionalJsonResponse;
 use App\Shared\Geo\BoundingBox;
 use App\Shared\Geo\Point;
+use App\Shared\Geo\Region;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
 use Nelmio\ApiDocBundle\Attribute\Model;
@@ -32,6 +33,7 @@ final class FuelStationController
     public function __construct(
         private readonly FuelStationRepository $stations,
         private readonly EntityManagerInterface $em,
+        private readonly Region $region,
     ) {
     }
 
@@ -53,7 +55,7 @@ final class FuelStationController
                     $this->stations->findNearest($point, 15),
                 ));
             }
-            $bbox = $request->query->has('bbox') ? BoundingBox::fromString((string) $request->query->get('bbox')) : BoundingBox::poland();
+            $bbox = $request->query->has('bbox') ? BoundingBox::fromString((string) $request->query->get('bbox')) : $this->region->boundingBox();
         } catch (InvalidArgumentException $e) {
             throw new ApiProblemException(400, 'bad_request', $e->getMessage());
         }

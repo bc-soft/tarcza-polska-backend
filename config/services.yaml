@@ -7,6 +7,11 @@ parameters:
     app.verification.devices_per_cell: '%env(int:VERIFICATION_DEVICES_PER_CELL)%'
     app.verification.cooldown_min: '%env(int:VERIFICATION_COOLDOWN_MIN)%'
     app.research.provider: '%env(RESEARCH_PROVIDER)%'
+    # The area this deployment serves (pilot: Poznań). Map fallbacks, panel map centre, import defaults and fixtures use it.
+    app.region.name: 'Poznań'
+    app.region.center_lat: 52.4064
+    app.region.center_lng: 16.9252
+    app.region.radius_km: 12
     app.anthropic.api_key: '%env(ANTHROPIC_API_KEY)%'
     app.anthropic.model: '%env(ANTHROPIC_MODEL)%'
     app.openai.api_key: '%env(OPENAI_API_KEY)%'
@@ -47,6 +52,13 @@ services:
             - '../src/**/Message/'
             - '../src/**/Model/'
             - '../src/**/Enum/'
+
+    App\Shared\Geo\Region:
+        arguments:
+            $name: '%app.region.name%'
+            $centerLat: '%app.region.center_lat%'
+            $centerLng: '%app.region.center_lng%'
+            $radiusKm: '%app.region.radius_km%'
 
     # AI research provider: RESEARCH_PROVIDER=openai | anthropic | none (see App\Intelligence\Service\ResearcherFactory).
     App\Intelligence\Service\ResearcherInterface:

@@ -42,7 +42,7 @@ Wartości `type`: `power_outage`, `water_outage`, `fuel_shortage`, `road_blocked
 
 | Metoda | Ścieżka | Opis |
 |---|---|---|
-| GET | `/api/v1/map?bbox=minLng,minLat,maxLng,maxLat` | Jedna `FeatureCollection` na ekran mapy. `properties.kind` ∈ `incident` (poligon obszaru lub punkt, gdy obszar jeszcze pusty), `shelter` (punkt), `alert` (poligon). |
+| GET | `/api/v1/map?bbox=minLng,minLat,maxLng,maxLat` | Jedna `FeatureCollection` na ekran mapy. Bez `bbox`: region pilotażu (Poznań, ±12 km od `52.4064,16.9252`). `properties.kind` ∈ `incident` (poligon obszaru lub punkt, gdy obszar jeszcze pusty), `shelter` (punkt), `alert` (poligon). |
 | GET | `/api/v1/incidents?lat&lng` | Otwarte incydenty; z `lat/lng` tylko te, których obszar zawiera moją pozycję. |
 | GET | `/api/v1/incidents/{id}` | Widok publiczny: `status` + `statusLabel`, `confidenceLevel`, `confidenceScore`, `community.agreementPct`, `summary`, `area` (`null`, dopóki incydent jest tylko wykryty). Bez surowych punktów. |
 

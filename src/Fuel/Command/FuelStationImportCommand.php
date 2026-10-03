@@ -12,6 +12,7 @@ use App\Fuel\Service\OverpassFuelStationSource;
 use App\Shared\Geo\BoundingBox;
 use App\Shared\Geo\H3;
 use App\Shared\Geo\Point;
+use App\Shared\Geo\Region;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -23,10 +24,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * Imports / refreshes fuel stations from OpenStreetMap. Upserts by OSM id; availability data is never touched.
  *
- *   bin/console tarcza:fuel-stations:import --around=52.4121,16.9012 --radius-km=15
+ *   bin/console tarcza:fuel-stations:import                          # the configured region (Poznań, app.region.*)
+ *   bin/console tarcza:fuel-stations:import --around=52.4121,16.9012 --radius-km=5
  *   bin/console tarcza:fuel-stations:import --bbox=16.70,52.30,17.15,52.55
  */
-#[AsCommand(name: 'tarcza:fuel-stations:import', description: 'Import fuel stations from OpenStreetMap (Overpass) around a point or inside a bbox')]
+#[AsCommand(name: 'tarcza:fuel-stations:import', description: 'Import fuel stations from OpenStreetMap (Overpass) for the configured region, around a point or inside a bbox')]
 final class FuelStationImportCommand extends Command
 {
     public function __construct(
@@ -34,6 +36,7 @@ final class FuelStationImportCommand extends Command
         private readonly FuelStationRepository $stations,
         private readonly EntityManagerInterface $em,
         private readonly H3 $h3,
+        private readonly Region $region,
     ) {
         parent::__construct();
     }
@@ -41,8 +44,8 @@ final class FuelStationImportCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('around', null, InputOption::VALUE_REQUIRED, 'Center "lat,lng"')
-            ->addOption('radius-km', null, InputOption::VALUE_REQUIRED, 'Radius around the center in km', '15')
+            ->addOption('around', null, InputOption::VALUE_REQUIRED, 'Center "lat,lng" (default: the configured region centre)')
+            ->addOption('radius-km', null, InputOption::VALUE_REQUIRED, 'Radius around the center in km (default: the region radius)')
             ->addOption('bbox', null, InputOption::VALUE_REQUIRED, 'minLng,minLat,maxLng,maxLat')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Fetch and report, store nothing');
     }
@@ -55,19 +58,23 @@ final class FuelStationImportCommand extends Command
         /** @var string|null $bbox */
         $bbox = $input->getOption('bbox');
 
-        if (null === $bbox && null === $around) {
-            $io->error('Pass --around=lat,lng (with --radius-km) or --bbox=minLng,minLat,maxLng,maxLat');
-
-            return Command::INVALID;
-        }
+        /** @var string|null $radiusKm */
+        $radiusKm = $input->getOption('radius-km');
 
         $io->text(\sprintf('Overpass endpoints (tried in order): %s', implode(', ', $this->source->endpoints())));
         try {
             if (null !== $bbox) {
+                $io->text('Area: bbox '.$bbox);
                 $candidates = $this->source->fetchInBoundingBox(BoundingBox::fromString($bbox));
             } else {
-                [$lat, $lng] = array_map('floatval', explode(',', (string) $around) + [0 => '0', 1 => '0']);
-                $candidates = $this->source->fetchAround(new Point($lat, $lng), (int) round((float) $input->getOption('radius-km') * 1000));
+                $center = $this->region->center;
+                if (null !== $around) {
+                    [$lat, $lng] = array_map('floatval', explode(',', $around) + [0 => '0', 1 => '0']);
+                    $center = new Point($lat, $lng);
+                }
+                $radiusMeters = null === $radiusKm ? $this->region->radiusMeters() : (int) round((float) $radiusKm * 1000);
+                $io->text(\sprintf('Area: %.4f,%.4f radius %d km%s', $center->lat, $center->lng, intdiv($radiusMeters, 1000), null === $around ? ' (region: '.$this->region->name.')' : ''));
+                $candidates = $this->source->fetchAround($center, $radiusMeters);
             }
         } catch (OverpassUnavailableException $e) {
             $io->error($e->getMessage());

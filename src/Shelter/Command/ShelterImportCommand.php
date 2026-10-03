@@ -6,6 +6,7 @@ namespace App\Shelter\Command;
 
 use App\Shared\Geo\BoundingBox;
 use App\Shared\Geo\Point;
+use App\Shared\Geo\Region;
 use App\Shelter\Entity\Shelter;
 use App\Shelter\Enum\ShelterAvailability;
 use App\Shelter\Repository\ShelterRepository;
@@ -22,6 +23,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * Imports "Punkty schronienia w Polsce" (dane.gov.pl dataset 28058, ~86 500 rows, CSV with BOM) into Shelter.
  * Upserts by the public identifier; citizen confirmations (status, occupancy) are never overwritten.
  *
+ *   bin/console tarcza:shelters:import                                   # the configured region (Poznań, app.region.*)
  *   bin/console tarcza:shelters:import --wojewodztwo=wielkopolskie
  *   bin/console tarcza:shelters:import --around=52.4121,16.9012 --radius-km=20
  *   bin/console tarcza:shelters:import --bbox=16.70,52.30,17.15,52.55 --limit=500
@@ -51,6 +53,7 @@ final class ShelterImportCommand extends Command
         private readonly HttpClientInterface $httpClient,
         private readonly ShelterRepository $shelters,
         private readonly EntityManagerInterface $em,
+        private readonly Region $region,
     ) {
         parent::__construct();
     }
@@ -60,7 +63,7 @@ final class ShelterImportCommand extends Command
         $this
             ->addOption('url', null, InputOption::VALUE_REQUIRED, 'CSV resource URL', self::DEFAULT_URL)
             ->addOption('file', null, InputOption::VALUE_REQUIRED, 'Local CSV file instead of downloading')
-            ->addOption('wojewodztwo', null, InputOption::VALUE_REQUIRED, 'Only this voivodeship (e.g. wielkopolskie)')
+            ->addOption('wojewodztwo', null, InputOption::VALUE_REQUIRED, 'Only this voivodeship (e.g. wielkopolskie); without any filter the configured region is used')
             ->addOption('around', null, InputOption::VALUE_REQUIRED, 'Center "lat,lng" (with --radius-km)')
             ->addOption('radius-km', null, InputOption::VALUE_REQUIRED, 'Radius around the center', '20')
             ->addOption('bbox', null, InputOption::VALUE_REQUIRED, 'minLng,minLat,maxLng,maxLat')
@@ -81,6 +84,10 @@ final class ShelterImportCommand extends Command
         $voivodeship = $input->getOption('wojewodztwo');
         $voivodeship = null === $voivodeship ? null : mb_strtolower(trim($voivodeship));
         $bbox = $this->resolveBbox($input);
+        if (null === $bbox && null === $voivodeship) {
+            $bbox = $this->region->boundingBox();
+            $io->text(\sprintf('No filter given: importing the configured region %s (%d km around %.4f,%.4f)', $this->region->name, $this->region->radiusKm, $this->region->center->lat, $this->region->center->lng));
+        }
         $limit = (int) $input->getOption('limit');
         $dryRun = (bool) $input->getOption('dry-run');
 

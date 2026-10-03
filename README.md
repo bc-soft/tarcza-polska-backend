@@ -32,7 +32,10 @@ reputacja zgłaszających z werdyktem zamknięcia, automatyczne alerty geografic
 paczka offline z procedurami. Szczegóły: `docs/architecture.md` §3.7 i ADR 0007–0009.
 
 Zgłoszenia punktowe (ADR 0010): brak paliwa i problemy ze schronami odnoszą się do konkretnego obiektu, są
-weryfikowane przy obiekcie i jego sąsiadach i pokazywane jako pinezki, nie jako obszar. Dane obiektów:
-`make console c="tarcza:shelters:import --wojewodztwo=wielkopolskie"` (rejestr krajowy z dane.gov.pl),
-`make console c="tarcza:fuel-stations:import --around=52.41,16.90"` (OpenStreetMap). Dane demo do panelu:
-`make console c="tarcza:fixtures:load --reset"`.
+weryfikowane przy obiekcie i jego sąsiadach i pokazywane jako pinezki, nie jako obszar.
+
+Zakres pilotażu to Poznań (ADR 0011): region jest skonfigurowany w `config/services.yaml` (`app.region.*`) i steruje
+domyślnym oknem mapy, środkiem mapy w panelu, importami i fiksturami. Dane obiektów:
+`make console c="tarcza:shelters:import"` (rejestr krajowy z dane.gov.pl, tylko region),
+`make console c="tarcza:fuel-stations:import"` (OpenStreetMap, tylko region). Dane demo do panelu:
+`make console c="tarcza:fixtures:load --reset"` (dzielnice Poznania).

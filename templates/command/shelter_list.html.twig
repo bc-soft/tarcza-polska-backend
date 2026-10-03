@@ -102,7 +102,7 @@
     const canEdit = {{ canEdit ? 'true' : 'false' }};
     const tokens = {{ canEdit ? shelters|map(s => csrf_token('shelter' ~ s.id.toRfc4122))|json_encode|raw : '[]' }};
     const ids = {{ shelters|map(s => s.id.toRfc4122)|json_encode|raw }};
-    const map = window.TARCZA.autosize(new maplibregl.Map({container: 'map', style: window.TARCZA.mapStyle, center: [16.93, 52.41], zoom: 11.2, attributionControl: false}));
+    const map = window.TARCZA.autosize(new maplibregl.Map({container: 'map', style: window.TARCZA.mapStyle, center: [{{ region.center.lng }}, {{ region.center.lat }}], zoom: 11.2, attributionControl: false}));
     map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
     map.addControl(new maplibregl.AttributionControl({compact: true}), 'bottom-right');
     let marker = null;

@@ -11,6 +11,8 @@ Zasady:
 - Confidence liczy tylko `Confidence\Service\ConfidenceCalculator` (deterministycznie); AI dokłada `ExternalSource`.
 - Research AI: dostawca z `RESEARCH_PROVIDER` (openai | anthropic | none) przez `ResearcherFactory`; prompt, schema i parser są wspólne w `ResearchPrompt`, nie duplikuj ich w klasach dostawców.
 - Widok publiczny (`IncidentPublicView`) nie może ujawniać surowych lokalizacji raportów.
+- Zakres pilotażu to Poznań: wszystkie domyślne miejsca (mapa, importy, fikstury) biorą się z `App\Shared\Geo\Region`
+  (`app.region.*` w `config/services.yaml`), nie z literałów współrzędnych w kodzie.
 - Po zmianie encji: `make migration` i commit migracji. Nie edytuj wygenerowanych migracji ręcznie poza SQL dla PostGIS.
 - Bramka jakości: `make qa` (php-cs-fixer, PHPStan lvl 8, PHPUnit). Nie wyciszaj PHPStan ignorami.
 - Komendy: `php bin/console` lokalnie wymaga działającej bazy z `make up` (port 5432).
