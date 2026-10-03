@@ -49,6 +49,13 @@ services:
     image: tarcza-backend:dev
     restart: unless-stopped
     command: ["php", "bin/console", "messenger:consume", "async", "scheduler_tarcza", "--time-limit=3600", "--memory-limit=256M", "-vv"]
+    # The image healthcheck probes Caddy, which the worker does not run; check the Redis transport instead.
+    healthcheck:
+      test: ["CMD", "php", "bin/console", "messenger:stats", "async"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     environment:
       APP_ENV: dev
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8
