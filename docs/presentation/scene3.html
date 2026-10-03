@@ -13,8 +13,6 @@
    Klik / spacja / R odtwarza od nowa; ?delay=2 opóźnia start (sekundy). Kadr projektowany pod 16:9. */
 :root {
     --canvas: #0D0E10; --primary: #E0262F; --n: #F1F2F4; --delay: 0.6s;
-    /* Obrót telefonu: roll (Z) i yaw (Y) w prawą stronę. */
-    --phone-roll: -8deg; --phone-yaw: 24deg;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; overflow: hidden; cursor: none; }
@@ -33,7 +31,7 @@ body {
 
 .devices { position: absolute; top: 27vh; bottom: 4vh; left: 0; right: 0; perspective: 1400px; }
 .device { position: absolute; top: 50%; opacity: 0; }
-.phone { left: 27%; height: 60vh; transform: translate(-50%, -50%) rotateZ(var(--phone-roll)) rotateY(var(--phone-yaw)); filter: drop-shadow(2vh 3vh 4vh rgba(0,0,0,.7)); }
+.phone { left: 27%; height: 60vh; transform: translate(-50%, -50%); filter: drop-shadow(0 3vh 4vh rgba(0,0,0,.7)); }
 .laptop { left: 65%; width: 52vw; transform: translate(-50%, -50%); filter: drop-shadow(0 3vh 5vh rgba(0,0,0,.75)); }
 /* Czerwona poświata pod urządzeniami, jak przy logo w intro. */
 .halo { position: absolute; top: 50%; width: 40vh; height: 40vh; border-radius: 50%; transform: translate(-50%, -50%) scale(.6);
@@ -50,9 +48,9 @@ body {
 
 @keyframes reveal { 0% { opacity: 1; clip-path: inset(0 100% 0 0); } 100% { opacity: 1; clip-path: inset(0 0 0 0); } }
 @keyframes phoneIn {
-    0% { opacity: 0; transform: translate(calc(-50% - 60vw), -50%) rotateZ(calc(var(--phone-roll) + 14deg)) rotateY(calc(var(--phone-yaw) + 30deg)); }
+    0% { opacity: 0; transform: translate(calc(-50% - 60vw), -50%); }
     40% { opacity: 1; }
-    100% { opacity: 1; transform: translate(-50%, -50%) rotateZ(var(--phone-roll)) rotateY(var(--phone-yaw)); }
+    100% { opacity: 1; transform: translate(-50%, -50%); }
 }
 @keyframes laptopIn {
     0% { opacity: 0; transform: translate(calc(-50% + 60vw), -50%); }
