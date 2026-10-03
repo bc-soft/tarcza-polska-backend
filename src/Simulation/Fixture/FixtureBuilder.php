@@ -51,6 +51,9 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  */
 final class FixtureBuilder
 {
+    private const array OPEN_STATES = ['detected', 'verifying', 'active', 'confirmed'];
+    private const array RESOLVED_STATES = ['resolved_confirmed', 'resolved_false_alarm', 'resolved_expired'];
+
     public const string SOURCE = 'fixture';
 
     private FixtureRandom $rng;
@@ -217,30 +220,40 @@ final class FixtureBuilder
 
     // ------------------------------------------------------------------ plans
 
-    /** @return list<array{0: ReportType, 1: string}> */
+    /**
+     * Mostly history: one open area incident per zone, the rest resolved. The open state and the type that gets
+     * it rotate with the zone, so a few zones together still show every open state and every type.
+     *
+     * @return list<array{0: ReportType, 1: string}>
+     */
     private function areaPlan(int $zoneIndex): array
     {
-        $states = ['detected', 'verifying', 'active', 'confirmed', 'resolved_confirmed', 'resolved_false_alarm', 'resolved_expired'];
         $plan = [];
         $types = [ReportType::PowerOutage, ReportType::WaterOutage, ReportType::RoadBlocked, ReportType::OtherThreat];
         foreach ($types as $t => $type) {
-            $plan[] = [$type, $states[($zoneIndex + $t) % \count($states)]];
-            $plan[] = [$type, $states[($zoneIndex + $t + 3) % \count($states)]];
+            $first = 0 === ($zoneIndex + $t) % 4 ? self::OPEN_STATES[$zoneIndex % 4] : self::RESOLVED_STATES[($zoneIndex + $t) % 3];
+            $plan[] = [$type, $first];
+            $plan[] = [$type, self::RESOLVED_STATES[($zoneIndex + $t + 1) % 3]];
         }
 
         return $plan;
     }
 
-    /** @return list<array{0: ReportType, 1: string}> */
+    /**
+     * Fuel: an open shortage in every other zone, the second report resolved. Shelter: open in every fourth zone.
+     *
+     * @return list<array{0: ReportType, 1: string}>
+     */
     private function pointPlan(int $zoneIndex): array
     {
-        $fuelStates = ['verifying', 'confirmed', 'detected', 'resolved_confirmed'];
-        $shelterStates = ['active', 'verifying', 'resolved_false_alarm'];
+        $even = 0 === $zoneIndex % 2;
+        $firstFuel = $even ? ['verifying', 'confirmed', 'detected'][intdiv($zoneIndex, 2) % 3] : 'resolved_confirmed';
+        $shelter = 1 === $zoneIndex % 4 ? ['active', 'verifying'][intdiv($zoneIndex, 4) % 2] : ($even ? 'resolved_false_alarm' : 'resolved_confirmed');
 
         return [
-            [ReportType::FuelShortage, $fuelStates[$zoneIndex % 4]],
-            [ReportType::FuelShortage, $fuelStates[($zoneIndex + 1) % 4]],
-            [ReportType::ShelterIssue, $shelterStates[$zoneIndex % 3]],
+            [ReportType::FuelShortage, $firstFuel],
+            [ReportType::FuelShortage, $even ? 'resolved_confirmed' : 'resolved_false_alarm'],
+            [ReportType::ShelterIssue, $shelter],
         ];
     }
 

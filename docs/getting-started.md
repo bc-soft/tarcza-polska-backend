@@ -146,7 +146,9 @@ Import schronów jest idempotentny (upsert po identyfikatorze publicznym) i nie 
 `tarcza:fixtures:load --reset` czyści incydenty, zgłoszenia, alerty, źródła, zdjęcia, symulowane urządzenia oraz
 stacje i schrony oznaczone jako `fixture`; zaimportowane schrony i stacje zostają i są używane przez fikstury,
 jeśli leżą w promieniu 3 km od centrum dzielnicy (po imporcie OSM i dane.gov.pl fikstury nie tworzą już własnych).
-Ten sam `--seed` daje identyczne dane. Każda dzielnica dostaje 8 incydentów obszarowych i 3 punktowe, 50 urządzeń.
+Ten sam `--seed` daje identyczne dane. Każda dzielnica dostaje 8 incydentów obszarowych i 3 punktowe, 50 urządzeń;
+większość to historia (zamknięte: potwierdzone, fałszywy alarm, wygasłe). Otwarty jest jeden incydent obszarowy
+na dzielnicę, brak paliwa co drugą i problem ze schronem co czwartą (przy 8 dzielnicach: 14 otwartych, 74 zamknięte).
 
 ## Funkcje post-MVP: szybkie sprawdzenie
 

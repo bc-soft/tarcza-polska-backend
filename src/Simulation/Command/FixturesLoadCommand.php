@@ -49,7 +49,7 @@ final class FixturesLoadCommand extends Command
         $counts = $this->builder->load($seed, $zones, (bool) $input->getOption('reset'));
 
         $io->table(['what', 'created'], array_map(static fn (string $k, int $v) => [$k, $v], array_keys($counts), $counts));
-        $io->success(\sprintf('Done in %.1fs. Open the Command Center: incidents list, map, shelters, fuel stations.', microtime(true) - $started));
+        $io->success(\sprintf('Done in %.1fs. Open the Command Center: incidents list and the map (shelter and fuel station layers).', microtime(true) - $started));
 
         return Command::SUCCESS;
     }
