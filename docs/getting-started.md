@@ -25,6 +25,37 @@ Następnie:
 Entrypoint kontenera `php` czeka na bazę, wykonuje migracje i generuje klucze JWT. Przy pierwszym
 starcie na czystym wolumenie baza tworzy rozszerzenia `postgis`, `h3`, `h3_postgis`.
 
+## Udostępnienie API w sieci lokalnej (dla zespołu Fluttera)
+
+```bash
+make lan        # to samo co make up, ale Caddy serwuje też zwykłe HTTP na porcie 80 dla dowolnego hosta
+```
+
+Komenda wypisze adres w stylu `http://192.168.2.2`. Telefon lub emulator w tej samej sieci Wi-Fi uderza
+bezpośrednio w ten adres (bez TLS, więc bez problemów z certyfikatem). Panel i Swagger nadal działają pod
+`https://localhost`, a Swagger po HTTP pod `http://<IP>/api/doc`. macOS może zapytać o zgodę na połączenia
+przychodzące dla Dockera; zgódź się. Jeśli dalej nie ma odpowiedzi, sprawdź zaporę w Ustawieniach systemu.
+
+Dla zdalnego developera (inna sieć) najprościej jest tunel: `ngrok http 80` albo `cloudflared tunnel --url http://localhost:80`
+po `make lan`; wtedy przekaż mu wygenerowany adres `https://...`.
+
+## Firebase (push)
+
+Plik konta serwisowego z konsoli Firebase wrzuć do `config/firebase/service-account.json` (katalog jest
+ignorowany przez git) i ustaw w `.env.local`:
+
+```
+FIREBASE_CREDENTIALS=%kernel.project_dir%/config/firebase/service-account.json
+```
+
+Po restarcie kontenerów (`make up`) sprawdź poświadczenia i wyślij testowy push na token z aplikacji:
+
+```bash
+make push-test                      # tylko weryfikacja poświadczeń z Google
+make push-test t=<token FCM>        # testowe powiadomienie na konkretny telefon
+make console c="tarcza:push:test --device=<uuid urządzenia>"
+```
+
 ## Codzienna praca
 
 | Komenda | Co robi |
@@ -50,7 +81,7 @@ działają bez Dockera (platforma Composera jest przypięta do rozszerzeń konte
 | `OPENAI_MODEL` | `gpt-5` | model OpenAI do researchu (musi wspierać narzędzie web search) |
 | `ANTHROPIC_API_KEY` | puste | klucz Claude, używany gdy `RESEARCH_PROVIDER=anthropic` |
 | `ANTHROPIC_MODEL` | `claude-opus-5` | model Claude do researchu |
-| `FIREBASE_CREDENTIALS` | puste | ścieżka do JSON konta serwisowego; pusty = pushe tylko logowane |
+| `FIREBASE_CREDENTIALS` | puste | ścieżka do JSON konta serwisowego (może zawierać `%kernel.project_dir%`); pusty = pushe tylko logowane |
 | `H3_RESOLUTION` | 9 | rozdzielczość komórek (~174 m) |
 | `INCIDENT_CLUSTER_RADIUS_M` | 1500 | promień klastrowania raportów |
 | `INCIDENT_CLUSTER_WINDOW_MIN` | 360 | okno czasowe klastrowania |

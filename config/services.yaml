@@ -11,7 +11,7 @@ parameters:
     app.anthropic.model: '%env(ANTHROPIC_MODEL)%'
     app.openai.api_key: '%env(OPENAI_API_KEY)%'
     app.openai.model: '%env(OPENAI_MODEL)%'
-    app.firebase.credentials: '%env(FIREBASE_CREDENTIALS)%'
+    app.firebase.credentials: '%env(resolve:FIREBASE_CREDENTIALS)%'
 
 services:
     _defaults:

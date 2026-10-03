@@ -28,6 +28,12 @@
 /.phpunit.cache/
 ###< phpunit/phpunit ###
 
+###> secrets ###
+/config/firebase/
+/firebase*.json
+/*-service-account.json
+###< secrets ###
+
 ###> ide ###
 /.idea/
 /.vscode/

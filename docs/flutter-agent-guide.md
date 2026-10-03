@@ -16,17 +16,18 @@ i pokazać alert.
 
 | Co | Gdzie |
 |---|---|
-| Lokalny backend (Docker) | `https://localhost` (certyfikat lokalny Caddy, samopodpisany) |
-| Lokalny backend bez TLS | uruchom `SERVER_NAME=":80" docker compose up -d` w repo backendu → `http://localhost` |
-| Emulator Android → host | `http://10.0.2.2` (przy trybie bez TLS) |
-| Symulator iOS → host | `http://localhost` |
-| Fizyczny telefon | `http://<IP-komputera-w-LAN>` (ten sam Wi-Fi, tryb bez TLS) |
+| Backend na komputerze backendowca, ta sama sieć Wi-Fi | `http://<IP-tego-komputera>` po `make lan` w repo backendu (np. `http://192.168.2.2`); działa z telefonu, emulatora Androida i symulatora iOS bez żadnej konfiguracji TLS |
+| Backend u Ciebie lokalnie (Docker) | `https://localhost` (certyfikat lokalny Caddy) albo `make lan` → `http://localhost`; z emulatora Androida `http://10.0.2.2` |
+| Zdalnie | adres tunelu (`ngrok http 80` / `cloudflared`) przekazany przez backendowca |
 | Swagger UI | `/api/doc`, JSON: `/api/doc.json` |
 | Zdrowie backendu | `GET /api/v1/health` (publiczne) |
 
-Zalecenie: w aplikacji trzymaj `API_BASE_URL` w konfiguracji buildu (`--dart-define=API_BASE_URL=...`),
-a lokalnie używaj trybu bez TLS, żeby nie walczyć z certyfikatem na urządzeniach. Produkcyjny adres
-będzie miał poprawny certyfikat Let's Encrypt.
+Zalecenie: w aplikacji trzymaj `API_BASE_URL` w konfiguracji buildu (`--dart-define=API_BASE_URL=http://192.168.2.2`)
+i w developmencie używaj zwykłego HTTP, żeby nie walczyć z certyfikatem na urządzeniach. Android od wersji 9
+blokuje czysty HTTP, więc w `AndroidManifest.xml` ustaw `android:usesCleartextTraffic="true"` dla buildów
+debug (albo `network_security_config` z wyjątkiem dla adresu backendu). Na iOS analogicznie
+`NSAppTransportSecurity` → `NSAllowsArbitraryLoads` w `Info.plist` dla debug. Produkcyjny adres będzie miał
+poprawny certyfikat Let's Encrypt i tych wyjątków nie potrzebuje.
 
 Wszystkie endpointy obywatela są pod prefiksem **`/api/v1`**. Endpointy `/api/command/*` są dla panelu
 operatora i aplikacja mobilna ich nie używa.
@@ -324,9 +325,11 @@ Wiadomości weryfikacyjne mają wysoki priorytet (Android `priority: high`, iOS 
 Po stronie Fluttera: `firebase_messaging`, obsługa `onMessage` (pierwszy plan: pokaż pytanie od razu, bez
 czekania na tapnięcie), `onMessageOpenedApp` i `getInitialMessage` (start z pusha), `onTokenRefresh` → `PUT push-token`.
 
-Ważne na czas developmentu: **bez pliku konta serwisowego Firebase po stronie backendu pushe są tylko logowane**
-(`FIREBASE_CREDENTIALS` puste). Aplikacja musi działać poprawnie na samym pollingu `pending` i `alerts`.
-Plik konta serwisowego i `google-services.json` / `GoogleService-Info.plist` pochodzą z tego samego projektu Firebase.
+Backend ma skonfigurowane konto serwisowe projektu Firebase **`tarcza-polska`** i wysyła prawdziwe pushe.
+`google-services.json` / `GoogleService-Info.plist` do aplikacji pobierz z tego samego projektu w konsoli Firebase.
+Test z backendu na konkretny telefon: backendowiec uruchamia `make push-test t=<Twój token FCM>`; token wypisz
+w aplikacji przez `FirebaseMessaging.instance.getToken()`. Aplikacja i tak musi działać na samym pollingu
+`pending` i `alerts`, bo push może nie dojść.
 
 ---
 

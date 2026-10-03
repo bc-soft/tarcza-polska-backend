@@ -14,6 +14,11 @@ build: ## Build docker images
 up: ## Start the whole stack in background
 	$(DC) up -d --remove-orphans
 
+lan: ## Start with plain HTTP enabled and print the URL for devices on the same Wi-Fi (Flutter devs)
+	SERVER_NAME="localhost, :80" $(DC) up -d --remove-orphans
+	@IP=$$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $$1}'); \
+	echo "API for the LAN:  http://$$IP   (Swagger: http://$$IP/api/doc)"; echo "Panel stays on:   https://localhost/command"
+
 down: ## Stop the stack
 	$(DC) down --remove-orphans
 
@@ -63,4 +68,7 @@ qa: lint test ## Full local quality gate
 openapi: ## Dump the OpenAPI spec for the Flutter team
 	$(CONSOLE) nelmio:apidoc:dump --format=json > docs/openapi.json && echo "docs/openapi.json updated"
 
-.PHONY: help build up down reset logs worker sh console migration migrate seed simulate test phpstan cs cs-check lint qa openapi
+push-test: ## Verify Firebase credentials; make push-test t=<fcm-token> sends a test push
+	$(CONSOLE) tarcza:push:test $(t)
+
+.PHONY: help build up lan down reset logs worker sh console migration migrate seed simulate test phpstan cs cs-check lint qa openapi push-test
