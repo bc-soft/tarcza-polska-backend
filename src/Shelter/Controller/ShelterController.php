@@ -10,6 +10,7 @@ use App\Shared\Geo\Point;
 use App\Shelter\Dto\ConfirmShelterStatusRequest;
 use App\Shelter\Entity\Shelter;
 use App\Shelter\Entity\ShelterStatusReport;
+use App\Shelter\Enum\ShelterOccupancy;
 use App\Shelter\Repository\ShelterRepository;
 use App\Shelter\View\ShelterView;
 use Doctrine\ORM\EntityManagerInterface;
@@ -69,13 +70,13 @@ final class ShelterController
     }
 
     #[Route('/{id}/status', name: 'api_shelter_confirm', methods: ['POST'])]
-    #[OA\Post(summary: 'Confirm the current status of a shelter (open / closed / full)')]
+    #[OA\Post(summary: 'Confirm the current status of a shelter (open / closed) and, when open, how much room is left (plenty / limited / full)')]
     #[OA\RequestBody(content: new OA\JsonContent(ref: new Model(type: ConfirmShelterStatusRequest::class)))]
     #[OA\Response(response: 200, description: 'Updated shelter', content: new OA\JsonContent(ref: '#/components/schemas/ShelterView'))]
     public function confirm(#[CurrentUser] Device $device, Shelter $shelter, #[MapRequestPayload] ConfirmShelterStatusRequest $request): JsonResponse
     {
-        $this->em->persist(new ShelterStatusReport($shelter, $device, $request->status, $request->comment));
-        $shelter->confirmStatus($request->status);
+        $this->em->persist(new ShelterStatusReport($shelter, $device, $request->status, $request->comment, $request->occupancy ?? ShelterOccupancy::Unknown));
+        $shelter->confirmStatus($request->status, $request->occupancy);
         $device->touch();
         $this->em->flush();
 

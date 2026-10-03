@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shelter\Entity;
 
 use App\Shared\Geo\Point;
+use App\Shelter\Enum\ShelterOccupancy;
 use App\Shelter\Enum\ShelterStatus;
 use App\Shelter\Repository\ShelterRepository;
 use DateTimeImmutable;
@@ -34,6 +35,10 @@ class Shelter
 
     #[ORM\Column(length: 16, enumType: ShelterStatus::class)]
     private ShelterStatus $status = ShelterStatus::Unknown;
+
+    /** Room left, meaningful only while the shelter is open. */
+    #[ORM\Column(length: 16, enumType: ShelterOccupancy::class, options: ['default' => 'unknown'])]
+    private ShelterOccupancy $occupancy = ShelterOccupancy::Unknown;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $lastConfirmedAt = null;
@@ -119,16 +124,36 @@ class Shelter
     }
 
     /** Operator decision: sets the status without counting it as a citizen confirmation. */
-    public function overrideStatus(ShelterStatus $status): void
+    public function getOccupancy(): ShelterOccupancy
     {
-        $this->status = $status;
-        $this->lastConfirmedAt = new DateTimeImmutable();
+        return $this->occupancy;
     }
 
-    public function confirmStatus(ShelterStatus $status): void
+    public function overrideStatus(ShelterStatus $status, ?ShelterOccupancy $occupancy = null): void
     {
-        $this->status = $status;
-        $this->lastConfirmedAt = new DateTimeImmutable();
+        $this->applyStatus($status, $occupancy);
+    }
+
+    public function confirmStatus(ShelterStatus $status, ?ShelterOccupancy $occupancy = null): void
+    {
+        $this->applyStatus($status, $occupancy);
         ++$this->confirmationCount;
+    }
+
+    /**
+     * Legacy "full" status is folded into open + occupancy=full; a closed shelter has no occupancy.
+     */
+    private function applyStatus(ShelterStatus $status, ?ShelterOccupancy $occupancy): void
+    {
+        if (ShelterStatus::Full === $status) {
+            $status = ShelterStatus::Open;
+            $occupancy = ShelterOccupancy::Full;
+        }
+        $this->status = $status;
+        $this->occupancy = match ($status) {
+            ShelterStatus::Open => $occupancy ?? ShelterOccupancy::Unknown,
+            default => ShelterOccupancy::Unknown,
+        };
+        $this->lastConfirmedAt = new DateTimeImmutable();
     }
 }

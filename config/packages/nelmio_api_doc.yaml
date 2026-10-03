@@ -61,6 +61,7 @@ nelmio_api_doc:
                 IncidentStatus: { type: string, enum: [detected, verifying, active, resolved] }
                 ConfidenceLevel: { type: string, enum: [unverified, likely, high, confirmed] }
                 AlertSeverity: { type: string, enum: [info, warning, danger] }
+                ShelterOccupancy: { type: string, enum: [unknown, plenty, limited, full], description: 'Room left in an open shelter' }
 
                 # ---- devices ------------------------------------------------------------------
                 DeviceRegistered:
@@ -158,7 +159,7 @@ nelmio_api_doc:
                 # ---- shelters -----------------------------------------------------------------
                 ShelterSummary:
                     type: object
-                    required: [id, name, status, statusLabel, confirmationCount]
+                    required: [id, name, status, statusLabel, occupancy, occupancyLabel, confirmationCount]
                     properties:
                         id: { type: string, format: uuid }
                         name: { type: string }
@@ -166,6 +167,8 @@ nelmio_api_doc:
                         capacity: { type: integer, nullable: true }
                         status: { $ref: '#/components/schemas/ShelterStatus' }
                         statusLabel: { type: string }
+                        occupancy: { $ref: '#/components/schemas/ShelterOccupancy' }
+                        occupancyLabel: { type: string }
                         lastConfirmedAt: { type: string, format: date-time, nullable: true }
                         confirmationCount: { type: integer }
                         distanceMeters: { type: integer, description: 'Only in GET /shelters?lat&lng' }

@@ -44,7 +44,7 @@ final readonly class ShelterManager
 
     public function setStatus(Shelter $shelter, SetShelterStatusRequest $request): Shelter
     {
-        $shelter->overrideStatus($request->status);
+        $shelter->overrideStatus($request->status, $request->occupancy);
         $this->em->flush();
 
         return $shelter;
