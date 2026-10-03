@@ -7,6 +7,7 @@ namespace App\Alerting\Controller;
 use App\Alerting\Entity\Alert;
 use App\Alerting\Repository\AlertRepository;
 use App\Alerting\View\AlertView;
+use App\Shared\Api\ConditionalJsonResponse;
 use App\Shared\Geo\Point;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -34,7 +35,7 @@ final class AlertController
         }
         $point = new Point((float) $request->query->get('lat'), (float) $request->query->get('lng'));
 
-        return new JsonResponse(array_map(static fn (Alert $a) => AlertView::toArray($a, false), $this->alerts->findActiveContaining($point)));
+        return ConditionalJsonResponse::create($request, array_map(static fn (Alert $a) => AlertView::toArray($a, false), $this->alerts->findActiveContaining($point)));
     }
 
     #[Route('/{id}', name: 'api_alert_show', methods: ['GET'])]

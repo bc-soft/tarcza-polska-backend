@@ -8,6 +8,7 @@ use App\Alerting\Repository\AlertRepository;
 use App\Alerting\View\AlertView;
 use App\Incident\Repository\IncidentRepository;
 use App\Incident\View\IncidentPublicView;
+use App\Shared\Api\ConditionalJsonResponse;
 use App\Shared\Api\GeoJson;
 use App\Shared\Geo\BoundingBox;
 use App\Shelter\Repository\ShelterRepository;
@@ -50,6 +51,6 @@ final class MapController
             ...array_map(AlertView::toFeature(...), $this->alerts->findActiveInBoundingBox($bbox)),
         ];
 
-        return new JsonResponse(GeoJson::collection($features));
+        return ConditionalJsonResponse::create($request, GeoJson::collection($features));
     }
 }

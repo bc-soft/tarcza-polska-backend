@@ -6,6 +6,7 @@ namespace App\Verification\Controller;
 
 use App\Identity\Entity\Device;
 use App\Shared\Api\ApiProblemException;
+use App\Shared\Api\ConditionalJsonResponse;
 use App\Verification\Dto\RespondRequest;
 use App\Verification\Entity\VerificationRequest;
 use App\Verification\Repository\VerificationRequestRepository;
@@ -14,6 +15,7 @@ use DateTimeImmutable;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -33,9 +35,9 @@ final class VerificationController
     #[Route('/pending', name: 'api_verification_pending', methods: ['GET'])]
     #[OA\Get(summary: 'Questions waiting for this device (poll on app foreground; pushes carry the same ids)')]
     #[OA\Response(response: 200, description: 'List of pending questions')]
-    public function pending(#[CurrentUser] Device $device): JsonResponse
+    public function pending(#[CurrentUser] Device $device, Request $httpRequest): JsonResponse
     {
-        return new JsonResponse(array_map(self::toArray(...), $this->requests->findPendingForDevice($device)));
+        return ConditionalJsonResponse::create($httpRequest, array_map(self::toArray(...), $this->requests->findPendingForDevice($device)));
     }
 
     #[Route('/{id}', name: 'api_verification_show', methods: ['GET'])]
