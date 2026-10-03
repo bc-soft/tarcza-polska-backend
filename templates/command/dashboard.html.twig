@@ -24,7 +24,8 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-4 flex-1 min-h-[560px]">
+    {# Fixed-height row: the incident list scrolls inside it instead of stretching the map. #}
+    <div class="grid grid-cols-1 xl:grid-cols-[400px_1fr] xl:grid-rows-[minmax(0,1fr)] gap-4 xl:h-[calc(100vh-13rem)] xl:min-h-[560px]">
         <aside class="flex flex-col gap-3 min-h-0">
             <div class="flex items-center gap-2 overflow-x-auto pb-1" id="type-filters">
                 <button type="button" data-type="" class="chip-on">Wszystkie (<span id="count-all">{{ incidents|length }}</span>)</button>
@@ -32,7 +33,7 @@
                     <button type="button" data-type="{{ value }}" class="chip-off">{{ label }}</button>
                 {% endfor %}
             </div>
-            <div class="card flex-1 min-h-0 overflow-y-auto p-2" id="incident-list"></div>
+            <div class="card flex-1 min-h-0 max-h-[420px] xl:max-h-none overflow-y-auto overscroll-contain p-2" id="incident-list"></div>
             <a href="{{ path('command_incident_list') }}" class="btn-secondary w-full">Pełna lista incydentów {{ ui.icon('chevron-right', 'w-4 h-4') }}</a>
         </aside>
 
