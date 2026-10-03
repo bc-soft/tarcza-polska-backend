@@ -19,7 +19,9 @@ use App\Incident\Model\TimelineEntry;
 use App\Incident\View\IncidentPublicView;
 use App\Incident\View\IncidentTimelineView;
 use App\Reporting\Entity\Report;
+use App\Reporting\Entity\ReportPhoto;
 use App\Reporting\Enum\ReportType;
+use App\Reporting\View\ReportPhotoView;
 use App\Reporting\View\ReportStatusView;
 use App\Shared\Api\ApiExceptionListener;
 use App\Shared\Api\ApiProblemException;
@@ -159,6 +161,14 @@ final class CitizenApiContractTest extends KernelTestCase
 
         $this->assertMatches('OfflineBundle', OfflineBundleView::toArray($bundle));
         $this->assertMatches('OfflineBundle', OfflineBundleView::toArray(new OfflineBundle($center, 1000, new DateTimeImmutable(), new DateTimeImmutable('+1 day'), [], [], [], [])));
+    }
+
+    public function testPhotoAccepted(): void
+    {
+        $report = new Report($this->device(), ReportType::PowerOutage, new Point(52.41, 16.9), self::CELL, null);
+        $photo = new ReportPhoto($report, '2026/10/x/y.jpg', 'image/jpeg', 1600, 1200, 123456, str_repeat('a', 64));
+
+        $this->assertMatches('PhotoAccepted', ReportPhotoView::accepted($photo));
     }
 
     public function testShelterViewAndFeature(): void

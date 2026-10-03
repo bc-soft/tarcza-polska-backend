@@ -260,6 +260,18 @@ nelmio_api_doc:
                         reportId: { type: string, format: uuid }
                         h3Cell: { type: string }
                         createdAt: { type: string, format: date-time }
+                PhotoAccepted:
+                    type: object
+                    description: Returned right after a photo upload; analysis runs in the background and is visible to operators only.
+                    required: [photoId, reportId, status, width, height, bytes, createdAt]
+                    properties:
+                        photoId: { type: string, format: uuid }
+                        reportId: { type: string, format: uuid }
+                        status: { type: string, enum: [processing] }
+                        width: { type: integer, description: 'After server-side resize (longest edge <= 1600 px)' }
+                        height: { type: integer }
+                        bytes: { type: integer, description: 'Size of the stored JPEG' }
+                        createdAt: { type: string, format: date-time }
                 ReportIncidentRef:
                     type: object
                     required: [id, type, typeLabel, status, statusLabel, confidenceLevel, confidenceLabel, confidenceScore]

@@ -11,8 +11,12 @@ use App\Incident\View\IncidentPublicView;
 use App\Incident\View\IncidentTimelineView;
 use App\Intelligence\Entity\ExternalSource;
 use App\Reporting\Entity\Report;
+use App\Reporting\Entity\ReportPhoto;
+use App\Reporting\Repository\ReportPhotoRepository;
+use App\Reporting\View\ReportPhotoView;
 use App\Shared\Api\GeoJson;
 use App\Shared\Geo\H3;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
  * Operator view: everything the public view has plus raw reports, cells, sources and the confidence breakdown.
@@ -23,6 +27,8 @@ final readonly class IncidentCommandView
     public function __construct(
         private H3 $h3,
         private IncidentTimeline $timeline,
+        private ReportPhotoRepository $photos,
+        private UrlGeneratorInterface $urls,
     ) {
     }
 
@@ -67,6 +73,10 @@ final readonly class IncidentCommandView
             'resolution' => $incident->getResolution()?->value,
             'resolutionLabel' => $incident->getResolution()?->label(),
             'timeline' => IncidentTimelineView::list($this->timeline->entries($incident)),
+            'photos' => array_map(
+                fn (ReportPhoto $p) => ReportPhotoView::command($p, $this->urls->generate('command_photo_file', ['id' => $p->getId()->toRfc4122()])),
+                $this->photos->findByIncident($incident, includeUnsafe: true),
+            ),
         ];
     }
 

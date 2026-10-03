@@ -117,6 +117,41 @@
         </div>
 
         <aside class="flex flex-col gap-4">
+            <section class="card p-5">
+                <h3 class="font-bold mb-3">Zdjęcia od obywateli <span class="text-neutral-500 font-normal text-sm">({{ detail.photos|length }})</span></h3>
+                {% if detail.photos is empty %}
+                    <p class="text-sm text-neutral-500">Brak zdjęć. Obywatel może dołączyć do 3 zdjęć do zgłoszenia; EXIF i GPS są usuwane po stronie serwera.</p>
+                {% else %}
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {% for p in detail.photos %}
+                            <figure class="rounded-lg overflow-hidden border border-neutral-200 {% if p.unsafe %}opacity-60{% endif %}">
+                                <a href="{{ p.url }}" target="_blank" rel="noopener" title="{{ p.description ?? 'Otwórz zdjęcie' }}">
+                                    {% if p.unsafe %}
+                                        <div class="aspect-[4/3] bg-neutral-100 flex items-center justify-center text-xs text-neutral-500 px-2 text-center">Ukryte przez moderację{% if p.unsafeReason %}: {{ p.unsafeReason }}{% endif %}</div>
+                                    {% else %}
+                                        <img src="{{ p.url }}" alt="" loading="lazy" class="aspect-[4/3] w-full object-cover">
+                                    {% endif %}
+                                </a>
+                                <figcaption class="px-2 py-1.5 text-[11px] leading-snug">
+                                    {% if p.analyzedAt is null %}
+                                        <span class="text-neutral-500">analiza w toku</span>
+                                    {% elseif p.relevant is null %}
+                                        <span class="text-neutral-500">bez analizy ({{ p.analyzer }})</span>
+                                    {% else %}
+                                        <span class="{{ p.matchesType ? 'text-ok' : (p.relevant ? 'text-tertiary' : 'text-neutral-500') }} font-semibold">
+                                            {{ p.matchesType ? 'pasuje do zgłoszenia' : (p.relevant ? 'powiązane, inny typ' : 'niezwiązane') }}
+                                        </span>
+                                        {% if p.confidence is not null %}<span class="text-neutral-500"> · {{ (p.confidence * 100)|round }}%</span>{% endif %}
+                                        {% if p.description %}<div class="text-neutral-600">{{ p.description }}</div>{% endif %}
+                                    {% endif %}
+                                    <div class="text-neutral-400">{{ p.createdAt|date('H:i:s') }} · {{ p.width }}×{{ p.height }}</div>
+                                </figcaption>
+                            </figure>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </section>
+
             {% if is_granted('ROLE_OPERATOR') and open %}
             <section class="card p-5">
                 <h3 class="font-bold mb-3">Akcje operatora</h3>

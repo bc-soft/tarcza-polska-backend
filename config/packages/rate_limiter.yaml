@@ -5,6 +5,11 @@ framework:
             policy: sliding_window
             limit: 10
             interval: '10 minutes'
+        # Photo uploads: a few per report, bounded per device
+        photo_upload:
+            policy: sliding_window
+            limit: 20
+            interval: '10 minutes'
         # Location pings: generous, but bounded
         location_update:
             policy: token_bucket

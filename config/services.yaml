@@ -53,6 +53,10 @@ services:
         tags:
             - { name: nelmio_api_doc.describer.default, priority: -500 }
 
+    # Vision analysis of citizen photos follows the same provider switch (openai | none).
+    App\Intelligence\Service\PhotoAnalyzerInterface:
+        factory: ['@App\Intelligence\Service\PhotoAnalyzerFactory', 'create']
+
     # Push delivery: FCM when FIREBASE_CREDENTIALS is set, otherwise a logging no-op sender.
     App\Notification\PushSenderInterface:
         factory: ['@App\Notification\PushSenderFactory', 'create']
