@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Verification\Controller;
 
 use App\Identity\Entity\Device;
+use App\Shared\Api\ApiProblemException;
 use App\Verification\Dto\RespondRequest;
 use App\Verification\Entity\VerificationRequest;
 use App\Verification\Repository\VerificationRequestRepository;
@@ -13,9 +14,8 @@ use DateTimeImmutable;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
-use Symfony\Component\HttpKernel\Exception\GoneHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
@@ -58,10 +58,10 @@ final class VerificationController
     {
         $this->assertOwner($device, $request);
         if ($request->isAnswered()) {
-            throw new ConflictHttpException('Already answered');
+            throw new ApiProblemException(Response::HTTP_CONFLICT, 'verification_already_answered', 'This question has already been answered');
         }
         if ($request->getExpiresAt() <= new DateTimeImmutable()) {
-            throw new GoneHttpException('This question has expired');
+            throw new ApiProblemException(Response::HTTP_GONE, 'verification_expired', 'This question has expired');
         }
 
         $this->responder->respond($request, $body->answer);

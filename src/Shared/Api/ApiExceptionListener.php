@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Shared\Api;
 
+use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\RateLimiter\Exception\RateLimitExceededException;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Validator\Exception\ValidationFailedException;
@@ -17,6 +19,7 @@ use Symfony\Component\Validator\Exception\ValidationFailedException;
 /**
  * Uniform JSON error envelope for everything under /api. Runs after the security listener (priority 1).
  * { "error": { "code": "validation_failed", "message": "...", "violations": [...] } }.
+ * 401 responses from the JWT firewall get the same envelope in JwtFailureListener.
  */
 #[AsEventListener(event: 'kernel.exception', priority: -10)]
 final readonly class ApiExceptionListener
@@ -42,6 +45,8 @@ final readonly class ApiExceptionListener
         $code = 'internal_error';
         $message = 'Internal server error';
         $violations = [];
+        $headers = [];
+        $extra = [];
 
         $validation = $e instanceof ValidationFailedException ? $e : ($e->getPrevious() instanceof ValidationFailedException ? $e->getPrevious() : null);
 
@@ -52,18 +57,27 @@ final readonly class ApiExceptionListener
             foreach ($validation->getViolations() as $violation) {
                 $violations[] = ['field' => $violation->getPropertyPath(), 'message' => (string) $violation->getMessage()];
             }
+        } elseif ($e instanceof RateLimitExceededException) {
+            $status = Response::HTTP_TOO_MANY_REQUESTS;
+            $code = 'too_many_requests';
+            $retryAfter = max(1, $e->getRetryAfter()->getTimestamp() - new DateTimeImmutable()->getTimestamp());
+            $message = \sprintf('Rate limit exceeded, retry in %d seconds', $retryAfter);
+            $headers = ['Retry-After' => (string) $retryAfter];
+            $extra = ['retryAfter' => $retryAfter];
         } elseif ($e instanceof HttpExceptionInterface) {
             $status = $e->getStatusCode();
-            $code = match ($status) {
+            $code = $e instanceof ApiProblemException ? $e->getErrorCode() : match ($status) {
                 400 => 'bad_request',
                 401 => 'unauthorized',
                 403 => 'forbidden',
                 404 => 'not_found',
                 409 => 'conflict',
+                410 => 'gone',
                 429 => 'too_many_requests',
                 default => 'http_error',
             };
             $message = $e->getMessage() ?: Response::$statusTexts[$status] ?? $message;
+            $headers = $e->getHeaders();
         } else {
             $this->logger->error('Unhandled API exception', ['exception' => $e]);
             if ($this->debug) {
@@ -71,15 +85,13 @@ final readonly class ApiExceptionListener
             }
         }
 
-        $body = ['error' => ['code' => $code, 'message' => $message]];
+        $body = ['error' => ['code' => $code, 'message' => $message] + $extra];
         if ([] !== $violations) {
             $body['error']['violations'] = $violations;
         }
 
         $response = new JsonResponse($body, $status);
-        if ($e instanceof HttpExceptionInterface) {
-            $response->headers->add($e->getHeaders());
-        }
+        $response->headers->add($headers);
         $event->setResponse($response);
     }
 }
