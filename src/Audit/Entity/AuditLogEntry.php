@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Audit\Entity;
 
+use App\Audit\Repository\AuditLogRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -12,7 +13,7 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Who looked at (or did) what in the Command Center. Append-only.
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: AuditLogRepository::class)]
 #[ORM\Table(name: 'audit_log')]
 #[ORM\Index(columns: ['actor', 'created_at'], name: 'idx_audit_actor_created')]
 #[ORM\Index(columns: ['subject_type', 'subject_id'], name: 'idx_audit_subject')]
