@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Entity;
 
+use App\Identity\Enum\LocationSource;
 use App\Identity\Repository\DeviceRepository;
 use App\Shared\Geo\Point;
 use DateTimeImmutable;
@@ -49,6 +50,9 @@ class Device implements UserInterface
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $locationUpdatedAt = null;
+
+    #[ORM\Column(length: 16, nullable: true, enumType: LocationSource::class)]
+    private ?LocationSource $locationSource = null;
 
     /** Last time a verification question was pushed to this device (cooldown). */
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
@@ -129,10 +133,11 @@ class Device implements UserInterface
         return $this->h3Cell;
     }
 
-    public function updateLocation(Point $point, string $h3Cell): void
+    public function updateLocation(Point $point, string $h3Cell, LocationSource $source = LocationSource::Gps): void
     {
         $this->lastLocation = $point;
         $this->h3Cell = $h3Cell;
+        $this->locationSource = $source;
         $this->locationUpdatedAt = new DateTimeImmutable();
         $this->touch();
     }
@@ -140,6 +145,11 @@ class Device implements UserInterface
     public function getLocationUpdatedAt(): ?DateTimeImmutable
     {
         return $this->locationUpdatedAt;
+    }
+
+    public function getLocationSource(): ?LocationSource
+    {
+        return $this->locationSource;
     }
 
     public function getLastAskedAt(): ?DateTimeImmutable

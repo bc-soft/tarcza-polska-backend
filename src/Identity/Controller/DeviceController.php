@@ -8,6 +8,7 @@ use App\Identity\Dto\RegisterDeviceRequest;
 use App\Identity\Dto\UpdateLocationRequest;
 use App\Identity\Dto\UpdatePushTokenRequest;
 use App\Identity\Entity\Device;
+use App\Identity\Enum\LocationSource;
 use App\Identity\Service\DeviceRegistrar;
 use App\Shared\Geo\H3;
 use App\Shared\Geo\Point;
@@ -61,6 +62,7 @@ final class DeviceController extends AbstractController
             'lastLocation' => $device->getLastLocation()?->toGeoJson(),
             'h3Cell' => $device->getH3Cell(),
             'locationUpdatedAt' => $device->getLocationUpdatedAt()?->format(\DATE_ATOM),
+            'locationSource' => $device->getLocationSource()?->value,
         ]);
     }
 
@@ -79,7 +81,7 @@ final class DeviceController extends AbstractController
         $locationUpdateLimiter->create($device->getUserIdentifier())->consume()->ensureAccepted();
 
         $point = new Point($request->lat, $request->lng);
-        $device->updateLocation($point, $this->h3->cellFor($point));
+        $device->updateLocation($point, $this->h3->cellFor($point), $request->source ?? LocationSource::Gps);
         $this->em->flush();
 
         return new JsonResponse(['h3Cell' => $device->getH3Cell()]);

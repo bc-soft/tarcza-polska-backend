@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Dto;
 
+use App\Identity\Enum\LocationSource;
 use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class UpdateLocationRequest
@@ -15,6 +16,8 @@ final readonly class UpdateLocationRequest
         public float $lng,
         #[Assert\PositiveOrZero]
         public ?float $accuracyMeters = null,
+        /** Defaults to gps when omitted. */
+        public ?LocationSource $source = null,
     ) {
     }
 }
