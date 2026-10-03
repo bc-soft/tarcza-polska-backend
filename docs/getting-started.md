@@ -89,6 +89,7 @@ działają bez Dockera (platforma Composera jest przypięta do rozszerzeń konte
 | `VERIFICATION_MAX_RING` | 6 | maksymalny ring od centrum |
 | `VERIFICATION_DEVICES_PER_CELL` | 5 | ile urządzeń pytamy w jednej komórce |
 | `VERIFICATION_COOLDOWN_MIN` | 10 | minimalna przerwa między pytaniami do tego samego urządzenia |
+| `OVERPASS_URL` | 3 publiczne serwery | lista adresów Overpass rozdzielona przecinkami, próbowane po kolei (25 s na sondę, 60 s na zapytanie); główny `overpass-api.de` bywa niedostępny, więc dopisz działający mirror w `.env.local` |
 | `AUTO_ALERT_LEVEL` | `confirmed` | poziom, przy którym system sam wysyła alert do obszaru (`confirmed`, `high`, `likely`; `off` wyłącza) |
 
 Kanały RSS/Atom dla External Sources Engine konfiguruje się w `config/packages/external_sources.yaml`

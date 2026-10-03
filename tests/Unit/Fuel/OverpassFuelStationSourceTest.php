@@ -7,10 +7,13 @@ namespace App\Tests\Unit\Fuel;
 use App\Fuel\Entity\FuelStation;
 use App\Fuel\Enum\FuelAvailability;
 use App\Fuel\Enum\FuelType;
+use App\Fuel\Exception\OverpassUnavailableException;
 use App\Fuel\Service\OverpassFuelStationSource;
 use App\Shared\Geo\Point;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class OverpassFuelStationSourceTest extends TestCase
 {
@@ -72,5 +75,40 @@ final class OverpassFuelStationSourceTest extends TestCase
         self::assertSame([FuelType::Pb95, FuelType::Lpg], FuelType::fromValues(['pb95', 'nope', 'lpg', 'pb95']));
         self::assertSame('Benzyna 95, LPG', FuelType::labels([FuelType::Pb95, FuelType::Lpg]));
         self::assertSame(['pb95', 'pb98', 'diesel', 'lpg'], FuelType::values());
+    }
+
+    #[Test]
+    public function fallsBackToTheNextMirrorWhenTheFirstOneFails(): void
+    {
+        $client = new MockHttpClient([
+            new MockResponse('', ['error' => 'Idle timeout reached for "https://overpass-api.de/api/interpreter".']), // probe #1
+            new MockResponse('Gateway Timeout', ['http_code' => 504]), // probe #2
+            new MockResponse('{"elements":[]}'), // probe #3
+            new MockResponse(self::OVERPASS), // query #3
+        ]);
+        $source = new OverpassFuelStationSource(
+            $client,
+            'https://overpass-api.de/api/interpreter, https://second.example/api/interpreter,https://third.example/api/interpreter',
+        );
+
+        self::assertCount(3, $source->endpoints());
+        $stations = $source->fetchAround(new Point(52.41, 16.9), 15000);
+
+        self::assertCount(3, $stations);
+        self::assertSame(4, $client->getRequestsCount(), 'two failing mirrors were skipped after one probe each');
+    }
+
+    #[Test]
+    public function reportsEveryMirrorWhenAllFail(): void
+    {
+        $client = new MockHttpClient([
+            new MockResponse('', ['error' => 'Connection refused']),
+            new MockResponse('Too Many Requests', ['http_code' => 429]),
+        ]);
+        $source = new OverpassFuelStationSource($client, 'https://a.example/api,https://b.example/api');
+
+        $this->expectException(OverpassUnavailableException::class);
+        $this->expectExceptionMessageMatches('/2 tried.*a\.example.*b\.example/s');
+        $source->fetchAround(new Point(52.41, 16.9), 15000);
     }
 }

@@ -37,6 +37,6 @@ pinezką ze statusem, nie plamą. Do tego brak paliwa trzeba rozróżniać po ro
 * Model pewności nie zmienia się: incydent punktowy ma te same składowe (zgłoszenia, tłum, źródła, świeżość).
 * Aplikacja przy typach punktowych pokazuje wybór obiektu (lub przyjmuje najbliższy) i wybór paliwa; kontrakt
   w `docs/api.md` i przewodniku Fluttera.
-* Overpass bywa niedostępny z sieci firmowych; import ma konfigurowalny adres (`OVERPASS_URL`) i działa też
+* Overpass bywa niedostępny z sieci firmowych; import ma konfigurowalną listę serwerów (`OVERPASS_URL`, przełączanie na kolejny po błędzie) i działa też
   po prostu z innego mirrora. Bez stacji w okolicy zgłoszenie paliwa nie przejdzie, więc import jest krokiem
   wdrożenia, a fikstury tworzą stacje syntetyczne.

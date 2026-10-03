@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Fuel\Command;
 
 use App\Fuel\Entity\FuelStation;
+use App\Fuel\Exception\OverpassUnavailableException;
 use App\Fuel\Model\FuelStationCandidate;
 use App\Fuel\Repository\FuelStationRepository;
 use App\Fuel\Service\OverpassFuelStationSource;
@@ -54,15 +55,24 @@ final class FuelStationImportCommand extends Command
         /** @var string|null $bbox */
         $bbox = $input->getOption('bbox');
 
-        if (null !== $bbox) {
-            $candidates = $this->source->fetchInBoundingBox(BoundingBox::fromString($bbox));
-        } elseif (null !== $around) {
-            [$lat, $lng] = array_map('floatval', explode(',', $around) + [0 => '0', 1 => '0']);
-            $candidates = $this->source->fetchAround(new Point($lat, $lng), (int) round((float) $input->getOption('radius-km') * 1000));
-        } else {
+        if (null === $bbox && null === $around) {
             $io->error('Pass --around=lat,lng (with --radius-km) or --bbox=minLng,minLat,maxLng,maxLat');
 
             return Command::INVALID;
+        }
+
+        $io->text(\sprintf('Overpass endpoints (tried in order): %s', implode(', ', $this->source->endpoints())));
+        try {
+            if (null !== $bbox) {
+                $candidates = $this->source->fetchInBoundingBox(BoundingBox::fromString($bbox));
+            } else {
+                [$lat, $lng] = array_map('floatval', explode(',', (string) $around) + [0 => '0', 1 => '0']);
+                $candidates = $this->source->fetchAround(new Point($lat, $lng), (int) round((float) $input->getOption('radius-km') * 1000));
+            }
+        } catch (OverpassUnavailableException $e) {
+            $io->error($e->getMessage());
+
+            return Command::FAILURE;
         }
 
         $io->text(\sprintf('Overpass returned %d stations', \count($candidates)));
