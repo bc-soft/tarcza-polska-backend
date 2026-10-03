@@ -17,7 +17,8 @@ services:
       MESSENGER_TRANSPORT_DSN: redis://redis:6379/messages
       REDIS_URL: redis://redis:6379
       MERCURE_URL: http://php/.well-known/mercure
-      MERCURE_PUBLIC_URL: https://${SERVER_NAME:-localhost}/.well-known/mercure
+      # Host the browser subscribes to; kept separate from SERVER_NAME, which may hold a Caddy address list ("localhost, :80").
+      MERCURE_PUBLIC_URL: https://${MERCURE_PUBLIC_HOST:-localhost}/.well-known/mercure
       MERCURE_JWT_SECRET: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
       MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
       MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
@@ -62,7 +63,8 @@ services:
       MESSENGER_TRANSPORT_DSN: redis://redis:6379/messages
       REDIS_URL: redis://redis:6379
       MERCURE_URL: http://php/.well-known/mercure
-      MERCURE_PUBLIC_URL: https://${SERVER_NAME:-localhost}/.well-known/mercure
+      # Host the browser subscribes to; kept separate from SERVER_NAME, which may hold a Caddy address list ("localhost, :80").
+      MERCURE_PUBLIC_URL: https://${MERCURE_PUBLIC_HOST:-localhost}/.well-known/mercure
       MERCURE_JWT_SECRET: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
     volumes:
       - ./:/app
