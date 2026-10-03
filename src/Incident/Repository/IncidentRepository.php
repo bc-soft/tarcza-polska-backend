@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Incident\Repository;
 
+use App\Incident\Dto\IncidentSearchCriteria;
 use App\Incident\Entity\Incident;
 use App\Incident\Enum\IncidentStatus;
 use App\Reporting\Enum\ReportType;
@@ -70,6 +71,45 @@ final class IncidentRepository extends ServiceEntityRepository
             ->orderBy('i.lastActivityAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();
+    }
+
+    /** @return list<Incident> newest activity first */
+    public function search(IncidentSearchCriteria $criteria): array
+    {
+        $qb = $this->createQueryBuilder('i')->orderBy('i.lastActivityAt', SortDirection::Descending)->setMaxResults($criteria->limit);
+
+        if (null !== $criteria->status) {
+            $qb->andWhere('i.status = :status')->setParameter('status', $criteria->status);
+        } elseif (!$criteria->includeResolved) {
+            $qb->andWhere('i.status <> :resolved')->setParameter('resolved', IncidentStatus::Resolved);
+        }
+        if (null !== $criteria->type) {
+            $qb->andWhere('i.type = :type')->setParameter('type', $criteria->type);
+        }
+        if (null !== $criteria->level) {
+            $qb->andWhere('i.confidenceLevel = :level')->setParameter('level', $criteria->level);
+        }
+
+        /** @var list<Incident> */
+        return $qb->getQuery()->getResult();
+    }
+
+    /** @return array<string, int> status value => count */
+    public function countByStatus(): array
+    {
+        /** @var list<array{status: IncidentStatus, n: string|int}> $rows */
+        $rows = $this->createQueryBuilder('i')
+            ->select('i.status AS status, COUNT(i.id) AS n')
+            ->groupBy('i.status')
+            ->getQuery()
+            ->getArrayResult();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[$row['status']->value] = (int) $row['n'];
+        }
+
+        return $out;
     }
 
     /** @return list<Incident> */
