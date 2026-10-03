@@ -17,9 +17,9 @@
 <div class="min-h-full flex">
     <aside class="hidden lg:flex w-[232px] shrink-0 flex-col gap-6 px-4 py-5 sticky top-0 h-screen">
         <a href="{{ path('command_dashboard') }}" class="flex items-center gap-3 px-2">
-            <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white shadow-card">{{ ui.icon('shield', 'w-5 h-5') }}</span>
+            <img src="{{ asset('images/tarcza-polska-logo.png') }}" alt="Tarcza Polska" class="h-10 w-10 shrink-0 rounded-2xl bg-white object-contain shadow-card">
             <span class="leading-tight">
-                <span class="block font-bold text-[15px] tracking-tight">Tarcza Command</span>
+                <span class="block font-bold text-[14px] tracking-tight">Tarcza Polska Command</span>
                 <span class="flex items-center gap-1.5 text-xs text-neutral-500"><span class="h-1.5 w-1.5 rounded-full bg-ok animate-pulse"></span>System aktywny</span>
             </span>
         </a>
@@ -45,7 +45,7 @@
     <div class="flex-1 min-w-0 flex flex-col">
         <header class="lg:hidden sticky top-0 z-30 bg-canvas/90 backdrop-blur border-b border-neutral-200/60">
             <div class="flex items-center justify-between px-4 h-14">
-                <a href="{{ path('command_dashboard') }}" class="flex items-center gap-2 font-bold"><span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white">{{ ui.icon('shield', 'w-4 h-4') }}</span>Tarcza Command</a>
+                <a href="{{ path('command_dashboard') }}" class="flex items-center gap-2 font-bold"><img src="{{ asset('images/tarcza-polska-logo.png') }}" alt="Tarcza Polska" class="h-8 w-8 rounded-xl bg-white object-contain">Tarcza Polska Command</a>
                 <a href="{{ path('command_logout') }}" class="icon-btn bg-primary text-white">{{ ui.icon('user', 'w-4 h-4') }}</a>
             </div>
             <nav class="flex gap-1 overflow-x-auto px-3 pb-2">

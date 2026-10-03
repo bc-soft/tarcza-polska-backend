@@ -3,14 +3,15 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{% block title %}Tarcza Polska - Command{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23D4213D%22><path d=%22M12 2 4 5v6c0 5.25 3.4 10.15 8 11.5 4.6-1.35 8-6.25 8-11.5V5l-8-3z%22/></svg>">
+        <title>{% block title %}Tarcza Polska Command{% endblock %}</title>
+        <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
+        <link rel="apple-touch-icon" href="{{ asset('images/tarcza-polska-logo.png') }}">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <script src="https://cdn.tailwindcss.com"></script>
         <script>
-            // Design tokens of the Tarcza design system (shared with the mobile app).
+            // Design tokens of the Tarcza Polska design system (shared with the mobile app).
             tailwind.config = {
                 theme: {
                     extend: {

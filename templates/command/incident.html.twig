@@ -1,6 +1,6 @@
 {% extends 'command/_layout.html.twig' %}
 {% import 'command/_macros.html.twig' as ui %}
-{% block title %}{{ detail.typeLabel }} - Tarcza Command{% endblock %}
+{% block title %}{{ detail.typeLabel }} - Tarcza Polska Command{% endblock %}
 {% block main %}
 {% set id = incident.id.toRfc4122 %}
 {% set color = ui.level_color(detail.confidenceLevel) %}
