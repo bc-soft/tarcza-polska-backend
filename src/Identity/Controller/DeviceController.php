@@ -38,10 +38,7 @@ final class DeviceController extends AbstractController
     #[Route('', name: 'api_device_register', methods: ['POST'])]
     #[OA\Post(summary: 'Register an anonymous device and obtain a JWT', security: [])]
     #[OA\RequestBody(content: new OA\JsonContent(ref: new \Nelmio\ApiDocBundle\Attribute\Model(type: RegisterDeviceRequest::class)))]
-    #[OA\Response(response: 201, description: 'Device created', content: new OA\JsonContent(properties: [
-        new OA\Property(property: 'deviceId', type: 'string', format: 'uuid'),
-        new OA\Property(property: 'token', type: 'string', description: 'Bearer token for /api/v1/*'),
-    ]))]
+    #[OA\Response(response: 201, description: 'Device created', content: new OA\JsonContent(ref: '#/components/schemas/DeviceRegistered'))]
     public function register(#[MapRequestPayload] RegisterDeviceRequest $request, DeviceRegistrar $registrar): JsonResponse
     {
         $result = $registrar->register($request);
@@ -54,7 +51,7 @@ final class DeviceController extends AbstractController
 
     #[Route('/me', name: 'api_device_me', methods: ['GET'])]
     #[OA\Get(summary: 'Current device profile')]
-    #[OA\Response(response: 200, description: 'Device')]
+    #[OA\Response(response: 200, description: 'Device profile', content: new OA\JsonContent(ref: '#/components/schemas/DeviceProfile'))]
     public function me(#[CurrentUser] Device $device): JsonResponse
     {
         return new JsonResponse(DeviceProfileView::toArray($device));
@@ -63,7 +60,8 @@ final class DeviceController extends AbstractController
     #[Route('/me/location', name: 'api_device_location', methods: ['PUT'])]
     #[OA\Put(summary: 'Update the last known location of the device (no history is kept)')]
     #[OA\RequestBody(content: new OA\JsonContent(ref: new \Nelmio\ApiDocBundle\Attribute\Model(type: UpdateLocationRequest::class)))]
-    #[OA\Response(response: 200, description: 'Location stored, H3 cell returned')]
+    #[OA\Response(response: 200, description: 'Location stored, H3 cell returned', content: new OA\JsonContent(ref: '#/components/schemas/LocationUpdated'))]
+    #[OA\Response(response: 429, description: 'More than 30 updates a minute from this device (error.code: too_many_requests, Retry-After header)')]
     public function updateLocation(
         #[CurrentUser]
         Device $device,

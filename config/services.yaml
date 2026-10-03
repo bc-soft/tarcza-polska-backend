@@ -46,6 +46,11 @@ services:
     App\Intelligence\Service\ResearcherInterface:
         factory: ['@App\Intelligence\Service\ResearcherFactory', 'create']
 
+    # OpenAPI: error envelope on every /api operation (runs after the attribute and route describers).
+    App\Shared\Api\OpenApi\ErrorResponsesDescriber:
+        tags:
+            - { name: nelmio_api_doc.describer.default, priority: -500 }
+
     # Push delivery: FCM when FIREBASE_CREDENTIALS is set, otherwise a logging no-op sender.
     App\Notification\PushSenderInterface:
         factory: ['@App\Notification\PushSenderFactory', 'create']

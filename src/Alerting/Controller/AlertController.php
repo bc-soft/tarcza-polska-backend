@@ -27,7 +27,9 @@ final class AlertController
     #[OA\Get(summary: 'Active alerts covering my position')]
     #[OA\Parameter(name: 'lat', in: 'query', required: true, schema: new OA\Schema(type: 'number'))]
     #[OA\Parameter(name: 'lng', in: 'query', required: true, schema: new OA\Schema(type: 'number'))]
-    #[OA\Response(response: 200, description: 'Alerts')]
+    #[OA\Response(response: 200, description: 'Active alerts without area. Sends an ETag.', content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/AlertView')))]
+    #[OA\Response(response: 304, description: 'Not Modified (If-None-Match matched the ETag)')]
+    #[OA\Response(response: 400, description: 'lat and lng are required (error.code: bad_request)')]
     public function list(Request $request): JsonResponse
     {
         if (!$request->query->has('lat') || !$request->query->has('lng')) {
@@ -40,7 +42,7 @@ final class AlertController
 
     #[Route('/{id}', name: 'api_alert_show', methods: ['GET'])]
     #[OA\Get(summary: 'Alert details (opened from a push)')]
-    #[OA\Response(response: 200, description: 'Alert')]
+    #[OA\Response(response: 200, description: 'Alert with area', content: new OA\JsonContent(ref: '#/components/schemas/AlertView'))]
     public function show(Alert $alert): JsonResponse
     {
         return new JsonResponse(AlertView::toArray($alert));

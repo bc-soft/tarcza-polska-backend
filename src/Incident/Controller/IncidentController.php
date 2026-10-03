@@ -25,7 +25,7 @@ final class IncidentController
     #[OA\Get(summary: 'Open incidents (optionally only those containing my position)')]
     #[OA\Parameter(name: 'lat', in: 'query', schema: new OA\Schema(type: 'number'))]
     #[OA\Parameter(name: 'lng', in: 'query', schema: new OA\Schema(type: 'number'))]
-    #[OA\Response(response: 200, description: 'List of public incident views')]
+    #[OA\Response(response: 200, description: 'List of public incident views', content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/IncidentView')))]
     public function list(Request $request): JsonResponse
     {
         if ($request->query->has('lat') && $request->query->has('lng')) {
@@ -40,7 +40,7 @@ final class IncidentController
 
     #[Route('/{id}', name: 'api_incident_show', methods: ['GET'])]
     #[OA\Get(summary: 'Public view of an incident (aggregated, no raw report positions)')]
-    #[OA\Response(response: 200, description: 'Incident')]
+    #[OA\Response(response: 200, description: 'Incident', content: new OA\JsonContent(ref: '#/components/schemas/IncidentView'))]
     public function show(Incident $incident): JsonResponse
     {
         return new JsonResponse(IncidentPublicView::toArray($incident));

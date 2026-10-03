@@ -2,8 +2,8 @@
     "openapi": "3.0.0",
     "info": {
         "title": "Tarcza Polska API",
-        "description": "Backend for the Tarcza Polska civil resilience platform.\n\n* `/api/v1/*` - Citizen mobile app (Flutter). Authenticate with the JWT returned by `POST /api/v1/devices`.\n* `/api/command/*` - Command Center. Authenticate with the JWT returned by `POST /api/command/login`.\n\nAll spatial payloads are GeoJSON (WGS84, `[lng, lat]` order).\n",
-        "version": "1.0.0"
+        "description": "Backend for the Tarcza Polska civil resilience platform.\n\n* `/api/v1/*` - Citizen mobile app (Flutter). Authenticate with the JWT returned by `POST /api/v1/devices`.\n* `/api/command/*` - Command Center. Authenticate with the JWT returned by `POST /api/command/login`.\n\nAll spatial payloads are GeoJSON (WGS84, `[lng, lat]` order). Every error is an `ErrorResponse`.\n`GET /map`, `GET /verifications/pending` and `GET /alerts` send an `ETag`; repeat the value in\n`If-None-Match` to get `304 Not Modified`.\n",
+        "version": "1.1.0"
     },
     "paths": {
         "/api/v1/alerts": {
@@ -33,7 +33,40 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Alerts"
+                        "description": "Active alerts without area. Sends an ETag.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AlertView"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "304": {
+                        "description": "Not Modified (If-None-Match matched the ETag)"
+                    },
+                    "400": {
+                        "description": "lat and lng are required (error.code: bad_request)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -57,7 +90,34 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Alert"
+                        "description": "Alert with area",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertView"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -72,6 +132,26 @@
                 "responses": {
                     "200": {
                         "description": "Alerts"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -94,6 +174,36 @@
                 "responses": {
                     "201": {
                         "description": "Alert created; delivery runs asynchronously"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -118,6 +228,26 @@
                 "responses": {
                     "200": {
                         "description": "Incident summaries"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -142,6 +272,36 @@
                 "responses": {
                     "200": {
                         "description": "Incident detail"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -166,6 +326,36 @@
                 "responses": {
                     "200": {
                         "description": "Sources"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -198,6 +388,46 @@
                 "responses": {
                     "201": {
                         "description": "Source stored"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -222,6 +452,36 @@
                 "responses": {
                     "202": {
                         "description": "Resolution queued"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -236,6 +496,26 @@
                 "responses": {
                     "200": {
                         "description": "Shelters"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -258,6 +538,36 @@
                 "responses": {
                     "201": {
                         "description": "Shelter created"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -292,6 +602,46 @@
                 "responses": {
                     "200": {
                         "description": "Updated shelter"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -326,6 +676,46 @@
                 "responses": {
                     "200": {
                         "description": "Updated shelter"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -340,6 +730,26 @@
                 "responses": {
                     "200": {
                         "description": "Counters"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role (error.code: forbidden)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -367,17 +777,17 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "deviceId": {
-                                            "type": "string",
-                                            "format": "uuid"
-                                        },
-                                        "token": {
-                                            "description": "Bearer token for /api/v1/*",
-                                            "type": "string"
-                                        }
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/DeviceRegistered"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
                                 }
                             }
                         }
@@ -395,7 +805,24 @@
                 "operationId": "get_api_device_me",
                 "responses": {
                     "200": {
-                        "description": "Device"
+                        "description": "Device profile",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeviceProfile"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -419,7 +846,88 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Location stored, H3 cell returned"
+                        "description": "Location stored, H3 cell returned",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LocationUpdated"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "More than 30 updates a minute from this device (error.code: too_many_requests, Retry-After header)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/devices/me/preferences": {
+            "put": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Notification preferences (location_refresh reminders on / off)",
+                "operationId": "put_api_device_preferences",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdatePreferencesRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "Stored"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -444,6 +952,26 @@
                 "responses": {
                     "204": {
                         "description": "Stored"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -473,7 +1001,27 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of public incident views"
+                        "description": "List of public incident views",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/IncidentView"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -497,7 +1045,34 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Incident"
+                        "description": "Incident",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IncidentView"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -521,7 +1096,37 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "GeoJSON FeatureCollection; properties.kind in {incident, shelter, alert}"
+                        "description": "GeoJSON FeatureCollection; properties.kind in {incident, shelter, alert}. Sends an ETag.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MapFeatureCollection"
+                                }
+                            }
+                        }
+                    },
+                    "304": {
+                        "description": "Not Modified (If-None-Match matched the ETag)"
+                    },
+                    "400": {
+                        "description": "Malformed bbox (error.code: bad_request)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -545,10 +1150,44 @@
                 },
                 "responses": {
                     "202": {
-                        "description": "Accepted; clustering happens asynchronously"
+                        "description": "Accepted; clustering happens asynchronously",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportAccepted"
+                                }
+                            }
+                        }
                     },
                     "429": {
-                        "description": "Too many reports from this device"
+                        "description": "More than 10 reports in 10 minutes from this device (error.code: too_many_requests, Retry-After header)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -562,7 +1201,27 @@
                 "operationId": "get_api_report_types",
                 "responses": {
                     "200": {
-                        "description": "List of types"
+                        "description": "List of types",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ReportTypeOption"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -586,7 +1245,34 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Report"
+                        "description": "Report status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportStatusView"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -597,7 +1283,14 @@
                 "operationId": "get_api_health",
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "Status of the spatial stack",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HealthStatus"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": []
@@ -635,7 +1328,37 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Shelters"
+                        "description": "Shelters (distanceMeters only with lat/lng)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ShelterView"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed bbox (error.code: bad_request)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -659,7 +1382,34 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Shelter"
+                        "description": "Shelter details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ShelterView"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -693,7 +1443,44 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Updated shelter"
+                        "description": "Updated shelter",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ShelterView"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -707,7 +1494,30 @@
                 "operationId": "get_api_verification_pending",
                 "responses": {
                     "200": {
-                        "description": "List of pending questions"
+                        "description": "List of pending questions. Sends an ETag.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/VerificationQuestion"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "304": {
+                        "description": "Not Modified (If-None-Match matched the ETag)"
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -731,7 +1541,34 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Question"
+                        "description": "Question",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VerificationQuestion"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -765,13 +1602,64 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Recorded; returns the incident the answer fed into"
+                        "description": "Recorded; returns the incident the answer fed into",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VerificationResult"
+                                }
+                            }
+                        }
                     },
                     "409": {
-                        "description": "Already answered"
+                        "description": "Already answered (error.code: verification_already_answered)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     },
                     "410": {
-                        "description": "Question expired"
+                        "description": "Question expired (error.code: verification_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -779,6 +1667,795 @@
     },
     "components": {
         "schemas": {
+            "ErrorViolation": {
+                "required": [
+                    "field",
+                    "message"
+                ],
+                "properties": {
+                    "field": {
+                        "description": "Name of the body field (maps 1:1 onto the form field)",
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ErrorDetail": {
+                "required": [
+                    "code",
+                    "message"
+                ],
+                "properties": {
+                    "code": {
+                        "description": "Stable machine-readable code: bad_request, unauthorized, token_expired, forbidden, not_found, conflict, gone, verification_already_answered, verification_expired, validation_failed, too_many_requests, internal_error.\n",
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "retryAfter": {
+                        "description": "Seconds until the next attempt may succeed (429 only, also sent as the Retry-After header)",
+                        "type": "integer"
+                    },
+                    "violations": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ErrorViolation"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ErrorResponse": {
+                "required": [
+                    "error"
+                ],
+                "properties": {
+                    "error": {
+                        "$ref": "#/components/schemas/ErrorDetail"
+                    }
+                },
+                "type": "object"
+            },
+            "GeoJsonGeometry": {
+                "description": "GeoJSON geometry in WGS84, coordinates ordered [lng, lat].",
+                "required": [
+                    "type",
+                    "coordinates"
+                ],
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Point",
+                            "Polygon",
+                            "MultiPolygon"
+                        ]
+                    },
+                    "coordinates": {
+                        "description": "Point: [lng, lat]; Polygon: [[[lng, lat], ...]]; MultiPolygon: [[[[lng, lat], ...]]]",
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentStatus": {
+                "type": "string",
+                "enum": [
+                    "detected",
+                    "verifying",
+                    "active",
+                    "resolved"
+                ]
+            },
+            "ConfidenceLevel": {
+                "type": "string",
+                "enum": [
+                    "unverified",
+                    "likely",
+                    "high",
+                    "confirmed"
+                ]
+            },
+            "AlertSeverity": {
+                "type": "string",
+                "enum": [
+                    "info",
+                    "warning",
+                    "danger"
+                ]
+            },
+            "DeviceRegistered": {
+                "required": [
+                    "deviceId",
+                    "token"
+                ],
+                "properties": {
+                    "deviceId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "token": {
+                        "description": "Bearer token for /api/v1/* (valid 30 days)",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "DevicePreferences": {
+                "required": [
+                    "locationRefresh"
+                ],
+                "properties": {
+                    "locationRefresh": {
+                        "description": "Receive the location_refresh reminder push (default true)",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "DeviceProfile": {
+                "required": [
+                    "deviceId",
+                    "hasPushToken",
+                    "preferences"
+                ],
+                "properties": {
+                    "deviceId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "platform": {
+                        "description": "ios | android | web | simulator",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "hasPushToken": {
+                        "type": "boolean"
+                    },
+                    "lastLocation": {
+                        "description": "Point or null until the first location update",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GeoJsonGeometry"
+                            }
+                        ]
+                    },
+                    "h3Cell": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "locationUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "locationSource": {
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LocationSource"
+                            }
+                        ]
+                    },
+                    "preferences": {
+                        "$ref": "#/components/schemas/DevicePreferences"
+                    }
+                },
+                "type": "object"
+            },
+            "LocationUpdated": {
+                "required": [
+                    "h3Cell"
+                ],
+                "properties": {
+                    "h3Cell": {
+                        "description": "H3 cell (resolution 9) of the stored position",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Community": {
+                "required": [
+                    "reports",
+                    "answers"
+                ],
+                "properties": {
+                    "reports": {
+                        "type": "integer"
+                    },
+                    "answers": {
+                        "type": "integer"
+                    },
+                    "agreementPct": {
+                        "description": "Share of answers confirming the problem; null until somebody answered",
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentSummary": {
+                "description": "Public incident fields shared by IncidentView and the map feature properties.",
+                "required": [
+                    "id",
+                    "type",
+                    "typeLabel",
+                    "status",
+                    "statusLabel",
+                    "confidenceLevel",
+                    "confidenceLabel",
+                    "confidenceScore",
+                    "startedAt",
+                    "lastActivityAt",
+                    "community"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ReportType"
+                    },
+                    "typeLabel": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/IncidentStatus"
+                    },
+                    "statusLabel": {
+                        "type": "string"
+                    },
+                    "confidenceLevel": {
+                        "$ref": "#/components/schemas/ConfidenceLevel"
+                    },
+                    "confidenceLabel": {
+                        "type": "string"
+                    },
+                    "confidenceScore": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 1,
+                        "minimum": 0
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "lastActivityAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "lastConfirmedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "community": {
+                        "$ref": "#/components/schemas/Community"
+                    },
+                    "summary": {
+                        "description": "AI research summary, when available",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentView": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/IncidentSummary"
+                    },
+                    {
+                        "required": [
+                            "area"
+                        ],
+                        "properties": {
+                            "area": {
+                                "description": "Polygon / MultiPolygon of verified cells; null while the incident is only detected",
+                                "nullable": true,
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/GeoJsonGeometry"
+                                    }
+                                ]
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "IncidentFeatureProperties": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/IncidentSummary"
+                    },
+                    {
+                        "required": [
+                            "kind"
+                        ],
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "incident"
+                                ]
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ShelterSummary": {
+                "required": [
+                    "id",
+                    "name",
+                    "status",
+                    "statusLabel",
+                    "confirmationCount"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ShelterStatus"
+                    },
+                    "statusLabel": {
+                        "type": "string"
+                    },
+                    "lastConfirmedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "confirmationCount": {
+                        "type": "integer"
+                    },
+                    "distanceMeters": {
+                        "description": "Only in GET /shelters?lat&lng",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "ShelterView": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ShelterSummary"
+                    },
+                    {
+                        "required": [
+                            "location"
+                        ],
+                        "properties": {
+                            "location": {
+                                "$ref": "#/components/schemas/GeoJsonGeometry"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ShelterFeatureProperties": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ShelterSummary"
+                    },
+                    {
+                        "required": [
+                            "kind"
+                        ],
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "shelter"
+                                ]
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "AlertSummary": {
+                "required": [
+                    "id",
+                    "title",
+                    "body",
+                    "severity",
+                    "createdAt",
+                    "expiresAt",
+                    "active"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "severity": {
+                        "$ref": "#/components/schemas/AlertSeverity"
+                    },
+                    "incidentId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "active": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "AlertView": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AlertSummary"
+                    },
+                    {
+                        "properties": {
+                            "area": {
+                                "description": "Only in GET /alerts/{id}",
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/GeoJsonGeometry"
+                                    }
+                                ]
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "AlertFeatureProperties": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AlertSummary"
+                    },
+                    {
+                        "required": [
+                            "kind"
+                        ],
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "alert"
+                                ]
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "MapFeature": {
+                "required": [
+                    "type",
+                    "id",
+                    "geometry",
+                    "properties"
+                ],
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "Feature"
+                        ]
+                    },
+                    "id": {
+                        "description": "Same value as properties.id",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "geometry": {
+                        "description": "incident: area polygon (centroid Point while the area is empty); shelter: Point; alert: polygon",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GeoJsonGeometry"
+                            }
+                        ]
+                    },
+                    "properties": {
+                        "discriminator": {
+                            "propertyName": "kind",
+                            "mapping": {
+                                "incident": "#/components/schemas/IncidentFeatureProperties",
+                                "shelter": "#/components/schemas/ShelterFeatureProperties",
+                                "alert": "#/components/schemas/AlertFeatureProperties"
+                            }
+                        },
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/IncidentFeatureProperties"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ShelterFeatureProperties"
+                            },
+                            {
+                                "$ref": "#/components/schemas/AlertFeatureProperties"
+                            }
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "MapFeatureCollection": {
+                "required": [
+                    "type",
+                    "features"
+                ],
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "FeatureCollection"
+                        ]
+                    },
+                    "features": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MapFeature"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ReportTypeOption": {
+                "required": [
+                    "value",
+                    "label"
+                ],
+                "properties": {
+                    "value": {
+                        "$ref": "#/components/schemas/ReportType"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ReportAccepted": {
+                "required": [
+                    "reportId",
+                    "h3Cell",
+                    "createdAt"
+                ],
+                "properties": {
+                    "reportId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "h3Cell": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "ReportIncidentRef": {
+                "required": [
+                    "id",
+                    "type",
+                    "typeLabel",
+                    "status",
+                    "statusLabel",
+                    "confidenceLevel",
+                    "confidenceLabel",
+                    "confidenceScore"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ReportType"
+                    },
+                    "typeLabel": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/IncidentStatus"
+                    },
+                    "statusLabel": {
+                        "type": "string"
+                    },
+                    "confidenceLevel": {
+                        "$ref": "#/components/schemas/ConfidenceLevel"
+                    },
+                    "confidenceLabel": {
+                        "type": "string"
+                    },
+                    "confidenceScore": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 1,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "ReportStatusView": {
+                "required": [
+                    "reportId",
+                    "type",
+                    "typeLabel",
+                    "createdAt",
+                    "incident"
+                ],
+                "properties": {
+                    "reportId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ReportType"
+                    },
+                    "typeLabel": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "incident": {
+                        "description": "null until clustering (asynchronous, usually within seconds) attached the report to an incident",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ReportIncidentRef"
+                            }
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "VerificationQuestion": {
+                "required": [
+                    "verificationId",
+                    "incidentId",
+                    "type",
+                    "typeLabel",
+                    "question",
+                    "context",
+                    "options",
+                    "sentAt",
+                    "expiresAt",
+                    "answered"
+                ],
+                "properties": {
+                    "verificationId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "incidentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ReportType"
+                    },
+                    "typeLabel": {
+                        "type": "string"
+                    },
+                    "question": {
+                        "type": "string"
+                    },
+                    "context": {
+                        "type": "string"
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/VerificationAnswer"
+                        }
+                    },
+                    "sentAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "answered": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "VerificationResult": {
+                "required": [
+                    "verificationId",
+                    "incidentId",
+                    "thanks"
+                ],
+                "properties": {
+                    "verificationId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "incidentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "thanks": {
+                        "description": "Polish thank-you line to show the user",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "HealthStatus": {
+                "required": [
+                    "status",
+                    "time"
+                ],
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "ok",
+                            "degraded"
+                        ]
+                    },
+                    "postgis": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "h3": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "h3Postgis": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "time": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
             "CreateAlertRequest": {
                 "required": [
                     "title",
@@ -994,6 +2671,14 @@
                 },
                 "type": "object"
             },
+            "LocationSource": {
+                "type": "string",
+                "enum": [
+                    "home",
+                    "gps",
+                    "background"
+                ]
+            },
             "UpdateLocationRequest": {
                 "required": [
                     "lat",
@@ -1018,6 +2703,28 @@
                         "nullable": true,
                         "default": null,
                         "minimum": 0
+                    },
+                    "source": {
+                        "title": "Defaults to gps when omitted.",
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/LocationSource"
+                            }
+                        ],
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "UpdatePreferencesRequest": {
+                "required": [
+                    "locationRefresh"
+                ],
+                "properties": {
+                    "locationRefresh": {
+                        "title": "Receive the \"are you still in this area?\" reminder when the position is stale. Default on.",
+                        "type": "boolean"
                     }
                 },
                 "type": "object"

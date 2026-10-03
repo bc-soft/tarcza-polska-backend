@@ -36,7 +36,9 @@ final class MapController
     #[Route('/api/v1/map', name: 'api_map', methods: ['GET'])]
     #[OA\Get(summary: 'Everything visible on the citizen map inside a bbox, as GeoJSON')]
     #[OA\Parameter(name: 'bbox', in: 'query', description: 'minLng,minLat,maxLng,maxLat (defaults to Poland)', schema: new OA\Schema(type: 'string'))]
-    #[OA\Response(response: 200, description: 'GeoJSON FeatureCollection; properties.kind in {incident, shelter, alert}')]
+    #[OA\Response(response: 200, description: 'GeoJSON FeatureCollection; properties.kind in {incident, shelter, alert}. Sends an ETag.', content: new OA\JsonContent(ref: '#/components/schemas/MapFeatureCollection'))]
+    #[OA\Response(response: 304, description: 'Not Modified (If-None-Match matched the ETag)')]
+    #[OA\Response(response: 400, description: 'Malformed bbox (error.code: bad_request)')]
     public function __invoke(Request $request): JsonResponse
     {
         try {

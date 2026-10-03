@@ -30,8 +30,8 @@ jobs:
       - name: PHPStan
         run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
-      - name: Unit tests
-        run: php bin/phpunit --testsuite unit
+      - name: Unit + API contract tests
+        run: php bin/phpunit --testsuite unit,contract
 
   docker:
     name: Production image builds

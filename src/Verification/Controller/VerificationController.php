@@ -35,7 +35,8 @@ final class VerificationController
 
     #[Route('/pending', name: 'api_verification_pending', methods: ['GET'])]
     #[OA\Get(summary: 'Questions waiting for this device (poll on app foreground; pushes carry the same ids)')]
-    #[OA\Response(response: 200, description: 'List of pending questions')]
+    #[OA\Response(response: 200, description: 'List of pending questions. Sends an ETag.', content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/VerificationQuestion')))]
+    #[OA\Response(response: 304, description: 'Not Modified (If-None-Match matched the ETag)')]
     public function pending(#[CurrentUser] Device $device, Request $httpRequest): JsonResponse
     {
         return ConditionalJsonResponse::create($httpRequest, array_map(VerificationQuestionView::toArray(...), $this->requests->findPendingForDevice($device)));
@@ -43,7 +44,7 @@ final class VerificationController
 
     #[Route('/{id}', name: 'api_verification_show', methods: ['GET'])]
     #[OA\Get(summary: 'One question (e.g. opened from a push)')]
-    #[OA\Response(response: 200, description: 'Question')]
+    #[OA\Response(response: 200, description: 'Question', content: new OA\JsonContent(ref: '#/components/schemas/VerificationQuestion'))]
     public function show(#[CurrentUser] Device $device, VerificationRequest $request): JsonResponse
     {
         $this->assertOwner($device, $request);
@@ -54,9 +55,9 @@ final class VerificationController
     #[Route('/{id}/response', name: 'api_verification_respond', methods: ['POST'])]
     #[OA\Post(summary: 'Answer YES / NO / UNKNOWN')]
     #[OA\RequestBody(content: new OA\JsonContent(ref: new Model(type: RespondRequest::class)))]
-    #[OA\Response(response: 200, description: 'Recorded; returns the incident the answer fed into')]
-    #[OA\Response(response: 409, description: 'Already answered')]
-    #[OA\Response(response: 410, description: 'Question expired')]
+    #[OA\Response(response: 200, description: 'Recorded; returns the incident the answer fed into', content: new OA\JsonContent(ref: '#/components/schemas/VerificationResult'))]
+    #[OA\Response(response: 409, description: 'Already answered (error.code: verification_already_answered)')]
+    #[OA\Response(response: 410, description: 'Question expired (error.code: verification_expired)')]
     public function respond(#[CurrentUser] Device $device, VerificationRequest $request, #[MapRequestPayload] RespondRequest $body): JsonResponse
     {
         $this->assertOwner($device, $request);

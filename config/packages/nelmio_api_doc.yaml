@@ -8,24 +8,311 @@ nelmio_api_doc:
                 * `/api/v1/*` - Citizen mobile app (Flutter). Authenticate with the JWT returned by `POST /api/v1/devices`.
                 * `/api/command/*` - Command Center. Authenticate with the JWT returned by `POST /api/command/login`.
 
-                All spatial payloads are GeoJSON (WGS84, `[lng, lat]` order).
-            version: 1.0.0
+                All spatial payloads are GeoJSON (WGS84, `[lng, lat]` order). Every error is an `ErrorResponse`.
+                `GET /map`, `GET /verifications/pending` and `GET /alerts` send an `ETag`; repeat the value in
+                `If-None-Match` to get `304 Not Modified`.
+            version: 1.1.0
         components:
             securitySchemes:
                 Bearer:
                     type: http
                     scheme: bearer
                     bearerFormat: JWT
+            schemas:
+                # ---- errors -------------------------------------------------------------------
+                ErrorViolation:
+                    type: object
+                    required: [field, message]
+                    properties:
+                        field: { type: string, description: 'Name of the body field (maps 1:1 onto the form field)' }
+                        message: { type: string }
+                ErrorDetail:
+                    type: object
+                    required: [code, message]
+                    properties:
+                        code:
+                            type: string
+                            description: >
+                                Stable machine-readable code: bad_request, unauthorized, token_expired, forbidden, not_found,
+                                conflict, gone, verification_already_answered, verification_expired, validation_failed,
+                                too_many_requests, internal_error.
+                        message: { type: string }
+                        retryAfter: { type: integer, description: 'Seconds until the next attempt may succeed (429 only, also sent as the Retry-After header)' }
+                        violations:
+                            type: array
+                            items: { $ref: '#/components/schemas/ErrorViolation' }
+                ErrorResponse:
+                    type: object
+                    required: [error]
+                    properties:
+                        error: { $ref: '#/components/schemas/ErrorDetail' }
+
+                # ---- shared -------------------------------------------------------------------
+                GeoJsonGeometry:
+                    type: object
+                    description: 'GeoJSON geometry in WGS84, coordinates ordered [lng, lat].'
+                    required: [type, coordinates]
+                    properties:
+                        type: { type: string, enum: [Point, Polygon, MultiPolygon] }
+                        coordinates:
+                            type: array
+                            items: { }
+                            description: 'Point: [lng, lat]; Polygon: [[[lng, lat], ...]]; MultiPolygon: [[[[lng, lat], ...]]]'
+                IncidentStatus: { type: string, enum: [detected, verifying, active, resolved] }
+                ConfidenceLevel: { type: string, enum: [unverified, likely, high, confirmed] }
+                AlertSeverity: { type: string, enum: [info, warning, danger] }
+
+                # ---- devices ------------------------------------------------------------------
+                DeviceRegistered:
+                    type: object
+                    required: [deviceId, token]
+                    properties:
+                        deviceId: { type: string, format: uuid }
+                        token: { type: string, description: 'Bearer token for /api/v1/* (valid 30 days)' }
+                DevicePreferences:
+                    type: object
+                    required: [locationRefresh]
+                    properties:
+                        locationRefresh: { type: boolean, description: 'Receive the location_refresh reminder push (default true)' }
+                DeviceProfile:
+                    type: object
+                    required: [deviceId, hasPushToken, preferences]
+                    properties:
+                        deviceId: { type: string, format: uuid }
+                        platform: { type: string, nullable: true, description: 'ios | android | web | simulator' }
+                        hasPushToken: { type: boolean }
+                        lastLocation:
+                            nullable: true
+                            allOf: [{ $ref: '#/components/schemas/GeoJsonGeometry' }]
+                            description: Point or null until the first location update
+                        h3Cell: { type: string, nullable: true }
+                        locationUpdatedAt: { type: string, format: date-time, nullable: true }
+                        locationSource:
+                            nullable: true
+                            allOf: [{ $ref: '#/components/schemas/LocationSource' }]
+                        preferences: { $ref: '#/components/schemas/DevicePreferences' }
+                LocationUpdated:
+                    type: object
+                    required: [h3Cell]
+                    properties:
+                        h3Cell: { type: string, description: 'H3 cell (resolution 9) of the stored position' }
+
+                # ---- incidents ----------------------------------------------------------------
+                Community:
+                    type: object
+                    required: [reports, answers]
+                    properties:
+                        reports: { type: integer }
+                        answers: { type: integer }
+                        agreementPct: { type: integer, nullable: true, description: 'Share of answers confirming the problem; null until somebody answered' }
+                IncidentSummary:
+                    type: object
+                    description: Public incident fields shared by IncidentView and the map feature properties.
+                    required: [id, type, typeLabel, status, statusLabel, confidenceLevel, confidenceLabel, confidenceScore, startedAt, lastActivityAt, community]
+                    properties:
+                        id: { type: string, format: uuid }
+                        type: { $ref: '#/components/schemas/ReportType' }
+                        typeLabel: { type: string }
+                        status: { $ref: '#/components/schemas/IncidentStatus' }
+                        statusLabel: { type: string }
+                        confidenceLevel: { $ref: '#/components/schemas/ConfidenceLevel' }
+                        confidenceLabel: { type: string }
+                        confidenceScore: { type: number, format: float, minimum: 0, maximum: 1 }
+                        startedAt: { type: string, format: date-time }
+                        lastActivityAt: { type: string, format: date-time }
+                        lastConfirmedAt: { type: string, format: date-time, nullable: true }
+                        community: { $ref: '#/components/schemas/Community' }
+                        summary: { type: string, nullable: true, description: 'AI research summary, when available' }
+                IncidentView:
+                    allOf:
+                        - { $ref: '#/components/schemas/IncidentSummary' }
+                        - type: object
+                          required: [area]
+                          properties:
+                              area:
+                                  nullable: true
+                                  allOf: [{ $ref: '#/components/schemas/GeoJsonGeometry' }]
+                                  description: Polygon / MultiPolygon of verified cells; null while the incident is only detected
+                IncidentFeatureProperties:
+                    allOf:
+                        - { $ref: '#/components/schemas/IncidentSummary' }
+                        - type: object
+                          required: [kind]
+                          properties:
+                              kind: { type: string, enum: [incident] }
+
+                # ---- shelters -----------------------------------------------------------------
+                ShelterSummary:
+                    type: object
+                    required: [id, name, status, statusLabel, confirmationCount]
+                    properties:
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        address: { type: string, nullable: true }
+                        capacity: { type: integer, nullable: true }
+                        status: { $ref: '#/components/schemas/ShelterStatus' }
+                        statusLabel: { type: string }
+                        lastConfirmedAt: { type: string, format: date-time, nullable: true }
+                        confirmationCount: { type: integer }
+                        distanceMeters: { type: integer, description: 'Only in GET /shelters?lat&lng' }
+                ShelterView:
+                    allOf:
+                        - { $ref: '#/components/schemas/ShelterSummary' }
+                        - type: object
+                          required: [location]
+                          properties:
+                              location: { $ref: '#/components/schemas/GeoJsonGeometry' }
+                ShelterFeatureProperties:
+                    allOf:
+                        - { $ref: '#/components/schemas/ShelterSummary' }
+                        - type: object
+                          required: [kind]
+                          properties:
+                              kind: { type: string, enum: [shelter] }
+
+                # ---- alerts -------------------------------------------------------------------
+                AlertSummary:
+                    type: object
+                    required: [id, title, body, severity, createdAt, expiresAt, active]
+                    properties:
+                        id: { type: string, format: uuid }
+                        title: { type: string }
+                        body: { type: string }
+                        severity: { $ref: '#/components/schemas/AlertSeverity' }
+                        incidentId: { type: string, format: uuid, nullable: true }
+                        createdAt: { type: string, format: date-time }
+                        expiresAt: { type: string, format: date-time }
+                        active: { type: boolean }
+                AlertView:
+                    allOf:
+                        - { $ref: '#/components/schemas/AlertSummary' }
+                        - type: object
+                          properties:
+                              area:
+                                  allOf: [{ $ref: '#/components/schemas/GeoJsonGeometry' }]
+                                  description: Only in GET /alerts/{id}
+                AlertFeatureProperties:
+                    allOf:
+                        - { $ref: '#/components/schemas/AlertSummary' }
+                        - type: object
+                          required: [kind]
+                          properties:
+                              kind: { type: string, enum: [alert] }
+
+                # ---- map ----------------------------------------------------------------------
+                MapFeature:
+                    type: object
+                    required: [type, id, geometry, properties]
+                    properties:
+                        type: { type: string, enum: [Feature] }
+                        id: { type: string, format: uuid, description: 'Same value as properties.id' }
+                        geometry:
+                            allOf: [{ $ref: '#/components/schemas/GeoJsonGeometry' }]
+                            description: 'incident: area polygon (centroid Point while the area is empty); shelter: Point; alert: polygon'
+                        properties:
+                            oneOf:
+                                - { $ref: '#/components/schemas/IncidentFeatureProperties' }
+                                - { $ref: '#/components/schemas/ShelterFeatureProperties' }
+                                - { $ref: '#/components/schemas/AlertFeatureProperties' }
+                            discriminator:
+                                propertyName: kind
+                                mapping:
+                                    incident: '#/components/schemas/IncidentFeatureProperties'
+                                    shelter: '#/components/schemas/ShelterFeatureProperties'
+                                    alert: '#/components/schemas/AlertFeatureProperties'
+                MapFeatureCollection:
+                    type: object
+                    required: [type, features]
+                    properties:
+                        type: { type: string, enum: [FeatureCollection] }
+                        features:
+                            type: array
+                            items: { $ref: '#/components/schemas/MapFeature' }
+
+                # ---- reports ------------------------------------------------------------------
+                ReportTypeOption:
+                    type: object
+                    required: [value, label]
+                    properties:
+                        value: { $ref: '#/components/schemas/ReportType' }
+                        label: { type: string }
+                ReportAccepted:
+                    type: object
+                    required: [reportId, h3Cell, createdAt]
+                    properties:
+                        reportId: { type: string, format: uuid }
+                        h3Cell: { type: string }
+                        createdAt: { type: string, format: date-time }
+                ReportIncidentRef:
+                    type: object
+                    required: [id, type, typeLabel, status, statusLabel, confidenceLevel, confidenceLabel, confidenceScore]
+                    properties:
+                        id: { type: string, format: uuid }
+                        type: { $ref: '#/components/schemas/ReportType' }
+                        typeLabel: { type: string }
+                        status: { $ref: '#/components/schemas/IncidentStatus' }
+                        statusLabel: { type: string }
+                        confidenceLevel: { $ref: '#/components/schemas/ConfidenceLevel' }
+                        confidenceLabel: { type: string }
+                        confidenceScore: { type: number, format: float, minimum: 0, maximum: 1 }
+                ReportStatusView:
+                    type: object
+                    required: [reportId, type, typeLabel, createdAt, incident]
+                    properties:
+                        reportId: { type: string, format: uuid }
+                        type: { $ref: '#/components/schemas/ReportType' }
+                        typeLabel: { type: string }
+                        createdAt: { type: string, format: date-time }
+                        incident:
+                            nullable: true
+                            allOf: [{ $ref: '#/components/schemas/ReportIncidentRef' }]
+                            description: null until clustering (asynchronous, usually within seconds) attached the report to an incident
+
+                # ---- verification -------------------------------------------------------------
+                VerificationQuestion:
+                    type: object
+                    required: [verificationId, incidentId, type, typeLabel, question, context, options, sentAt, expiresAt, answered]
+                    properties:
+                        verificationId: { type: string, format: uuid }
+                        incidentId: { type: string, format: uuid }
+                        type: { $ref: '#/components/schemas/ReportType' }
+                        typeLabel: { type: string }
+                        question: { type: string }
+                        context: { type: string }
+                        options:
+                            type: array
+                            items: { $ref: '#/components/schemas/VerificationAnswer' }
+                        sentAt: { type: string, format: date-time }
+                        expiresAt: { type: string, format: date-time }
+                        answered: { type: boolean }
+                VerificationResult:
+                    type: object
+                    required: [verificationId, incidentId, thanks]
+                    properties:
+                        verificationId: { type: string, format: uuid }
+                        incidentId: { type: string, format: uuid }
+                        thanks: { type: string, description: 'Polish thank-you line to show the user' }
+
+                # ---- health -------------------------------------------------------------------
+                HealthStatus:
+                    type: object
+                    required: [status, time]
+                    properties:
+                        status: { type: string, enum: [ok, degraded] }
+                        postgis: { type: string, nullable: true }
+                        h3: { type: string, nullable: true }
+                        h3Postgis: { type: string, nullable: true }
+                        time: { type: string, format: date-time }
         security:
             - Bearer: []
         tags:
-            - { name: Devices, description: Anonymous device identity and location }
-            - { name: Reports, description: Citizen reports (DETECT) }
-            - { name: Incidents, description: Public incident view and map }
-            - { name: Verification, description: Active crowd verification prompts (VERIFY / MAP) }
-            - { name: Alerts, description: Area alerts for citizens (INFORM) }
-            - { name: Shelters, description: Shelter map and status confirmations }
-            - { name: Command, description: Operator endpoints }
+            - { name: Devices, description: 'Anonymous device identity and location' }
+            - { name: Reports, description: 'Citizen reports (DETECT)' }
+            - { name: Incidents, description: 'Public incident view and map' }
+            - { name: Verification, description: 'Active crowd verification prompts (VERIFY / MAP)' }
+            - { name: Alerts, description: 'Area alerts for citizens (INFORM)' }
+            - { name: Shelters, description: 'Shelter map and status confirmations' }
+            - { name: Command, description: 'Operator endpoints' }
     areas:
         path_patterns:
             - ^/api(?!/doc$)

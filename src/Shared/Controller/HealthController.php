@@ -18,7 +18,7 @@ final class HealthController
 
     #[Route('/api/v1/health', name: 'api_health', methods: ['GET'])]
     #[OA\Get(summary: 'Liveness + database/PostGIS/H3 readiness', security: [])]
-    #[OA\Response(response: 200, description: 'OK')]
+    #[OA\Response(response: 200, description: 'Status of the spatial stack', content: new OA\JsonContent(ref: '#/components/schemas/HealthStatus'))]
     public function __invoke(): JsonResponse
     {
         /** @var array{postgis: string|null, h3: string|null, h3_postgis: string|null} $row */

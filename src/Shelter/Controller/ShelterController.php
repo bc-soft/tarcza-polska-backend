@@ -38,7 +38,8 @@ final class ShelterController
     #[OA\Parameter(name: 'bbox', in: 'query', schema: new OA\Schema(type: 'string'))]
     #[OA\Parameter(name: 'lat', in: 'query', schema: new OA\Schema(type: 'number'))]
     #[OA\Parameter(name: 'lng', in: 'query', schema: new OA\Schema(type: 'number'))]
-    #[OA\Response(response: 200, description: 'Shelters')]
+    #[OA\Response(response: 200, description: 'Shelters (distanceMeters only with lat/lng)', content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/ShelterView')))]
+    #[OA\Response(response: 400, description: 'Malformed bbox (error.code: bad_request)')]
     public function list(Request $request): JsonResponse
     {
         if ($request->query->has('lat') && $request->query->has('lng')) {
@@ -61,7 +62,7 @@ final class ShelterController
 
     #[Route('/{id}', name: 'api_shelter_show', methods: ['GET'])]
     #[OA\Get(summary: 'Shelter details')]
-    #[OA\Response(response: 200, description: 'Shelter')]
+    #[OA\Response(response: 200, description: 'Shelter details', content: new OA\JsonContent(ref: '#/components/schemas/ShelterView'))]
     public function show(Shelter $shelter): JsonResponse
     {
         return new JsonResponse(ShelterView::toArray($shelter));
@@ -70,7 +71,7 @@ final class ShelterController
     #[Route('/{id}/status', name: 'api_shelter_confirm', methods: ['POST'])]
     #[OA\Post(summary: 'Confirm the current status of a shelter (open / closed / full)')]
     #[OA\RequestBody(content: new OA\JsonContent(ref: new Model(type: ConfirmShelterStatusRequest::class)))]
-    #[OA\Response(response: 200, description: 'Updated shelter')]
+    #[OA\Response(response: 200, description: 'Updated shelter', content: new OA\JsonContent(ref: '#/components/schemas/ShelterView'))]
     public function confirm(#[CurrentUser] Device $device, Shelter $shelter, #[MapRequestPayload] ConfirmShelterStatusRequest $request): JsonResponse
     {
         $this->em->persist(new ShelterStatusReport($shelter, $device, $request->status, $request->comment));
