@@ -12,6 +12,7 @@ parameters:
     app.openai.api_key: '%env(OPENAI_API_KEY)%'
     app.openai.model: '%env(OPENAI_MODEL)%'
     app.firebase.credentials: '%env(resolve:FIREBASE_CREDENTIALS)%'
+    app.alerting.auto_alert_level: '%env(AUTO_ALERT_LEVEL)%'
 
 services:
     _defaults:
@@ -31,6 +32,7 @@ services:
             string $openAiApiKey: '%app.openai.api_key%'
             string $openAiModel: '%app.openai.model%'
             string $firebaseCredentials: '%app.firebase.credentials%'
+            string $autoAlertLevel: '%app.alerting.auto_alert_level%'
 
     App\:
         resource: '../src/'

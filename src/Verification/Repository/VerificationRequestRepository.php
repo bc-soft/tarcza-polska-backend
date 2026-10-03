@@ -55,6 +55,24 @@ final class VerificationRequestRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Answered requests of an incident with their devices (reputation after closure).
+     *
+     * @return list<VerificationRequest>
+     */
+    public function findAnsweredForIncident(\App\Incident\Entity\Incident $incident): array
+    {
+        /** @var list<VerificationRequest> */
+        return $this->createQueryBuilder('r')
+            ->addSelect('d')
+            ->join('r.device', 'd')
+            ->where('r.incident = :incident')
+            ->andWhere('r.answeredAt IS NOT NULL')
+            ->setParameter('incident', $incident)
+            ->getQuery()
+            ->getResult();
+    }
+
     /** @return array{sent: int, answered: int} */
     public function statsForIncident(\App\Incident\Entity\Incident $incident): array
     {

@@ -59,6 +59,7 @@ final readonly class IncidentCommandView
                 'weight' => round($r->getWeight(), 2),
                 'createdAt' => $r->getCreatedAt()->format(\DATE_ATOM),
                 'simulated' => $r->getDevice()->isSimulated(),
+                'reporterReputation' => round($r->getDevice()->getReputation(), 2),
             ], self::sortedReports($incident)),
             'cellsGeoJson' => $this->cellsCollection($incident),
             'sources' => array_map(static fn (ExternalSource $s) => $s->toArray(), $sources),

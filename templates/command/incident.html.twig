@@ -125,9 +125,15 @@
                         <input type="hidden" name="_token" value="{{ csrf_token('research' ~ id) }}">
                         <button class="btn-tertiary w-full" {% if not research.available %}title="Brak klucza API dla {{ research.provider }}"{% endif %}>{{ ui.icon('sparkles', 'w-4 h-4') }}Research AI</button>
                     </form>
-                    <form method="post" action="{{ path('command_incident_resolve', {id: id}) }}" onsubmit="return confirm('Zamknąć incydent? Obywatele przestaną go widzieć na mapie.')">
+                    <form method="post" action="{{ path('command_incident_resolve', {id: id}) }}" onsubmit="return confirm('Zamknąć incydent jako potwierdzony? Zgłaszający zyskają reputację, obywatele przestaną go widzieć na mapie.')">
                         <input type="hidden" name="_token" value="{{ csrf_token('resolve' ~ id) }}">
-                        <button class="btn-inverted w-full">{{ ui.icon('check', 'w-4 h-4') }}Zamknij</button>
+                        <input type="hidden" name="resolution" value="confirmed">
+                        <button class="btn-inverted w-full">{{ ui.icon('check', 'w-4 h-4') }}Zamknij (potwierdzony)</button>
+                    </form>
+                    <form method="post" action="{{ path('command_incident_resolve', {id: id}) }}" class="col-span-2" onsubmit="return confirm('Oznaczyć jako fałszywy alarm? Zgłaszający stracą reputację, a odpowiedzi tłumu zostaną ocenione odwrotnie.')">
+                        <input type="hidden" name="_token" value="{{ csrf_token('resolve' ~ id) }}">
+                        <input type="hidden" name="resolution" value="false_alarm">
+                        <button class="btn-tertiary w-full">{{ ui.icon('x', 'w-4 h-4') }}Fałszywy alarm</button>
                     </form>
                 </div>
                 <p class="mt-2 text-[11px] text-neutral-500">Dostawca research: {{ research.provider }}{% if not research.available %} (brak klucza API){% endif %}.</p>

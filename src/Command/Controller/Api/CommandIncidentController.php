@@ -8,7 +8,9 @@ use App\Audit\Service\AuditLogger;
 use App\Command\Dto\AddExternalSourceRequest;
 use App\Command\View\IncidentCommandView;
 use App\Identity\Entity\Operator;
+use App\Incident\Dto\ResolveIncidentRequest;
 use App\Incident\Entity\Incident;
+use App\Incident\Enum\IncidentResolution;
 use App\Incident\Message\ResolveIncident;
 use App\Incident\Repository\IncidentRepository;
 use App\Intelligence\Entity\ExternalSource;
@@ -85,12 +87,20 @@ final class CommandIncidentController
 
     #[Route('/{id}/resolve', name: 'api_command_incident_resolve', methods: ['POST'])]
     #[IsGranted('ROLE_OPERATOR')]
-    #[OA\Post(summary: 'Close an incident')]
+    #[OA\Post(summary: 'Close an incident with a verdict (confirmed | false_alarm); the verdict feeds reporter reputation')]
+    #[OA\RequestBody(required: false, content: new OA\JsonContent(ref: new Model(type: ResolveIncidentRequest::class)))]
     #[OA\Response(response: 202, description: 'Resolution queued')]
-    public function resolve(#[CurrentUser] Operator $operator, Incident $incident, MessageBusInterface $bus): Response
-    {
-        $bus->dispatch(new ResolveIncident($incident->getId()->toRfc4122(), $operator->getUserIdentifier()));
-        $this->audit->log($operator, AuditLogger::RESOLVE_INCIDENT, 'incident', $incident->getId()->toRfc4122());
+    public function resolve(
+        #[CurrentUser]
+        Operator $operator,
+        Incident $incident,
+        MessageBusInterface $bus,
+        #[MapRequestPayload]
+        ?ResolveIncidentRequest $body = null,
+    ): Response {
+        $resolution = null === $body ? IncidentResolution::Confirmed : $body->resolution;
+        $bus->dispatch(new ResolveIncident($incident->getId()->toRfc4122(), $operator->getUserIdentifier(), $resolution->value, $body?->note));
+        $this->audit->log($operator, AuditLogger::RESOLVE_INCIDENT, 'incident', $incident->getId()->toRfc4122(), ['resolution' => $resolution->value, 'note' => $body?->note]);
 
         return new Response(status: Response::HTTP_ACCEPTED);
     }
