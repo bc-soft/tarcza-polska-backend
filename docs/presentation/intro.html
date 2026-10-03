@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarcza Polska – intro</title>
+<link rel="icon" type="image/png" href="img/mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Intro do filmu: tło Command Center, logo wjeżdża na środek, pod nim hasło.
+   Klik / spacja / R odtwarza od nowa; ?delay=2 opóźnia start (sekundy), np. na rozpoczęcie nagrywania. */
+:root { --canvas: #0D0E10; --primary: #E0262F; --n: #F1F2F4; --n500: #8C929C; --delay: 0.6s; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; cursor: none; }
+body {
+    background-color: var(--canvas);
+    background-image: linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+    background-size: 56px 56px; background-position: center;
+    display: grid; place-items: center; color: var(--n);
+}
+/* Czerwony pasek z lewej, jak w panelu. */
+.bar { position: fixed; z-index: 2; inset: 0 auto 0 0; width: 8px; background: var(--primary); transform-origin: top; transform: scaleY(0); }
+/* Winieta, żeby siatka gasła ku brzegom. */
+.vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 35%, rgba(5,5,6,.85) 100%); }
+
+.stage { position: relative; display: flex; flex-direction: column; align-items: center; }
+.glow { position: absolute; top: 50%; left: 50%; width: 46vmin; height: 46vmin; margin: -32vmin 0 0 -23vmin; border-radius: 50%;
+    background: radial-gradient(circle, rgba(224,38,47,.38), rgba(224,38,47,0) 65%); opacity: 0; filter: blur(10px); }
+.ring { position: absolute; top: calc(50% - 9vmin); left: 50%; width: 30vmin; height: 30vmin; margin: -15vmin 0 0 -15vmin;
+    border: 2px solid var(--primary); border-radius: 50%; opacity: 0; }
+.logo { width: 34vmin; height: 34vmin; object-fit: contain; position: relative; opacity: 0; filter: drop-shadow(0 2.5vmin 6vmin rgba(224,38,47,.35)); }
+.claim { margin-top: 4vmin; font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 9vmin; letter-spacing: .04em; line-height: 1; display: flex; white-space: pre; }
+.claim span { display: inline-block; opacity: 0; transform: translateY(40%); }
+.claim .dot { color: var(--primary); }
+.line { margin-top: 3vmin; width: 0; height: 3px; background: var(--primary); }
+.sub { margin-top: 2.4vmin; font-family: "JetBrains Mono", monospace; font-size: 1.7vmin; letter-spacing: .3em; text-transform: uppercase; color: var(--n500); opacity: 0; }
+
+.play .bar { animation: bar .7s cubic-bezier(.7,0,.2,1) var(--delay) forwards; }
+.play .logo { animation: logoIn 1.3s cubic-bezier(.16,1,.3,1) calc(var(--delay) + .3s) forwards; }
+.play .glow { animation: glow 2.2s ease-out calc(var(--delay) + .9s) forwards; }
+.play .ring { animation: ring 1.4s ease-out calc(var(--delay) + 1.2s) forwards; }
+.play .claim span { animation: letter .55s cubic-bezier(.16,1,.3,1) forwards; animation-delay: calc(var(--delay) + 1.6s + var(--i) * 45ms); }
+.play .line { animation: line .8s cubic-bezier(.7,0,.2,1) calc(var(--delay) + 2.3s) forwards; }
+.play .sub { animation: fade .8s ease-out calc(var(--delay) + 2.7s) forwards; }
+
+@keyframes bar { to { transform: scaleY(1); } }
+@keyframes logoIn {
+    0% { opacity: 0; transform: translateY(60vh) scale(.6) rotate(-6deg); filter: blur(12px) drop-shadow(0 0 0 rgba(224,38,47,0)); }
+    55% { opacity: 1; filter: blur(0) drop-shadow(0 2.5vmin 6vmin rgba(224,38,47,.35)); }
+    100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); filter: blur(0) drop-shadow(0 2.5vmin 6vmin rgba(224,38,47,.35)); }
+}
+@keyframes glow { 0% { opacity: 0; transform: scale(.6); } 40% { opacity: 1; } 100% { opacity: .7; transform: scale(1); } }
+@keyframes ring { 0% { opacity: .8; transform: scale(.9); } 100% { opacity: 0; transform: scale(2.2); } }
+@keyframes letter { to { opacity: 1; transform: translateY(0); } }
+@keyframes line { to { width: 14vmin; } }
+@keyframes fade { to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .play * { animation-duration: .01s !important; animation-delay: 0s !important; }
+}
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<div class="vignette"></div>
+<main class="stage" id="stage">
+    <div class="glow"></div>
+    <div class="ring"></div>
+    <img class="logo" src="img/mark.png" alt="Tarcza Polska">
+    <h1 class="claim" id="claim" aria-label="Siła jest w nas.">SIŁA JEST W NAS<span class="dot">.</span></h1>
+    <div class="line"></div>
+    <div class="sub">Tarcza Polska</div>
+</main>
+<script>
+// Rozbija hasło na litery, żeby wchodziły po kolei.
+const claim = document.getElementById('claim');
+const dot = claim.querySelector('.dot');
+const text = claim.firstChild.textContent;
+claim.firstChild.remove();
+[...text].forEach((ch, i) => { const s = document.createElement('span'); s.textContent = ch; s.setAttribute('aria-hidden', 'true'); s.style.setProperty('--i', i); claim.insertBefore(s, dot); });
+dot.style.setProperty('--i', text.length);
+
+const delay = parseFloat(new URLSearchParams(location.search).get('delay'));
+if (!Number.isNaN(delay)) document.documentElement.style.setProperty('--delay', delay + 's');
+
+function play() {
+    document.body.classList.remove('play');
+    void document.body.offsetWidth; // restart animacji
+    document.body.classList.add('play');
+}
+// Start po załadowaniu fontów i logo, żeby nic nie mignęło w trakcie nagrania.
+Promise.all([document.fonts.ready, new Promise(r => { const img = document.querySelector('.logo'); img.complete ? r() : img.onload = r; })]).then(play);
+addEventListener('click', play);
+addEventListener('keydown', e => { if (e.key === ' ' || e.key.toLowerCase() === 'r') { e.preventDefault(); play(); } });
+</script>
+</body>
+</html>
