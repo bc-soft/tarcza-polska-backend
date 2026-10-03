@@ -7,6 +7,7 @@ namespace App\Alerting\Repository;
 use App\Alerting\Entity\Alert;
 use App\Shared\Geo\BoundingBox;
 use App\Shared\Geo\Point;
+use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use SortDirection;
@@ -38,6 +39,16 @@ final class AlertRepository extends ServiceEntityRepository
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn($sql, $bbox->params());
 
         return $this->byIds($ids);
+    }
+
+    public function countActive(): int
+    {
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->where('a.expiresAt > :now')
+            ->setParameter('now', new DateTimeImmutable())
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /** @return list<Alert> */
