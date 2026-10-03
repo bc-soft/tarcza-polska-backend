@@ -14,13 +14,14 @@
 {% endif %}
 {% block body %}
 <div class="min-h-full flex">
-    <aside class="hidden lg:flex w-[232px] shrink-0 flex-col gap-6 px-4 py-5 sticky top-0 h-screen">
-        <a href="{{ path('command_dashboard') }}" class="flex items-center gap-3 px-2">
-            <img src="{{ asset('images/tarcza-polska-logo.png') }}" alt="Tarcza Polska" class="h-10 w-10 shrink-0 rounded-2xl bg-white object-contain shadow-card">
-            <span class="leading-tight">
-                <span class="block font-bold text-[14px] tracking-tight">Tarcza Polska Command</span>
-                <span class="flex items-center gap-1.5 text-xs text-neutral-500"><span class="h-1.5 w-1.5 rounded-full bg-ok animate-pulse"></span>System aktywny</span>
+    <aside class="hidden lg:flex w-[256px] shrink-0 flex-col gap-6 px-4 py-5 sticky top-0 h-screen">
+        <a href="{{ path('command_dashboard') }}" class="flex flex-col items-center gap-3 rounded-3xl bg-surface-3 shadow-card px-4 pt-5 pb-4 text-center transition hover:shadow-float">
+            <img src="{{ asset('images/tarcza-polska-mark.png') }}" alt="" class="h-24 w-24 object-contain drop-shadow">
+            <span class="leading-none">
+                <span class="block text-[22px] font-extrabold tracking-tight">Tarcza <span class="text-primary">Polska</span></span>
+                <span class="mt-2 block text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-500">Command Center</span>
             </span>
+            <span class="flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 text-[11px] font-semibold text-ok"><span class="h-1.5 w-1.5 rounded-full bg-ok animate-pulse"></span>System aktywny</span>
         </a>
         <nav class="flex flex-col gap-1">
             {% for item in nav %}
@@ -43,8 +44,8 @@
 
     <div class="flex-1 min-w-0 flex flex-col">
         <header class="lg:hidden sticky top-0 z-30 bg-canvas/90 backdrop-blur border-b border-neutral-200/60">
-            <div class="flex items-center justify-between px-4 h-14">
-                <a href="{{ path('command_dashboard') }}" class="flex items-center gap-2 font-bold"><img src="{{ asset('images/tarcza-polska-logo.png') }}" alt="Tarcza Polska" class="h-8 w-8 rounded-xl bg-white object-contain">Tarcza Polska Command</a>
+            <div class="flex items-center justify-between px-4 h-16">
+                <a href="{{ path('command_dashboard') }}" class="flex items-center gap-2.5"><img src="{{ asset('images/tarcza-polska-mark.png') }}" alt="" class="h-10 w-10 object-contain"><span class="text-lg font-extrabold tracking-tight">Tarcza <span class="text-primary">Polska</span></span><span class="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Command</span></a>
                 <a href="{{ path('command_logout') }}" class="icon-btn bg-primary text-white">{{ ui.icon('user', 'w-4 h-4') }}</a>
             </div>
             <nav class="flex gap-1 overflow-x-auto px-3 pb-2">
