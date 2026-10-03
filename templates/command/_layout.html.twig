@@ -5,7 +5,6 @@
     {route: 'command_dashboard', match: ['command_dashboard'], icon: 'map', label: 'Mapa'},
     {route: 'command_incident_list', match: ['command_incident_list', 'command_incident'], icon: 'hex', label: 'Incydenty'},
     {route: 'command_alert_list', match: ['command_alert_list'], icon: 'bell', label: 'Komunikaty'},
-    {route: 'command_shelter_list', match: ['command_shelter_list'], icon: 'home', label: 'Schrony'},
 ] %}
 {% if is_granted('ROLE_ADMIN') %}
     {% set nav = nav|merge([

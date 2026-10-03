@@ -171,8 +171,10 @@ Na mapie (`GET /api/v1/map`) stacje mają `properties.kind = "fuel_station"` z t
 
 Te same akcje są dostępne z panelu jako formularze POST z CSRF: `/command` (mapa sytuacyjna), `/command/incidents`
 (lista z filtrami `status`, `type`, `level`, `all=1`), `/command/incidents/{id}` (detal + akcje: komunikat, źródło,
-ponowny research AI, zamknięcie), `/command/alerts`, `/command/shelters`, a dla `ROLE_ADMIN` `/command/audit`
+ponowny research AI, zamknięcie), `/command/alerts`, a dla `ROLE_ADMIN` `/command/audit`
 i `/command/operators` (konta i role). Każda akcja trafia do `audit_log`.
+Schrony panel pokazuje tylko jako warstwę mapy (domyślnie wyłączoną, z filtrem wolne / pełne / zamknięte / niezdefiniowane);
+rejestr schronów edytuje się przez `/api/command/shelters`.
 
 ## Realtime (Mercure)
 
