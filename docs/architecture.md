@@ -194,6 +194,24 @@ Nowe wiadomości w Messengerze: `IncidentResolved`, `PhotoUploaded`, `ExternalSo
 `incident_event`, `report_photo`, kolumny `incident.resolution`, `shelter.occupancy`,
 `shelter_status_report.occupancy`.
 
+### 3.8 Zgłoszenia obszarowe i punktowe (ADR 0010)
+
+| | Obszarowe: prąd, woda, drogi, inne zagrożenia | Punktowe: brak paliwa, problem ze schronem |
+|---|---|---|
+| Do czego odnosi się zgłoszenie | okolica reportera (komórka H3) | konkretny obiekt: `poiId` z aplikacji albo najbliższa stacja (750 m) / schron (500 m) |
+| Klastrowanie | ten sam typ + okno czasu + promień | ten sam typ + ten sam obiekt |
+| Weryfikacja | fale po pierścieniach heksagonów, granica rośnie w kierunku nieznanych komórek | fala 0 przy obiekcie, kolejne przy 3 najbliższych obiektach tego rodzaju; pytanie nazywa obiekt i paliwo |
+| Co robi odpowiedź | zmienia stan komórki, obszar i pewność | zmienia status obiektu (paliwo per rodzaj, dostępność schronu); do pewności liczą się odpowiedzi o zgłoszonym obiekcie |
+| Mapa | wielokąt obszaru | pinezka obiektu; stacje jako warstwa `fuel_station`, schrony jak dotąd |
+
+Kod: `Shared\Poi` (abstrakcja obiektów), moduł `Fuel` (stacje, dostępność per `FuelType`, import z OSM),
+`Shelter` (import z dane.gov.pl, `ShelterAvailability`), `ReportSubmitter::resolvePoi`,
+`IncidentClusterer::attachToPoi`, `VerificationScheduler::planPointWave`, `VerificationResponder`.
+
+Dane: `tarcza:shelters:import` (rejestr krajowy, 86 tys. punktów, filtry po województwie / obszarze),
+`tarcza:fuel-stations:import` (Overpass, `--around` / `--bbox`), `tarcza:fixtures:load --reset`
+(deterministyczne dane demo: 4 miasta, wszystkie typy i stany, stacje, schrony, fale, źródła, alerty, zdjęcia, historia).
+
 ## 4. Infrastruktura
 
 ```

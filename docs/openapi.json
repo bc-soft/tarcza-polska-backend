@@ -898,6 +898,195 @@
         }
       }
     },
+    "/api/v1/fuel-stations": {
+      "get": {
+        "tags": [
+          "Fuel stations"
+        ],
+        "summary": "Fuel stations in a bbox, or the nearest ones to lat/lng, with per-fuel availability",
+        "operationId": "get_api_fuel_station_list",
+        "parameters": [
+          {
+            "name": "bbox",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stations (distanceMeters only with lat/lng; supports ETag / 304)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FuelStationView"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed bbox or coordinates (error.code: bad_request)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fuel-stations/{id}": {
+      "get": {
+        "tags": [
+          "Fuel stations"
+        ],
+        "summary": "Fuel station details",
+        "operationId": "get_api_fuel_station_show",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Station",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FuelStationView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fuel-stations/{id}/status": {
+      "post": {
+        "tags": [
+          "Fuel stations"
+        ],
+        "summary": "Confirm fuel availability at a station I am standing at (\"there is / there is no pb95 and diesel\")",
+        "operationId": "post_api_fuel_station_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmFuelStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated station",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FuelStationView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired bearer token (error.code: unauthorized | token_expired)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown id, or a resource that belongs to another device (error.code: not_found)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid body; error.violations[].field names the offending field (error.code: validation_failed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/offline-bundle": {
       "get": {
         "tags": [
@@ -2201,6 +2390,72 @@
           "resolved"
         ]
       },
+      "ReportScope": {
+        "description": "area = polygon of cells; point = one object (fuel station / shelter)",
+        "type": "string",
+        "enum": [
+          "area",
+          "point"
+        ]
+      },
+      "PoiKind": {
+        "type": "string",
+        "enum": [
+          "fuel_station",
+          "shelter"
+        ]
+      },
+      "FuelType": {
+        "type": "string",
+        "enum": [
+          "pb95",
+          "pb98",
+          "diesel",
+          "lpg"
+        ]
+      },
+      "FuelAvailability": {
+        "type": "string",
+        "enum": [
+          "unknown",
+          "available",
+          "unavailable"
+        ]
+      },
+      "ShelterAvailability": {
+        "description": "Opening regime from the national register",
+        "type": "string",
+        "enum": [
+          "unknown",
+          "always",
+          "on_demand",
+          "scheduled"
+        ]
+      },
+      "PoiRef": {
+        "description": "The object a point-scoped report / incident / question is about.",
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/PoiKind"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/components/schemas/GeoJsonGeometry"
+          }
+        },
+        "type": "object"
+      },
       "ConfidenceLevel": {
         "type": "string",
         "enum": [
@@ -2353,7 +2608,10 @@
           "confidenceScore",
           "startedAt",
           "lastActivityAt",
-          "community"
+          "community",
+          "scope",
+          "poi",
+          "fuelTypes"
         ],
         "properties": {
           "id": {
@@ -2404,6 +2662,25 @@
             "description": "AI research summary, when available",
             "type": "string",
             "nullable": true
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ReportScope"
+          },
+          "poi": {
+            "description": "scope=point: the station / shelter this incident is about",
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PoiRef"
+              }
+            ]
+          },
+          "fuelTypes": {
+            "description": "Fuel types reported missing (fuel_shortage)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FuelType"
+            }
           }
         },
         "type": "object"
@@ -2509,6 +2786,130 @@
           }
         ]
       },
+      "FuelStationFuel": {
+        "required": [
+          "type",
+          "label",
+          "status",
+          "statusLabel"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/FuelType"
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FuelAvailability"
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "confirmedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "type": "object"
+      },
+      "FuelStationSummary": {
+        "required": [
+          "id",
+          "name",
+          "fuels",
+          "shortage",
+          "missingFuelTypes",
+          "confirmationCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "fuels": {
+            "description": "Fuel types sold (or ever reported) at this station with current availability",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FuelStationFuel"
+            }
+          },
+          "shortage": {
+            "description": "At least one fuel type currently reported missing",
+            "type": "boolean"
+          },
+          "missingFuelTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FuelType"
+            }
+          },
+          "lastConfirmedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "confirmationCount": {
+            "type": "integer"
+          },
+          "distanceMeters": {
+            "description": "Only in GET /fuel-stations?lat&lng and the offline bundle",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "FuelStationView": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FuelStationSummary"
+          },
+          {
+            "required": [
+              "location"
+            ],
+            "properties": {
+              "location": {
+                "$ref": "#/components/schemas/GeoJsonGeometry"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "FuelStationFeatureProperties": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FuelStationSummary"
+          },
+          {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "fuel_station"
+                ]
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
       "ShelterSummary": {
         "required": [
           "id",
@@ -2545,6 +2946,12 @@
             "$ref": "#/components/schemas/ShelterOccupancy"
           },
           "occupancyLabel": {
+            "type": "string"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/ShelterAvailability"
+          },
+          "availabilityLabel": {
             "type": "string"
           },
           "lastConfirmedAt": {
@@ -2705,7 +3112,7 @@
             "format": "uuid"
           },
           "geometry": {
-            "description": "incident: area polygon (centroid Point while the area is empty); shelter: Point; alert: polygon",
+            "description": "incident (scope=area): polygon, centroid Point while the area is empty; incident (scope=point): Point at the object; shelter / fuel_station: Point; alert: polygon",
             "allOf": [
               {
                 "$ref": "#/components/schemas/GeoJsonGeometry"
@@ -2718,6 +3125,7 @@
               "mapping": {
                 "incident": "#/components/schemas/IncidentFeatureProperties",
                 "shelter": "#/components/schemas/ShelterFeatureProperties",
+                "fuel_station": "#/components/schemas/FuelStationFeatureProperties",
                 "alert": "#/components/schemas/AlertFeatureProperties"
               }
             },
@@ -2727,6 +3135,9 @@
               },
               {
                 "$ref": "#/components/schemas/ShelterFeatureProperties"
+              },
+              {
+                "$ref": "#/components/schemas/FuelStationFeatureProperties"
               },
               {
                 "$ref": "#/components/schemas/AlertFeatureProperties"
@@ -2760,7 +3171,10 @@
       "ReportTypeOption": {
         "required": [
           "value",
-          "label"
+          "label",
+          "scope",
+          "poiKind",
+          "fuelTypes"
         ],
         "properties": {
           "value": {
@@ -2768,6 +3182,37 @@
           },
           "label": {
             "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ReportScope"
+          },
+          "poiKind": {
+            "description": "For point types: which object picker to show",
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PoiKind"
+              }
+            ]
+          },
+          "fuelTypes": {
+            "description": "Non-empty only for fuel_shortage: the fuel-type choices to show",
+            "type": "array",
+            "items": {
+              "required": [
+                "value",
+                "label"
+              ],
+              "properties": {
+                "value": {
+                  "$ref": "#/components/schemas/FuelType"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
           }
         },
         "type": "object"
@@ -2776,7 +3221,10 @@
         "required": [
           "reportId",
           "h3Cell",
-          "createdAt"
+          "createdAt",
+          "scope",
+          "poi",
+          "fuelTypes"
         ],
         "properties": {
           "reportId": {
@@ -2789,6 +3237,24 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ReportScope"
+          },
+          "poi": {
+            "description": "The station / shelter the report was bound to (point types)",
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PoiRef"
+              }
+            ]
+          },
+          "fuelTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FuelType"
+            }
           }
         },
         "type": "object"
@@ -2923,6 +3389,7 @@
           "typeLabel",
           "question",
           "context",
+          "poi",
           "options",
           "sentAt",
           "expiresAt",
@@ -2948,6 +3415,28 @@
           },
           "context": {
             "type": "string"
+          },
+          "poi": {
+            "description": "Point verification: the station / shelter the question is about (show its name; it may be a neighbour of the reported one)",
+            "required": [
+              "kind",
+              "id",
+              "name"
+            ],
+            "properties": {
+              "kind": {
+                "$ref": "#/components/schemas/PoiKind"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "nullable": true
           },
           "options": {
             "type": "array",
@@ -3348,6 +3837,41 @@
         },
         "type": "object"
       },
+      "FuelType2": {
+        "type": "string",
+        "enum": [
+          "pb95",
+          "pb98",
+          "diesel",
+          "lpg"
+        ]
+      },
+      "ConfirmFuelStatusRequest": {
+        "required": [
+          "fuelTypes",
+          "available"
+        ],
+        "properties": {
+          "fuelTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FuelType2"
+            },
+            "maxItems": 4,
+            "minItems": 1
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "default": null,
+            "maxLength": 500
+          }
+        },
+        "type": "object"
+      },
       "RegisterDeviceRequest": {
         "properties": {
           "platform": {
@@ -3484,6 +4008,22 @@
             "nullable": true,
             "default": null,
             "maxLength": 1000
+          },
+          "poiId": {
+            "title": "Point types (fuel_shortage, shelter_issue): the station / shelter the report is about. Omitted = nearest one.",
+            "type": "string",
+            "nullable": true,
+            "default": null
+          },
+          "fuelTypes": {
+            "title": "fuel_shortage only: which fuels are missing (pb95, pb98, diesel, lpg). Required for that type.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FuelType2"
+            },
+            "nullable": true,
+            "default": null,
+            "maxItems": 4
           }
         },
         "type": "object"
@@ -3576,6 +4116,9 @@
     {
       "name": "Command",
       "description": "Operator endpoints"
+    },
+    {
+      "name": "Fuel stations"
     },
     {
       "name": "Guidance"

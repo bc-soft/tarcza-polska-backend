@@ -36,4 +36,18 @@ final readonly class PhotoStorage
     {
         return $this->photosStorage->fileExists($photo->getPath());
     }
+
+    /** Removes every stored photo (fixtures reset). Returns the number of files deleted. */
+    public function purgeAll(): int
+    {
+        $deleted = 0;
+        foreach ($this->photosStorage->listContents('', true) as $item) {
+            if ($item->isFile()) {
+                $this->photosStorage->delete($item->path());
+                ++$deleted;
+            }
+        }
+
+        return $deleted;
+    }
 }

@@ -110,6 +110,21 @@ Sekrety (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FIREBASE_CREDENTIALS`) trzymaj 
 ignorowany przez git i bind-mountowany do kontenerów; `compose.yaml` celowo nie wymienia tych zmiennych,
 żeby pusta wartość z compose nie przesłoniła `.env.local`.
 
+## Dane: schrony, stacje paliw, fikstury
+
+```bash
+make console c="tarcza:shelters:import --wojewodztwo=wielkopolskie"          # rejestr krajowy z dane.gov.pl (CSV, ~15 MB)
+make console c="tarcza:shelters:import --around=52.4121,16.9012 --radius-km=20"
+make console c="tarcza:shelters:import --dry-run"                             # tylko policz, nic nie zapisuj
+make console c="tarcza:fuel-stations:import --around=52.4121,16.9012 --radius-km=15"   # OpenStreetMap przez Overpass (OVERPASS_URL)
+make console c="tarcza:fixtures:load --reset --cities=4 --seed=42"           # różnorodne dane demo do panelu
+```
+
+Import schronów jest idempotentny (upsert po identyfikatorze publicznym) i nie nadpisuje potwierdzeń obywateli.
+`tarcza:fixtures:load --reset` czyści incydenty, zgłoszenia, alerty, źródła, zdjęcia, symulowane urządzenia oraz
+stacje i schrony oznaczone jako `fixture`; zaimportowane schrony i stacje zostają i są używane przez fikstury,
+jeśli leżą w promieniu 8 km od centrum miasta. Ten sam `--seed` daje identyczne dane.
+
 ## Funkcje post-MVP: szybkie sprawdzenie
 
 ```bash

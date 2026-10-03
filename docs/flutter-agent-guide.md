@@ -546,3 +546,70 @@ drobnym drukiem. Lista jest posortowana rosnąco i wspiera ETag. Typy, które mo
   Dla aplikacji to zwykły push `data.type = "alert"` i zwykły wpis w `GET /api/v1/alerts`, nic nowego do obsługi.
 * Operator zamyka incydent z werdyktem (`confirmed` / `false_alarm`). Po zamknięciu incydent znika z mapy,
   a w `GET /api/v1/reports/{id}` jego `status` to `resolved`. Reputacja urządzenia nie jest widoczna w API obywatela.
+
+## 20. Zgłoszenia punktowe: brak paliwa i schrony (zmiana założeń)
+
+Dwa typy zgłoszeń **nie** tworzą plamy na mapie i **nie** dopytują okolicy, tylko dotyczą jednego obiektu:
+
+| Typ | Obiekt (`poiKind`) | Co pokazuje mapa |
+|---|---|---|
+| `fuel_shortage` | `fuel_station` | pinezki stacji z dostępnością każdego paliwa |
+| `shelter_issue` | `shelter` | pinezki schronów ze statusem i zapełnieniem |
+
+`GET /api/v1/reports/types` mówi, który typ jest punktowy (`scope: "point"`) i jakie paliwa można zaznaczyć:
+
+```json
+{ "value": "fuel_shortage", "label": "Brak paliwa", "scope": "point", "poiKind": "fuel_station",
+  "fuelTypes": [ { "value": "pb95", "label": "Benzyna 95" }, { "value": "pb98", "label": "Benzyna 98" },
+                 { "value": "diesel", "label": "Olej napędowy" }, { "value": "lpg", "label": "LPG" } ] }
+```
+
+**Ekran zgłoszenia dla typu punktowego:**
+
+1. Po wyborze typu pobierz obiekty w okolicy: `GET /api/v1/fuel-stations?lat&lng` albo `GET /api/v1/shelters?lat&lng`
+   (najbliższe pierwsze, z `distanceMeters`). Zaproponuj najbliższy, pozwól zmienić.
+2. Dla paliwa pokaż wielokrotny wybór rodzajów (`fuelTypes`, wymagane co najmniej jeden).
+3. Wyślij:
+
+```http
+POST /api/v1/reports
+{ "type": "fuel_shortage", "lat": 52.4125, "lng": 16.9020, "poiId": "01a1…", "fuelTypes": ["diesel", "pb95"], "description": "Dystrybutory zaplombowane" }
+```
+```json
+HTTP 202
+{ "reportId": "…", "h3Cell": "…", "createdAt": "…", "scope": "point",
+  "poi": { "kind": "fuel_station", "id": "01a1…", "name": "Orlen Dąbrowskiego", "location": { "type": "Point", "coordinates": [16.902, 52.4125] } },
+  "fuelTypes": ["diesel", "pb95"] }
+```
+
+Można pominąć `poiId`: backend weźmie najbliższą stację w promieniu 750 m (schron 500 m). Jeśli żadnej nie ma,
+dostaniesz 422 `poi_required`; wtedy pokaż listę do wyboru i wyślij `poiId`.
+
+**Pytania weryfikacyjne o obiekt.** `VerificationQuestion` ma pole `poi` (może być `null` dla typów obszarowych):
+
+```json
+{ "question": "Czy na stacji BP Górczewska jest teraz dostępne paliwo: Olej napędowy?",
+  "context": "Zgłoszono: brak paliwa. Pytamy o obiekt: BP Górczewska.",
+  "poi": { "kind": "fuel_station", "id": "…", "name": "BP Górczewska" }, "options": ["yes", "no", "unknown"] }
+```
+
+Pokaż nazwę obiektu wyraźnie: pytanie może dotyczyć **sąsiedniej** stacji, nie tej, którą ktoś zgłosił
+(system sprawdza, dokąd kierować ludzi). Odpowiedź wysyłasz tak samo jak dotąd.
+
+**Stacje na mapie i potwierdzenia.** W `GET /api/v1/map` pojawiły się feature'y `kind: "fuel_station"`:
+
+```json
+{ "kind": "fuel_station", "id": "…", "name": "Orlen Dąbrowskiego", "brand": "Orlen", "address": "ul. Dąbrowskiego 12, Poznań",
+  "fuels": [ { "type": "diesel", "label": "Olej napędowy", "status": "unavailable", "statusLabel": "Brak", "confirmedAt": "…" },
+             { "type": "pb95", "label": "Benzyna 95", "status": "available", "statusLabel": "Dostępne", "confirmedAt": "…" } ],
+  "shortage": true, "missingFuelTypes": ["diesel"], "lastConfirmedAt": "…", "confirmationCount": 4 }
+```
+
+Rysuj stację kolorem zależnym od `shortage` i pokazuj listę paliw w dymku. Osoba stojąca na stacji może
+potwierdzić stan bez zgłoszenia: `POST /api/v1/fuel-stations/{id}/status { "fuelTypes": ["diesel"], "available": true }`.
+
+Incydenty punktowe w `GET /api/v1/incidents` i na mapie mają `scope: "point"`, `poi` i `fuelTypes`, a geometria to
+`Point` w miejscu obiektu. Nie rysuj dla nich poligonu.
+
+Schrony dostały też `availability` / `availabilityLabel` z rejestru krajowego (`always` Całodobowo, `on_demand`
+Na żądanie, `scheduled` W określonych godzinach, `unknown`); to tryb otwarcia obiektu, niezależny od bieżącego statusu.

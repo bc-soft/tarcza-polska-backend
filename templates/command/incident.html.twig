@@ -55,6 +55,19 @@
             {% endif %}
 
             <div class="grid md:grid-cols-2 gap-4">
+                {% if detail.scope == 'point' and detail.poi %}
+                <section class="card p-5 border-l-4 border-primary">
+                    <h3 class="font-bold mb-1">Zgłoszenie punktowe · {{ detail.poi.kind == 'fuel_station' ? 'stacja paliw' : 'schron' }}</h3>
+                    <div class="text-sm">{{ detail.poi.name }}</div>
+                    {% if detail.fuelTypes is not empty %}
+                        <div class="mt-2 flex flex-wrap gap-1">
+                            {% for f in detail.fuelTypes %}<span class="text-[11px] px-2 py-0.5 rounded-full bg-neutral-100 border border-neutral-200">brak: {{ {pb95: 'Benzyna 95', pb98: 'Benzyna 98', diesel: 'Olej napędowy', lpg: 'LPG'}[f]|default(f) }}</span>{% endfor %}
+                        </div>
+                    {% endif %}
+                    <p class="mt-2 text-[11px] text-neutral-500">Incydent nie ma obszaru: weryfikacja pyta osoby przy tym obiekcie i przy sąsiednich obiektach tego samego rodzaju, a odpowiedzi zmieniają status obiektów na mapie.</p>
+                </section>
+                {% endif %}
+
                 <section class="card p-5">
                     <h3 class="font-bold mb-3">Jak policzono wskaźnik</h3>
                     {% set c = detail.confidenceBreakdown.components ?? {} %}
@@ -248,7 +261,7 @@
                             <div class="leading-snug">{{ e.label }}</div>
                             <div class="text-[11px] text-neutral-500">
                                 {%- if e.type == 'created' or e.type == 'report_attached' %}zgłoszeń: {{ d.reports }}
-                                {%- elseif e.type == 'wave_started' %}ring {{ d.ring }} · {{ d.cells }} komórek · {{ d.devices }} urządzeń
+                                {%- elseif e.type == 'wave_started' %}ring {{ d.ring }} · {% if d.pois is defined %}{{ d.pois }} obiekt(y){% if d.poiNames is defined and d.poiNames %}: {{ d.poiNames }}{% endif %}{% else %}{{ d.cells|default('?') }} komórek{% endif %} · {{ d.devices }} urządzeń
                                 {%- elseif e.type == 'wave_closed' %}ring {{ d.ring }}
                                 {%- elseif e.type == 'area_changed' %}problem: {{ d.positiveCells }} · brak problemu: {{ d.negativeCells }} · nieznane: {{ d.unknownCells }} · TAK {{ d.yes }} / NIE {{ d.no }}
                                 {%- elseif e.type == 'confidence_changed' %}{{ d.from }} → {{ d.to }} ({{ (d.score * 100)|round }}%)

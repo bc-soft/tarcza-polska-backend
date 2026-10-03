@@ -80,6 +80,42 @@ Push FCM niesie `data: {type: "alert", alertId}`.
 
 Każdy schron ma `occupancy` i `occupancyLabel` (`unknown` · Brak danych o miejscach, `plenty` · Dużo miejsc, `limited` · Mało miejsc, `full` · Pełny). Pole ma sens tylko przy `status: open`.
 
+### Zgłoszenia punktowe: stacje paliw i schrony
+
+Typy dzielą się na **obszarowe** (`power_outage`, `water_outage`, `road_blocked`, `other_threat`) i **punktowe**
+(`fuel_shortage`, `shelter_issue`). `GET /api/v1/reports/types` zwraca dla każdego typu `scope`, `poiKind`
+(`fuel_station` | `shelter` | null) oraz, dla `fuel_shortage`, listę `fuelTypes` do wyboru
+(`pb95` Benzyna 95, `pb98` Benzyna 98, `diesel` Olej napędowy, `lpg` LPG).
+
+Zgłoszenie punktowe dotyczy konkretnego obiektu, nie okolicy:
+
+| Pole `POST /api/v1/reports` | Kiedy | Znaczenie |
+|---|---|---|
+| `poiId` | opcjonalnie dla typów punktowych | id stacji / schronu, o który chodzi. Bez niego backend bierze najbliższy obiekt w promieniu 750 m (stacja) / 500 m (schron). |
+| `fuelTypes` | wymagane dla `fuel_shortage` | lista brakujących paliw, np. `["diesel", "pb95"]`. |
+
+Odpowiedź 202 (`ReportAccepted`) zawiera `scope`, `poi {kind, id, name, location}` i `fuelTypes`. Błędy:
+422 `poi_required` (brak obiektu w pobliżu: pokaż użytkownikowi wybór z `GET /api/v1/fuel-stations?lat&lng`
+albo `GET /api/v1/shelters?lat&lng` i wyślij `poiId`), 422 `poi_not_found` (nieznane id), 422 `validation_failed`
+(brak `fuelTypes`).
+
+Co dalej robi backend: incydent punktowy siedzi na obiekcie (`IncidentView.scope = "point"`, `poi`, `fuelTypes`,
+`area = null`, na mapie `Point`), a weryfikacja pyta ludzi stojących przy tym obiekcie i przy sąsiednich obiektach
+tego samego rodzaju: „Czy na stacji Orlen Dąbrowskiego jest teraz dostępne paliwo: Olej napędowy?”.
+`VerificationQuestion.poi` mówi, o który obiekt chodzi (może to być sąsiednia stacja, nie ta zgłoszona).
+Odpowiedzi aktualizują status obiektu, więc mapa pokazuje braki paliwa i zamknięte schrony jako pinezki.
+
+### Stacje paliw
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/api/v1/fuel-stations?lat&lng` | 15 najbliższych z `distanceMeters`. ETag. |
+| GET | `/api/v1/fuel-stations?bbox=` | Stacje w oknie mapy. |
+| GET | `/api/v1/fuel-stations/{id}` | Szczegóły: `fuels[] {type, label, status: available|unavailable|unknown, statusLabel, confirmedAt}`, `shortage`, `missingFuelTypes`. |
+| POST | `/api/v1/fuel-stations/{id}/status` | `{fuelTypes: ["diesel"], available: false, comment?}` - potwierdzenie przez osobę stojącą na stacji. |
+
+Na mapie (`GET /api/v1/map`) stacje mają `properties.kind = "fuel_station"` z tymi samymi polami co widok stacji.
+
 ### Historia incydentu
 
 | Metoda | Ścieżka | Opis |
