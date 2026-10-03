@@ -78,13 +78,12 @@ final class OverpassFuelStationSourceTest extends TestCase
     }
 
     #[Test]
-    public function fallsBackToTheNextMirrorWhenTheFirstOneFails(): void
+    public function queriesAllMirrorsAtOnceAndTakesTheOneThatAnswers(): void
     {
         $client = new MockHttpClient([
-            new MockResponse('', ['error' => 'Idle timeout reached for "https://overpass-api.de/api/interpreter".']), // probe #1
-            new MockResponse('Gateway Timeout', ['http_code' => 504]), // probe #2
-            new MockResponse('{"elements":[]}'), // probe #3
-            new MockResponse(self::OVERPASS), // query #3
+            new MockResponse('', ['error' => 'Idle timeout reached for "https://overpass-api.de/api/interpreter".']),
+            new MockResponse('Gateway Timeout', ['http_code' => 504]),
+            new MockResponse(self::OVERPASS),
         ]);
         $source = new OverpassFuelStationSource(
             $client,
@@ -95,7 +94,19 @@ final class OverpassFuelStationSourceTest extends TestCase
         $stations = $source->fetchAround(new Point(52.41, 16.9), 15000);
 
         self::assertCount(3, $stations);
-        self::assertSame(4, $client->getRequestsCount(), 'two failing mirrors were skipped after one probe each');
+        self::assertSame(3, $client->getRequestsCount(), 'one request per mirror, no probes');
+    }
+
+    #[Test]
+    public function aQueryAbortedByOverpassCountsAsAFailedMirror(): void
+    {
+        $client = new MockHttpClient([
+            new MockResponse('{"elements":[],"remark":"runtime error: Query timed out in \\"query\\" at line 1 after 91 seconds."}'),
+            new MockResponse(self::OVERPASS),
+        ]);
+        $source = new OverpassFuelStationSource($client, 'https://busy.example/api,https://ok.example/api');
+
+        self::assertCount(3, $source->fetchAround(new Point(52.41, 16.9), 15000));
     }
 
     #[Test]

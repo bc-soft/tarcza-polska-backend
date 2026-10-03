@@ -134,8 +134,13 @@ make console c="tarcza:shelters:import"                                      # r
 make console c="tarcza:shelters:import --wojewodztwo=wielkopolskie"          # szerzej: całe województwo
 make console c="tarcza:shelters:import --dry-run"                             # tylko policz, nic nie zapisuj
 make console c="tarcza:fuel-stations:import"                                 # OpenStreetMap przez Overpass (OVERPASS_URL), tylko region
+make console c="tarcza:fuel-stations:import --from-file=data/osm/fuel-stations-poznan.json"  # offline, z zapisanego zrzutu
 make console c="tarcza:fixtures:load --reset --zones=8 --seed=42"            # różnorodne dane demo: 8 dzielnic Poznania
 ```
+
+Import stacji wysyła zapytanie równolegle do wszystkich mirrorów z `OVERPASS_URL` i bierze pierwszą pełną odpowiedź.
+Gdy żaden nie odpowie (publiczne instancje Overpass bywają przeciążone), import regionu wczytuje zrzut
+`data/osm/fuel-stations-poznan.json` (dane © OpenStreetMap, ODbL). Zrzut odświeża się zapisaniem odpowiedzi Overpass dla regionu.
 
 Import schronów jest idempotentny (upsert po identyfikatorze publicznym) i nie nadpisuje potwierdzeń obywateli.
 `tarcza:fixtures:load --reset` czyści incydenty, zgłoszenia, alerty, źródła, zdjęcia, symulowane urządzenia oraz

@@ -19,21 +19,16 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 /**
  * Fuel stations from OpenStreetMap through the Overpass API (amenity=fuel, nodes and ways with their centre).
  *
- * OVERPASS_URL may list several mirrors separated by commas; they are tried in order and the first one that
- * answers wins (public Overpass instances are regularly overloaded or unreachable from some networks).
+ * OVERPASS_URL may list several mirrors separated by commas. The query is sent to all of them at once and the
+ * first complete answer wins; the rest are cancelled. Public Overpass instances are regularly overloaded or
+ * unreachable from some networks, and a busy one may queue a query for tens of seconds before answering.
  * The parser is separate from the HTTP call so it can be unit-tested with a fixture.
  */
 final readonly class OverpassFuelStationSource
 {
     public const string SOURCE = 'osm';
 
-    /** Seconds a mirror gets to answer the probe before the next one is tried (public mirrors queue even trivial queries for ~10 s). */
-    private const int CONNECT_TIMEOUT_SEC = 25;
-
-    /** Cheapest possible query: proves the mirror is up and accepting work. */
-    private const string PROBE_QUERY = '[out:json][timeout:5];node(1);out ids;';
-
-    /** Overpass sends nothing until the query finishes, so the idle timeout must exceed the query timeout. */
+    /** Server-side query budget; Overpass sends nothing until the query finishes, so the idle timeout must exceed it. */
     private const int QUERY_TIMEOUT_SEC = 60;
 
     private HttpClientInterface $httpClient;
@@ -91,40 +86,59 @@ final readonly class OverpassFuelStationSource
      */
     private function run(string $query): array
     {
-        $failures = [];
+        $responses = [];
         foreach ($this->endpoints as $endpoint) {
-            try {
-                // Symfony's "timeout" covers both connecting and idling, and Overpass stays silent until the
-                // query finishes. A trivial probe with a short timeout tells a dead mirror from a slow query.
-                $this->post($endpoint, self::PROBE_QUERY, self::CONNECT_TIMEOUT_SEC);
-                $json = $this->post($endpoint, $query, self::QUERY_TIMEOUT_SEC + 30);
+            $responses[] = $this->httpClient->request('POST', $endpoint, [
+                'body' => ['data' => $query],
+                'headers' => ['User-Agent' => 'TarczaPolska/0.1 (+fuel-stations-import)'],
+                'timeout' => self::QUERY_TIMEOUT_SEC + 15,
+                'max_duration' => self::QUERY_TIMEOUT_SEC + 30,
+                'user_data' => $endpoint,
+            ]);
+        }
 
-                return self::parse($json);
-            } catch (HttpClientException|JsonException $e) {
+        $failures = [];
+        foreach ($this->httpClient->stream($responses) as $response => $chunk) {
+            /** @var string $endpoint */
+            $endpoint = $response->getInfo('user_data');
+            try {
+                if ($chunk->isFirst()) {
+                    $response->getHeaders(); // throws on 3xx-5xx, so a busy mirror is dropped as soon as it says so
+                }
+                if (!$chunk->isLast()) {
+                    continue;
+                }
+                $stations = self::parse($response->getContent());
+            } catch (HttpClientException|JsonException|OverpassUnavailableException $e) {
                 $failures[$endpoint] = $e->getMessage();
-                $this->logger->warning('Overpass endpoint failed, trying the next one', ['endpoint' => $endpoint, 'reason' => $e->getMessage()]);
+                $this->logger->warning('Overpass endpoint failed', ['endpoint' => $endpoint, 'reason' => $e->getMessage()]);
+                $response->cancel();
+                continue;
             }
+
+            foreach ($responses as $other) {
+                $other->cancel();
+            }
+
+            return $stations;
         }
 
         throw OverpassUnavailableException::fromFailures($failures);
     }
 
-    /** @throws HttpClientException */
-    private function post(string $endpoint, string $query, int $timeoutSeconds): string
-    {
-        return $this->httpClient->request('POST', $endpoint, [
-            'body' => ['data' => $query],
-            'headers' => ['User-Agent' => 'TarczaPolska/0.1 (+fuel-stations-import)'],
-            'timeout' => $timeoutSeconds,
-            'max_duration' => $timeoutSeconds + 30,
-        ])->getContent();
-    }
-
-    /** @return list<FuelStationCandidate> */
+    /**
+     * @return list<FuelStationCandidate>
+     *
+     * @throws JsonException
+     * @throws OverpassUnavailableException when Overpass answered 200 but aborted the query (e.g. its own timeout)
+     */
     public static function parse(string $json): array
     {
-        /** @var array{elements?: list<array<string, mixed>>} $data */
+        /** @var array{elements?: list<array<string, mixed>>, remark?: string} $data */
         $data = json_decode($json, true, 512, \JSON_THROW_ON_ERROR);
+        if (isset($data['remark']) && str_contains($data['remark'], 'error') && [] === ($data['elements'] ?? [])) {
+            throw new OverpassUnavailableException('Overpass aborted the query: '.$data['remark']);
+        }
         $out = [];
         foreach ($data['elements'] ?? [] as $el) {
             $tags = \is_array($el['tags'] ?? null) ? $el['tags'] : [];

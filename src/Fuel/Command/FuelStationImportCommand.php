@@ -14,6 +14,7 @@ use App\Shared\Geo\H3;
 use App\Shared\Geo\Point;
 use App\Shared\Geo\Region;
 use Doctrine\ORM\EntityManagerInterface;
+use JsonException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -23,8 +24,10 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
  * Imports / refreshes fuel stations from OpenStreetMap. Upserts by OSM id; availability data is never touched.
+ * A region import falls back to the committed Overpass snapshot (app.fuel.osm_snapshot) when no mirror answers.
  *
  *   bin/console tarcza:fuel-stations:import                          # the configured region (Poznań, app.region.*)
+ *   bin/console tarcza:fuel-stations:import --from-file=data/osm/fuel-stations-poznan.json   # offline, saved Overpass JSON
  *   bin/console tarcza:fuel-stations:import --around=52.4121,16.9012 --radius-km=5
  *   bin/console tarcza:fuel-stations:import --bbox=16.70,52.30,17.15,52.55
  */
@@ -37,6 +40,7 @@ final class FuelStationImportCommand extends Command
         private readonly EntityManagerInterface $em,
         private readonly H3 $h3,
         private readonly Region $region,
+        private readonly string $fuelOsmSnapshot,
     ) {
         parent::__construct();
     }
@@ -47,6 +51,7 @@ final class FuelStationImportCommand extends Command
             ->addOption('around', null, InputOption::VALUE_REQUIRED, 'Center "lat,lng" (default: the configured region centre)')
             ->addOption('radius-km', null, InputOption::VALUE_REQUIRED, 'Radius around the center in km (default: the region radius)')
             ->addOption('bbox', null, InputOption::VALUE_REQUIRED, 'minLng,minLat,maxLng,maxLat')
+            ->addOption('from-file', null, InputOption::VALUE_REQUIRED, 'Read a saved Overpass JSON answer instead of querying Overpass')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Fetch and report, store nothing');
     }
 
@@ -60,8 +65,19 @@ final class FuelStationImportCommand extends Command
 
         /** @var string|null $radiusKm */
         $radiusKm = $input->getOption('radius-km');
+        /** @var string|null $fromFile */
+        $fromFile = $input->getOption('from-file');
 
-        $io->text(\sprintf('Overpass endpoints (tried in order): %s', implode(', ', $this->source->endpoints())));
+        if (null !== $fromFile) {
+            $candidates = $this->readSnapshot($io, $fromFile);
+            if (null === $candidates) {
+                return Command::FAILURE;
+            }
+
+            return $this->store($io, $input, $candidates);
+        }
+
+        $io->text(\sprintf('Overpass endpoints (queried in parallel): %s', implode(', ', $this->source->endpoints())));
         try {
             if (null !== $bbox) {
                 $io->text('Area: bbox '.$bbox);
@@ -77,12 +93,46 @@ final class FuelStationImportCommand extends Command
                 $candidates = $this->source->fetchAround($center, $radiusMeters);
             }
         } catch (OverpassUnavailableException $e) {
-            $io->error($e->getMessage());
+            if (null !== $bbox || null !== $around || null !== $radiusKm) {
+                $io->error($e->getMessage());
 
-            return Command::FAILURE;
+                return Command::FAILURE;
+            }
+            $io->warning($e->getMessage()."\nFalling back to the committed snapshot of the region.");
+            $candidates = $this->readSnapshot($io, $this->fuelOsmSnapshot);
+            if (null === $candidates) {
+                return Command::FAILURE;
+            }
         }
 
-        $io->text(\sprintf('Overpass returned %d stations', \count($candidates)));
+        return $this->store($io, $input, $candidates);
+    }
+
+    /** @return list<FuelStationCandidate>|null null when the file is missing or not an Overpass answer */
+    private function readSnapshot(SymfonyStyle $io, string $path): ?array
+    {
+        $json = is_file($path) ? file_get_contents($path) : false;
+        if (false === $json) {
+            $io->error('Cannot read '.$path);
+
+            return null;
+        }
+        try {
+            $candidates = OverpassFuelStationSource::parse($json);
+        } catch (JsonException|OverpassUnavailableException $e) {
+            $io->error(\sprintf('%s is not a usable Overpass answer: %s', $path, $e->getMessage()));
+
+            return null;
+        }
+        $io->text(\sprintf('Snapshot %s: %d stations', $path, \count($candidates)));
+
+        return $candidates;
+    }
+
+    /** @param list<FuelStationCandidate> $candidates */
+    private function store(SymfonyStyle $io, InputInterface $input, array $candidates): int
+    {
+        $io->text(\sprintf('%d stations to import', \count($candidates)));
         if ($input->getOption('dry-run')) {
             foreach (\array_slice($candidates, 0, 20) as $c) {
                 $io->text(\sprintf(' - %s | %s | %s | %s', $c->name, $c->brand ?? '-', $c->address ?? '-', implode(',', array_map(static fn ($t) => $t->value, $c->fuelTypes))));
