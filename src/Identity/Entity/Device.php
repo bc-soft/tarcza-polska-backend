@@ -62,6 +62,14 @@ class Device implements UserInterface
     #[ORM\Column(type: Types::FLOAT, options: ['default' => 1.0])]
     private float $reputation = 1.0;
 
+    /** User preference: may receive the location_refresh reminder push. */
+    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => true])]
+    private bool $locationRefreshEnabled = true;
+
+    /** Last time the location_refresh reminder was pushed (at most once a day). */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?DateTimeImmutable $lastLocationRefreshAt = null;
+
     /** Virtual device created by the demo simulator. Never receives pushes. */
     #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
     private bool $simulated = false;
@@ -160,6 +168,26 @@ class Device implements UserInterface
     public function markAsked(): void
     {
         $this->lastAskedAt = new DateTimeImmutable();
+    }
+
+    public function isLocationRefreshEnabled(): bool
+    {
+        return $this->locationRefreshEnabled;
+    }
+
+    public function setLocationRefreshEnabled(bool $enabled): void
+    {
+        $this->locationRefreshEnabled = $enabled;
+    }
+
+    public function getLastLocationRefreshAt(): ?DateTimeImmutable
+    {
+        return $this->lastLocationRefreshAt;
+    }
+
+    public function markLocationRefreshSent(DateTimeImmutable $at): void
+    {
+        $this->lastLocationRefreshAt = $at;
     }
 
     public function getReputation(): float

@@ -16,6 +16,7 @@ framework:
         routing:
             # Every message under a module's Message\ namespace is asynchronous.
             # Domain events (ReportCreated, IncidentUpdated, ...) and commands (ResearchIncident, ...) alike.
+            'App\Identity\Message\*': async
             'App\Reporting\Message\*': async
             'App\Incident\Message\*': async
             'App\Verification\Message\*': async

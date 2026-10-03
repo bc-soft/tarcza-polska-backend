@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Scheduler;
 
+use App\Identity\Message\LocationRefreshTick;
 use App\Simulation\Message\SimulatedCrowdTick;
 use App\Verification\Message\VerificationTick;
 use Symfony\Component\Lock\LockFactory;
@@ -33,6 +34,8 @@ final class TarczaSchedule implements ScheduleProviderInterface
                 RecurringMessage::every('20 seconds', new VerificationTick()),
                 // Simulated citizens answer their pending verification requests (demo only, no-op otherwise).
                 RecurringMessage::every('10 seconds', new SimulatedCrowdTick()),
+                // Remind devices with a position older than 24 h to reopen the app (push location_refresh).
+                RecurringMessage::every('15 minutes', new LocationRefreshTick()),
             )
             ->lock($this->lockFactory->createLock('tarcza-schedule'))
             ->stateful($this->cache);

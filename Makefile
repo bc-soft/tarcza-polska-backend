@@ -49,8 +49,12 @@ seed: ## Seed operator account + Poznań shelters
 simulate: ## Spawn a simulated power outage in Poznań (demo scenario)
 	$(CONSOLE) tarcza:simulate:outage
 
-test: ## Run PHPUnit
+test: ## Run PHPUnit (functional suite needs the app_test database: make test-db)
 	$(PHP) php bin/phpunit
+
+test-db: ## Create the app_test database and migrate it (one-off, for the functional suite)
+	$(DC) exec database psql -U app -d app -c 'CREATE DATABASE app_test OWNER app' || true
+	$(PHP) sh -c 'APP_ENV=test php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing'
 
 phpstan: ## Static analysis
 	$(PHP) vendor/bin/phpstan analyse --memory-limit=1G
@@ -71,4 +75,4 @@ openapi: ## Dump the OpenAPI spec for the Flutter team
 push-test: ## Verify Firebase credentials; make push-test t=<fcm-token> sends a test push
 	$(CONSOLE) tarcza:push:test $(t)
 
-.PHONY: help build up lan down reset logs worker sh console migration migrate seed simulate test phpstan cs cs-check lint qa openapi push-test
+.PHONY: help build up lan down reset logs worker sh console migration migrate seed simulate test test-db phpstan cs cs-check lint qa openapi push-test

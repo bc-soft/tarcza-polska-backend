@@ -109,6 +109,30 @@ final class DeviceRepository extends ServiceEntityRepository
     }
 
     /**
+     * Push-capable devices whose position went stale and that have not been reminded recently.
+     *
+     * @return list<Device>
+     */
+    public function findLocationRefreshCandidates(DateTimeImmutable $staleBefore, DateTimeImmutable $notRemindedSince, DateTimeImmutable $seenAfter, int $limit): array
+    {
+        /** @var list<Device> */
+        return $this->createQueryBuilder('d')
+            ->where('d.pushToken IS NOT NULL')
+            ->andWhere('d.simulated = false')
+            ->andWhere('d.locationRefreshEnabled = true')
+            ->andWhere('d.locationUpdatedAt IS NOT NULL AND d.locationUpdatedAt < :staleBefore')
+            ->andWhere('d.lastLocationRefreshAt IS NULL OR d.lastLocationRefreshAt < :notRemindedSince')
+            ->andWhere('d.lastSeenAt > :seenAfter')
+            ->setParameter('staleBefore', $staleBefore)
+            ->setParameter('notRemindedSince', $notRemindedSince)
+            ->setParameter('seenAfter', $seenAfter)
+            ->orderBy('d.locationUpdatedAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * One phone = one push token. When a re-registered or rotated token is already bound to other
      * devices (e.g. the previous installation after a 401), those rows lose it so a single phone
      * never receives the same question twice. Returns the number of detached devices.

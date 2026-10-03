@@ -28,4 +28,15 @@ final readonly class PushMessage
     {
         return new self($title, $body, ['type' => 'alert', 'alertId' => $alertId]);
     }
+
+    /** Gentle nudge to reopen the app so the device position gets refreshed. Normal priority. */
+    public static function locationRefresh(): self
+    {
+        return new self(
+            'Czy nadal jesteś w tej okolicy?',
+            'Otwórz Tarczę, aby otrzymywać właściwe alerty.',
+            ['type' => 'location_refresh'],
+            highPriority: false,
+        );
+    }
 }

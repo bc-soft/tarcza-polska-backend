@@ -6,6 +6,7 @@ namespace App\Identity\Controller;
 
 use App\Identity\Dto\RegisterDeviceRequest;
 use App\Identity\Dto\UpdateLocationRequest;
+use App\Identity\Dto\UpdatePreferencesRequest;
 use App\Identity\Dto\UpdatePushTokenRequest;
 use App\Identity\Entity\Device;
 use App\Identity\Enum\LocationSource;
@@ -63,6 +64,7 @@ final class DeviceController extends AbstractController
             'h3Cell' => $device->getH3Cell(),
             'locationUpdatedAt' => $device->getLocationUpdatedAt()?->format(\DATE_ATOM),
             'locationSource' => $device->getLocationSource()?->value,
+            'preferences' => ['locationRefresh' => $device->isLocationRefreshEnabled()],
         ]);
     }
 
@@ -85,6 +87,19 @@ final class DeviceController extends AbstractController
         $this->em->flush();
 
         return new JsonResponse(['h3Cell' => $device->getH3Cell()]);
+    }
+
+    #[Route('/me/preferences', name: 'api_device_preferences', methods: ['PUT'])]
+    #[OA\Put(summary: 'Notification preferences (location_refresh reminders on / off)')]
+    #[OA\RequestBody(content: new OA\JsonContent(ref: new \Nelmio\ApiDocBundle\Attribute\Model(type: UpdatePreferencesRequest::class)))]
+    #[OA\Response(response: 204, description: 'Stored')]
+    public function updatePreferences(#[CurrentUser] Device $device, #[MapRequestPayload] UpdatePreferencesRequest $request): Response
+    {
+        $device->setLocationRefreshEnabled($request->locationRefresh);
+        $device->touch();
+        $this->em->flush();
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
     }
 
     #[Route('/me/push-token', name: 'api_device_push_token', methods: ['PUT'])]
