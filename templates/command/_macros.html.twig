@@ -1,0 +1,125 @@
+{# Reusable UI atoms of the Command Center. Keep colours in sync with window.TARCZA in base.html.twig. #}
+
+{% macro icon(name, class = 'w-5 h-5') %}
+{%- set paths = {
+    'map': '<path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13 6-3m-6 3V7m6 10 4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7"/>',
+    'list': '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    'bell': '<path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4-5.7V5a2 2 0 1 0-4 0v.3A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/>',
+    'shield': '<path d="M12 3 4.5 6v5.5c0 4.7 3.2 9 7.5 10 4.3-1 7.5-5.3 7.5-10V6L12 3z"/>',
+    'home': '<path d="M3 11.5 12 4l9 7.5M5 10v10h5v-6h4v6h5V10"/>',
+    'search': '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    'user': '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    'users': '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-5-6.3"/>',
+    'logout': '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/>',
+    'pencil': '<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4L16.5 3.5z"/>',
+    'trash': '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+    'tag': '<path d="M3 3h8l10 10-8 8L3 11V3z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
+    'sparkles': '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+    'check': '<path d="m5 12 5 5L20 7"/>',
+    'x': '<path d="M6 6l12 12M18 6 6 18"/>',
+    'plus': '<path d="M12 5v14M5 12h14"/>',
+    'info': '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    'link': '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    'route': '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/>',
+    'camera': '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+    'target': '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+    'clock': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    'hex': '<path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9L12 3z"/>',
+    'book': '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5zM4 19a2 2 0 0 0 2 2h13"/>',
+    'activity': '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    'filter': '<path d="M3 5h18l-7 8v6l-4 2v-8L3 5z"/>',
+    'chevron-right': '<path d="m9 6 6 6-6 6"/>',
+    'chevron-left': '<path d="m15 6-6 6 6 6"/>',
+    'refresh': '<path d="M20 11a8 8 0 0 0-14.9-3M4 13a8 8 0 0 0 14.9 3M4 4v5h5M20 20v-5h-5"/>',
+    'send': '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/>',
+    'cpu': '<rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+    'phone': '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+    'key': '<circle cx="8" cy="15" r="4"/><path d="M11 12 20 3M16 7l3 3M13 10l2 2"/>',
+} %}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="{{ class }}" aria-hidden="true">{{ paths[name]|default('')|raw }}</svg>
+{%- endmacro %}
+
+{% macro level_color(level) -%}
+{{- {'unverified': '#8A93A8', 'likely': '#F59E0B', 'high': '#EA580C', 'confirmed': '#1B4DB1'}[level]|default('#8A93A8') -}}
+{%- endmacro %}
+
+{% macro confidence_badge(level, label, score = null) -%}
+{%- set styles = {
+    'unverified': 'bg-neutral-200 text-neutral-700',
+    'likely': 'bg-warn-soft text-warn',
+    'high': 'bg-orange-100 text-orange-700',
+    'confirmed': 'bg-tertiary text-white',
+} -%}
+<span class="badge {{ styles[level]|default(styles.unverified) }}">{{ label }}{% if score is not null %} · {{ (score * 100)|round }}%{% endif %}</span>
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+{%- set map = {
+    'detected': ['Wykryty', 'bg-neutral-200 text-neutral-700'],
+    'verifying': ['Weryfikacja', 'bg-tertiary-soft text-tertiary'],
+    'active': ['Aktywny', 'bg-primary-soft text-primary'],
+    'resolved': ['Zamknięty', 'bg-ok-soft text-ok'],
+} -%}
+{%- set s = map[status]|default([status, 'bg-neutral-200 text-neutral-700']) -%}
+<span class="badge {{ s[1] }}">{{ s[0] }}</span>
+{%- endmacro %}
+
+{% macro severity_badge(severity) -%}
+{%- set map = {
+    'info': ['Informacja', 'bg-tertiary-soft text-tertiary'],
+    'warning': ['Ostrzeżenie', 'bg-warn-soft text-warn'],
+    'danger': ['Zagrożenie', 'bg-primary text-white'],
+} -%}
+{%- set s = map[severity]|default([severity, 'bg-neutral-200 text-neutral-700']) -%}
+<span class="badge {{ s[1] }}">{{ s[0] }}</span>
+{%- endmacro %}
+
+{% macro shelter_badge(status, label) -%}
+{%- set map = {
+    'open': 'bg-ok-soft text-ok',
+    'closed': 'bg-primary-soft text-primary',
+    'full': 'bg-warn-soft text-warn',
+    'unknown': 'bg-neutral-200 text-neutral-700',
+} -%}
+<span class="badge {{ map[status]|default(map.unknown) }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro role_badge(role) -%}
+{%- set map = {
+    'ROLE_ADMIN': ['Administrator', 'bg-secondary text-white'],
+    'ROLE_OPERATOR': ['Operator', 'bg-primary-soft text-primary'],
+    'ROLE_ANALYST': ['Analityk', 'bg-tertiary-soft text-tertiary'],
+} -%}
+{%- set s = map[role]|default([role, 'bg-neutral-200 text-neutral-700']) -%}
+<span class="badge {{ s[1] }}">{{ s[0] }}</span>
+{%- endmacro %}
+
+{# Horizontal progress bar in the style of the design system (red / navy / blue). #}
+{% macro bar(value, color = 'primary', height = 'h-2') -%}
+{%- set bg = {'primary': 'bg-primary', 'secondary': 'bg-secondary', 'tertiary': 'bg-tertiary', 'ok': 'bg-ok', 'warn': 'bg-warn'}[color]|default('bg-primary') -%}
+<div class="w-full {{ height }} rounded-full bg-neutral-200/80 overflow-hidden"><div class="{{ height }} rounded-full {{ bg }} transition-all" style="width: {{ min((value|abs * 100)|round, 100) }}%"></div></div>
+{%- endmacro %}
+
+{% macro stat(label, value, id = null, hint = null) -%}
+<div class="stat">
+    <div class="eyebrow">{{ label }}</div>
+    <div class="stat-value" {% if id %}id="{{ id }}"{% endif %}>{{ value }}</div>
+    {% if hint %}<div class="text-xs text-neutral-500">{{ hint }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro empty(text, icon = 'info') -%}
+<div class="card-lite p-6 text-center text-sm text-neutral-500 flex flex-col items-center gap-2">
+    {{ _self.icon(icon, 'w-6 h-6 text-neutral-400') }}
+    <div>{{ text|raw }}</div>
+</div>
+{%- endmacro %}
+
+{% macro ago(date) -%}
+{%- set diff = date('now').timestamp - date.timestamp -%}
+{%- if diff < 60 -%}przed chwilą
+{%- elseif diff < 3600 -%}{{ (diff / 60)|round }} min temu
+{%- elseif diff < 86400 -%}{{ (diff / 3600)|round }} godz. temu
+{%- else -%}{{ date|date('d.m H:i') }}
+{%- endif -%}
+{%- endmacro %}

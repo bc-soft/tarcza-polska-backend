@@ -1,19 +1,101 @@
 <!DOCTYPE html>
-<html lang="pl" class="h-full bg-slate-950">
+<html lang="pl" class="h-full">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% block title %}Tarcza Polska - Command{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23D4213D%22><path d=%22M12 2 4 5v6c0 5.25 3.4 10.15 8 11.5 4.6-1.35 8-6.25 8-11.5V5l-8-3z%22/></svg>">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            // Design tokens of the Tarcza design system (shared with the mobile app).
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif']},
+                        colors: {
+                            canvas: '#DCE0F3',
+                            surface: {DEFAULT: '#E7E9F7', 2: '#F3F4FB', 3: '#FFFFFF'},
+                            primary: {DEFAULT: '#D4213D', hover: '#B61A33', soft: '#FBE3E7', 50: '#FDF2F4'},
+                            secondary: {DEFAULT: '#14213D', hover: '#0E1830', soft: '#DEE2EF'},
+                            tertiary: {DEFAULT: '#1B4DB1', hover: '#163F92', soft: '#DCE5F8'},
+                            neutral: {DEFAULT: '#0F172A', 700: '#334155', 500: '#5B6478', 400: '#8A93A8', 300: '#B7BDCF', 200: '#D4D8E8'},
+                            ok: {DEFAULT: '#15803D', soft: '#DCFCE7'},
+                            warn: {DEFAULT: '#D97706', soft: '#FEF3C7'},
+                            danger: {DEFAULT: '#B91C1C', soft: '#FEE2E2'},
+                        },
+                        borderRadius: {'2xl': '1.25rem', '3xl': '1.75rem'},
+                        boxShadow: {
+                            card: '0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(20, 33, 61, 0.18)',
+                            float: '0 12px 32px -12px rgba(20, 33, 61, 0.35)',
+                        },
+                    },
+                },
+            };
+        </script>
+        <style type="text/tailwindcss">
+            @layer base {
+                html { -webkit-font-smoothing: antialiased; }
+                ::selection { background: #FBE3E7; }
+                input, select, textarea { font: inherit; }
+            }
+            @layer components {
+                .card { @apply bg-surface rounded-2xl shadow-card; }
+                .card-lite { @apply bg-surface-2 rounded-2xl; }
+                .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-tertiary/40 disabled:opacity-50 disabled:pointer-events-none; }
+                .btn-primary { @apply btn bg-primary text-white hover:bg-primary-hover; }
+                .btn-secondary { @apply btn bg-secondary-soft text-secondary hover:bg-neutral-200; }
+                .btn-inverted { @apply btn bg-secondary text-white hover:bg-secondary-hover; }
+                .btn-tertiary { @apply btn bg-tertiary text-white hover:bg-tertiary-hover; }
+                .btn-outlined { @apply btn border border-primary/50 text-primary hover:bg-primary-soft; }
+                .btn-ghost { @apply btn text-neutral-700 hover:bg-surface-2; }
+                .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
+                .chip { @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition; }
+                .chip-on { @apply chip bg-secondary text-white; }
+                .chip-off { @apply chip bg-surface-2 text-neutral-700 hover:bg-neutral-200; }
+                .badge { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide; }
+                .field { @apply w-full rounded-xl border border-neutral-200 bg-surface-3 px-3.5 py-2.5 text-sm text-neutral placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-tertiary/40 focus:border-tertiary; }
+                .label { @apply block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 mb-1.5; }
+                .eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500; }
+                .stat { @apply card p-4 flex flex-col gap-1; }
+                .stat-value { @apply text-2xl font-bold text-neutral tabular-nums leading-none; }
+                .icon-btn { @apply inline-flex h-10 w-10 items-center justify-center rounded-full transition; }
+                .table { @apply w-full text-sm; }
+                .table th { @apply text-left eyebrow py-3 px-4 border-b border-neutral-200/70; }
+                .table td { @apply py-3 px-4 border-b border-neutral-200/50 align-top; }
+                .table tbody tr:hover { @apply bg-surface-2/70; }
+                .maplibregl-ctrl-group { @apply rounded-2xl overflow-hidden shadow-card; border: 0 !important; }
+                .maplibregl-ctrl-group button { width: 40px !important; height: 40px !important; }
+                .maplibregl-popup-content { @apply rounded-xl shadow-float px-4 py-3 text-neutral text-xs font-sans; }
+            }
+        </style>
         <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
         <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+        <script>
+            // Shared with the templates' inline scripts: confidence palette + light map style.
+            window.TARCZA = {
+                mapStyle: 'https://tiles.openfreemap.org/styles/positron',
+                levelColor: {unverified: '#8A93A8', likely: '#F59E0B', high: '#EA580C', confirmed: '#1B4DB1'},
+                cellColor: {positive: '#D4213D', negative: '#15803D', unknown: '#8A93A8'},
+                severityColor: {info: '#1B4DB1', warning: '#D97706', danger: '#D4213D'},
+                // Cards are laid out after fonts/CSS load; keep the WebGL canvas in sync with its container.
+                autosize: map => { new ResizeObserver(() => map.resize()).observe(map.getContainer()); return map; },
+                // Live indicator: EventSource retries silently, so only a CLOSED stream means "offline".
+                liveStatus: (es, dot, label) => {
+                    const set = (cls, text) => { dot.className = 'h-2 w-2 rounded-full ' + cls; label.textContent = text; };
+                    es.onopen = () => set('bg-ok animate-pulse', 'Połączono z Mercure');
+                    es.onerror = () => set(es.readyState === EventSource.CLOSED ? 'bg-primary' : 'bg-warn animate-pulse', es.readyState === EventSource.CLOSED ? 'Brak połączenia live' : 'Łączenie z Mercure…');
+                },
+            };
+        </script>
         {% block stylesheets %}{% endblock %}
         {% block javascripts %}
             {% block importmap %}{{ importmap('app') }}{% endblock %}
         {% endblock %}
     </head>
-    <body class="h-full text-slate-100 antialiased">
+    <body class="h-full bg-canvas text-neutral font-sans antialiased">
         {% block body %}{% endblock %}
     </body>
 </html>

@@ -1,0 +1,57 @@
+{% extends 'command/_layout.html.twig' %}
+{% import 'command/_macros.html.twig' as ui %}
+{% block title %}Audyt - Tarcza Command{% endblock %}
+{% block main %}
+<div class="flex flex-col gap-4">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <div class="eyebrow">Audit · append-only</div>
+            <h1 class="text-2xl font-bold tracking-tight">Dziennik audytu</h1>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            {% for action, n in last24h %}
+                <div class="card px-3 py-2 text-xs flex items-center gap-2"><span class="text-neutral-500">{{ labels[action]|default(action) }}</span><span class="font-bold tabular-nums">{{ n }}</span></div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <form method="get" class="card p-3 flex flex-wrap items-center gap-2">
+        <span class="inline-flex items-center gap-2 text-xs font-semibold text-neutral-500 px-2">{{ ui.icon('filter', 'w-4 h-4') }}Filtry</span>
+        <input name="actor" value="{{ criteria.actor }}" placeholder="aktor (e-mail)" class="field !w-56">
+        <select name="action" class="field !w-auto">
+            <option value="">Każda akcja</option>
+            {% for a in actions %}<option value="{{ a }}" {{ criteria.action == a ? 'selected' }}>{{ labels[a]|default(a) }}</option>{% endfor %}
+        </select>
+        <select name="subject" class="field !w-auto">
+            <option value="">Każdy obiekt</option>
+            {% for s in ['incident', 'alert', 'shelter', 'operator'] %}<option value="{{ s }}" {{ criteria.subjectType == s ? 'selected' }}>{{ s }}</option>{% endfor %}
+        </select>
+        <select name="limit" class="field !w-auto">{% for l in [100, 200, 500, 1000] %}<option value="{{ l }}" {{ criteria.limit == l ? 'selected' }}>{{ l }} wpisów</option>{% endfor %}</select>
+        <button class="btn-secondary btn-sm">Filtruj</button>
+        <a href="{{ path('command_audit_list') }}" class="btn-ghost btn-sm">Wyczyść</a>
+    </form>
+
+    <section class="card overflow-hidden">
+        <table class="table">
+            <thead><tr><th>Czas</th><th>Aktor</th><th>Akcja</th><th>Obiekt</th><th>Kontekst</th><th>IP</th></tr></thead>
+            <tbody>
+            {% for e in entries %}
+                <tr>
+                    <td class="tabular-nums whitespace-nowrap text-xs">{{ e.createdAt|date('d.m.Y H:i:s') }}</td>
+                    <td class="text-xs font-semibold">{{ e.actor }}</td>
+                    <td><span class="badge {{ e.action == 'view_sensitive' ? 'bg-neutral-200 text-neutral-700' : (e.action starts with 'publish' or e.action == 'resolve_incident' ? 'bg-primary-soft text-primary' : 'bg-tertiary-soft text-tertiary') }}">{{ labels[e.action]|default(e.action) }}</span></td>
+                    <td class="text-xs">
+                        {% if e.subjectType == 'incident' %}<a href="{{ path('command_incident', {id: e.subjectId}) }}" class="text-tertiary hover:underline">incident · {{ e.subjectId|slice(0, 8) }}</a>
+                        {% else %}{{ e.subjectType }} · <span class="font-mono">{{ e.subjectId|slice(0, 8) }}</span>{% endif %}
+                    </td>
+                    <td class="text-xs text-neutral-700 font-mono max-w-xs truncate">{{ e.context ? e.context|json_encode : '' }}</td>
+                    <td class="text-xs text-neutral-500 font-mono">{{ e.ip ?? '—' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6">{{ ui.empty('Brak wpisów audytu dla tych kryteriów.', 'book') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+{% endblock %}

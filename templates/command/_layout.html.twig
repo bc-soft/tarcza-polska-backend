@@ -1,23 +1,75 @@
 {% extends 'base.html.twig' %}
+{% import 'command/_macros.html.twig' as ui %}
+{% set route = app.request.attributes.get('_route') %}
+{% set nav = [
+    {route: 'command_dashboard', match: ['command_dashboard'], icon: 'map', label: 'Mapa'},
+    {route: 'command_incident_list', match: ['command_incident_list', 'command_incident'], icon: 'hex', label: 'Incydenty'},
+    {route: 'command_alert_list', match: ['command_alert_list'], icon: 'bell', label: 'Komunikaty'},
+    {route: 'command_shelter_list', match: ['command_shelter_list'], icon: 'home', label: 'Schrony'},
+] %}
+{% if is_granted('ROLE_ADMIN') %}
+    {% set nav = nav|merge([
+        {route: 'command_audit_list', match: ['command_audit_list'], icon: 'book', label: 'Audyt'},
+        {route: 'command_operator_list', match: ['command_operator_list'], icon: 'users', label: 'Operatorzy'},
+    ]) %}
+{% endif %}
 {% block body %}
-<div class="min-h-full flex flex-col">
-    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-20">
-        <div class="max-w-screen-2xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-            <a href="{{ path('command_dashboard') }}" class="flex items-center gap-2 font-semibold tracking-tight">
-                <span>🛡️</span><span>Tarcza Command</span>
-                <span class="ml-2 text-[10px] uppercase tracking-widest text-sky-400 border border-sky-500/40 rounded px-1.5 py-0.5">live</span>
-            </a>
-            <nav class="flex items-center gap-4 text-sm text-slate-300">
-                <a href="{{ path('command_dashboard') }}" class="hover:text-white">Mapa</a>
-                <a href="/api/doc" target="_blank" class="hover:text-white">API</a>
-                <span class="text-slate-500">{{ app.user ? app.user.displayName : '' }}</span>
-                <a href="{{ path('command_logout') }}" class="hover:text-white">Wyloguj</a>
-            </nav>
+<div class="min-h-full flex">
+    <aside class="hidden lg:flex w-[232px] shrink-0 flex-col gap-6 px-4 py-5 sticky top-0 h-screen">
+        <a href="{{ path('command_dashboard') }}" class="flex items-center gap-3 px-2">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white shadow-card">{{ ui.icon('shield', 'w-5 h-5') }}</span>
+            <span class="leading-tight">
+                <span class="block font-bold text-[15px] tracking-tight">Tarcza Command</span>
+                <span class="flex items-center gap-1.5 text-xs text-neutral-500"><span class="h-1.5 w-1.5 rounded-full bg-ok animate-pulse"></span>System aktywny</span>
+            </span>
+        </a>
+        <nav class="flex flex-col gap-1">
+            {% for item in nav %}
+                {% set active = route in item.match %}
+                <a href="{{ path(item.route) }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {{ active ? 'bg-secondary text-white shadow-card' : 'text-neutral-700 hover:bg-surface' }}">
+                    {{ ui.icon(item.icon, 'w-5 h-5 ' ~ (active ? 'text-white' : 'text-neutral-500')) }}
+                    <span>{{ item.label }}</span>
+                </a>
+            {% endfor %}
+        </nav>
+        <div class="mt-auto card p-3 flex items-center gap-3">
+            <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">{{ app.user ? app.user.displayName|slice(0, 1)|upper : '?' }}</span>
+            <span class="min-w-0 leading-tight">
+                <span class="block truncate text-sm font-semibold">{{ app.user ? app.user.displayName : '' }}</span>
+                <span class="block truncate text-[11px] text-neutral-500">{{ is_granted('ROLE_ADMIN') ? 'Administrator' : (is_granted('ROLE_OPERATOR') ? 'Operator' : 'Analityk') }}</span>
+            </span>
+            <a href="{{ path('command_logout') }}" class="icon-btn ml-auto text-neutral-500 hover:bg-surface-2 hover:text-primary" title="Wyloguj">{{ ui.icon('logout', 'w-4 h-4') }}</a>
         </div>
-    </header>
-    {% for message in app.flashes('success') %}
-        <div class="bg-emerald-500/10 border-b border-emerald-500/40 text-emerald-200 text-sm px-4 py-2 text-center">{{ message }}</div>
-    {% endfor %}
-    <main class="flex-1">{% block main %}{% endblock %}</main>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+        <header class="lg:hidden sticky top-0 z-30 bg-canvas/90 backdrop-blur border-b border-neutral-200/60">
+            <div class="flex items-center justify-between px-4 h-14">
+                <a href="{{ path('command_dashboard') }}" class="flex items-center gap-2 font-bold"><span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white">{{ ui.icon('shield', 'w-4 h-4') }}</span>Tarcza Command</a>
+                <a href="{{ path('command_logout') }}" class="icon-btn bg-primary text-white">{{ ui.icon('user', 'w-4 h-4') }}</a>
+            </div>
+            <nav class="flex gap-1 overflow-x-auto px-3 pb-2">
+                {% for item in nav %}
+                    <a href="{{ path(item.route) }}" class="{{ route in item.match ? 'chip-on' : 'chip-off' }}">{{ ui.icon(item.icon, 'w-3.5 h-3.5') }}{{ item.label }}</a>
+                {% endfor %}
+            </nav>
+        </header>
+
+        <div id="flashes" class="fixed top-4 right-4 z-50 flex flex-col gap-2 w-[min(92vw,380px)] pointer-events-none">
+            {% for type, messages in app.flashes %}
+                {% for message in messages %}
+                    {% set tone = {'success': 'bg-secondary text-white', 'error': 'bg-primary text-white', 'info': 'bg-tertiary text-white'}[type]|default('bg-secondary text-white') %}
+                    <div class="flash pointer-events-auto flex items-start gap-3 rounded-2xl px-4 py-3 text-sm shadow-float {{ tone }}">
+                        {{ ui.icon(type == 'error' ? 'x' : (type == 'info' ? 'info' : 'check'), 'w-4 h-4 mt-0.5 shrink-0') }}
+                        <span class="flex-1">{{ message }}</span>
+                        <button type="button" onclick="this.parentElement.remove()" class="opacity-70 hover:opacity-100">{{ ui.icon('x', 'w-4 h-4') }}</button>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+        <script>setTimeout(() => document.querySelectorAll('#flashes .flash').forEach(f => f.remove()), 6000);</script>
+
+        <main class="flex-1 min-w-0 {% block main_class %}p-4 lg:p-5 lg:pl-1{% endblock %}">{% block main %}{% endblock %}</main>
+    </div>
 </div>
 {% endblock %}

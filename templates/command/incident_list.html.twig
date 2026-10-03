@@ -1,0 +1,61 @@
+{% extends 'command/_layout.html.twig' %}
+{% import 'command/_macros.html.twig' as ui %}
+{% block title %}Incydenty - Tarcza Command{% endblock %}
+{% block main %}
+<div class="flex flex-col gap-4">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <div class="eyebrow">Command Center</div>
+            <h1 class="text-2xl font-bold tracking-tight">Incydenty</h1>
+        </div>
+        <div class="flex gap-2">
+            {% for s in statuses %}
+                <a href="{{ path('command_incident_list', {status: s.value}) }}" class="{{ criteria.status == s ? 'chip-on' : 'chip-off' }}">{{ ui.status_badge(s.value)|striptags }} <span class="opacity-70">{{ counts[s.value]|default(0) }}</span></a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <form method="get" class="card p-3 flex flex-wrap items-center gap-2">
+        <span class="inline-flex items-center gap-2 text-xs font-semibold text-neutral-500 px-2">{{ ui.icon('filter', 'w-4 h-4') }}Filtry</span>
+        <select name="type" class="field !w-auto" onchange="this.form.submit()">
+            <option value="">Wszystkie typy</option>
+            {% for t in types %}<option value="{{ t.value }}" {{ criteria.type == t ? 'selected' }}>{{ t.label }}</option>{% endfor %}
+        </select>
+        <select name="level" class="field !w-auto" onchange="this.form.submit()">
+            <option value="">Każda wiarygodność</option>
+            {% for l in levels %}<option value="{{ l.value }}" {{ criteria.level == l ? 'selected' }}>{{ l.label }}</option>{% endfor %}
+        </select>
+        <select name="status" class="field !w-auto" onchange="this.form.submit()">
+            <option value="">Otwarte</option>
+            {% for s in statuses %}<option value="{{ s.value }}" {{ criteria.status == s ? 'selected' }}>{{ ui.status_badge(s.value)|striptags }}</option>{% endfor %}
+        </select>
+        <label class="chip-off cursor-pointer"><input type="checkbox" name="all" value="1" class="accent-primary" {{ criteria.includeResolved ? 'checked' }} onchange="this.form.submit()"> razem z zamkniętymi</label>
+        {% if not criteria.isEmpty %}<a href="{{ path('command_incident_list') }}" class="btn-ghost btn-sm ml-auto">{{ ui.icon('x', 'w-3.5 h-3.5') }}Wyczyść</a>{% endif %}
+    </form>
+
+    <section class="card overflow-hidden">
+        <table class="table">
+            <thead><tr><th>Typ</th><th>Status</th><th>Wiarygodność</th><th>Społeczność</th><th>Komórki H3</th><th>Źródła / AI</th><th>Aktywność</th><th></th></tr></thead>
+            <tbody>
+            {% for i in incidents %}
+                <tr class="cursor-pointer" onclick="window.location='{{ path('command_incident', {id: i.id}) }}'">
+                    <td><div class="font-semibold">{{ i.typeLabel }}</div><div class="text-[11px] text-neutral-500 font-mono">{{ i.centerCell }}</div></td>
+                    <td>{{ ui.status_badge(i.status) }}</td>
+                    <td class="min-w-[180px]">
+                        <div class="flex items-center justify-between text-xs mb-1"><span style="color: {{ ui.level_color(i.confidenceLevel) }}" class="font-semibold">{{ i.confidenceLabel }}</span><span class="tabular-nums font-semibold">{{ (i.confidenceScore * 100)|round }}%</span></div>
+                        <div class="h-1.5 w-full rounded-full bg-neutral-200/80 overflow-hidden"><div class="h-1.5 rounded-full" style="width: {{ (i.confidenceScore * 100)|round }}%; background: {{ ui.level_color(i.confidenceLevel) }}"></div></div>
+                    </td>
+                    <td class="text-xs text-neutral-700 whitespace-nowrap">{{ i.community.reports }} zgłoszeń · {{ i.community.answers }} odp.{% if i.community.agreementPct is not null %}<br>{{ i.community.agreementPct }}% zgodności{% endif %}</td>
+                    <td class="text-xs tabular-nums whitespace-nowrap">{{ i.cells.total }} <span class="text-primary">+{{ i.cells.positive }}</span> <span class="text-ok">−{{ i.cells.negative }}</span><br><span class="text-neutral-500">ring {{ i.currentRing }}</span></td>
+                    <td class="text-xs">{% if i.summary %}<span class="badge bg-tertiary-soft text-tertiary">AI</span>{% elseif i.researchedAt %}<span class="text-neutral-500">bez potwierdzeń</span>{% else %}<span class="text-neutral-400">—</span>{% endif %}</td>
+                    <td class="text-xs text-neutral-500 whitespace-nowrap">{{ ui.ago(i.lastActivityAt|date_modify('+0 seconds')) }}<br>start {{ i.startedAt|date('d.m H:i') }}</td>
+                    <td class="text-right">{{ ui.icon('chevron-right', 'w-4 h-4 text-neutral-400 inline') }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8">{{ ui.empty('Brak incydentów spełniających kryteria.', 'hex') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+{% endblock %}

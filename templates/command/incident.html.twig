@@ -1,132 +1,257 @@
 {% extends 'command/_layout.html.twig' %}
+{% import 'command/_macros.html.twig' as ui %}
 {% block title %}{{ detail.typeLabel }} - Tarcza Command{% endblock %}
 {% block main %}
-{% set levelColor = {'unverified': '#64748b', 'likely': '#f59e0b', 'high': '#f97316', 'confirmed': '#ef4444'} %}
-<div class="grid grid-cols-1 xl:grid-cols-[1fr_440px] h-[calc(100vh-3.5rem)]">
-    <div class="relative">
-        <div id="map" class="absolute inset-0"></div>
-        <div class="absolute top-4 left-4 bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl max-w-sm">
-            <div class="flex items-center gap-3">
-                <span class="text-lg font-semibold">{{ detail.typeLabel }}</span>
-                <span class="text-xs rounded-full px-2 py-0.5 border" style="border-color: {{ levelColor[detail.confidenceLevel] }}; color: {{ levelColor[detail.confidenceLevel] }}">{{ detail.confidenceLabel }}</span>
-            </div>
-            <div class="mt-2 flex items-end gap-2">
-                <span id="score" class="text-4xl font-bold" style="color: {{ levelColor[detail.confidenceLevel] }}">{{ (detail.confidenceScore * 100)|round }}%</span>
-                <span class="text-xs text-slate-400 mb-1">confidence</span>
-            </div>
-            <div class="mt-2 text-xs text-slate-400">{{ detail.status }} · ring {{ detail.currentRing }} · komórek {{ detail.cells.total }} (+{{ detail.cells.positive }} / −{{ detail.cells.negative }})</div>
-            <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-                <div class="bg-slate-800 rounded p-2"><div class="text-slate-400">zgłoszeń</div><div class="text-base font-semibold">{{ detail.community.reports }}</div></div>
-                <div class="bg-slate-800 rounded p-2"><div class="text-slate-400">TAK</div><div class="text-base font-semibold text-red-300">{{ detail.answers.yes }}</div></div>
-                <div class="bg-slate-800 rounded p-2"><div class="text-slate-400">NIE</div><div class="text-base font-semibold text-emerald-300">{{ detail.answers.no }}</div></div>
-            </div>
-            <div class="mt-3 flex gap-3 text-[11px] text-slate-400">
-                <span><i class="inline-block w-3 h-3 rounded-sm align-middle" style="background:#ef4444aa"></i> problem</span>
-                <span><i class="inline-block w-3 h-3 rounded-sm align-middle" style="background:#22c55eaa"></i> brak problemu</span>
-                <span><i class="inline-block w-3 h-3 rounded-sm align-middle" style="background:#64748b66"></i> pytamy</span>
-            </div>
+{% set id = incident.id.toRfc4122 %}
+{% set color = ui.level_color(detail.confidenceLevel) %}
+{% set open = detail.status != 'resolved' %}
+<div class="flex flex-col gap-4">
+    <div class="flex flex-wrap items-center gap-3">
+        <a href="{{ path('command_incident_list') }}" class="icon-btn bg-surface hover:bg-surface-2 text-neutral-700">{{ ui.icon('chevron-left', 'w-5 h-5') }}</a>
+        <div class="min-w-0">
+            <div class="eyebrow">Incydent · {{ id|slice(0, 8) }}</div>
+            <h1 class="text-2xl font-bold tracking-tight truncate">{{ detail.typeLabel }}</h1>
+        </div>
+        <div class="flex items-center gap-2 ml-auto">
+            {{ ui.status_badge(detail.status) }}
+            {{ ui.confidence_badge(detail.confidenceLevel, detail.confidenceLabel) }}
         </div>
     </div>
 
-    <aside class="border-l border-slate-800 bg-slate-900/60 overflow-y-auto p-5 space-y-6 text-sm">
-        {% if detail.summary %}
-            <section>
-                <h3 class="text-xs uppercase tracking-wide text-slate-400 mb-2">AI research</h3>
-                <p class="text-slate-200 leading-relaxed">{{ detail.summary }}</p>
+    <div class="grid grid-cols-1 xl:grid-cols-[1fr_440px] gap-4">
+        <div class="flex flex-col gap-4 min-w-0">
+            <section class="card relative overflow-hidden h-[460px] xl:h-[560px]">
+                <div id="map" class="absolute inset-0 rounded-2xl"></div>
+                <div class="absolute top-3 left-3 rounded-2xl bg-surface-3/95 shadow-card p-4 w-[280px]">
+                    <div class="eyebrow">Wskaźnik wiarygodności</div>
+                    <div class="mt-1 flex items-end justify-between">
+                        <span id="score" class="text-4xl font-bold tabular-nums" style="color: {{ color }}">{{ (detail.confidenceScore * 100)|round }}%</span>
+                        <span class="text-xs font-semibold" style="color: {{ color }}">{{ detail.confidenceLabel }}</span>
+                    </div>
+                    <div class="mt-2">{{ ui.bar(detail.confidenceScore, detail.confidenceLevel == 'confirmed' ? 'tertiary' : 'primary') }}</div>
+                    <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+                        <div class="card-lite p-2"><div class="text-[10px] uppercase tracking-wide text-neutral-500">zgłoszeń</div><div class="font-bold tabular-nums">{{ detail.community.reports }}</div></div>
+                        <div class="card-lite p-2"><div class="text-[10px] uppercase tracking-wide text-neutral-500">problem</div><div class="font-bold tabular-nums text-primary" id="ans-yes">{{ detail.answers.yes }}</div></div>
+                        <div class="card-lite p-2"><div class="text-[10px] uppercase tracking-wide text-neutral-500">brak</div><div class="font-bold tabular-nums text-ok" id="ans-no">{{ detail.answers.no }}</div></div>
+                    </div>
+                    <div class="mt-3 text-[11px] text-neutral-500">ring {{ detail.currentRing }} · komórek {{ detail.cells.total }} (+{{ detail.cells.positive }} / −{{ detail.cells.negative }}) · start {{ detail.startedAt|date('H:i d.m') }}</div>
+                </div>
+                <div class="absolute bottom-3 left-3 rounded-2xl bg-surface-3/95 shadow-card px-4 py-3 text-xs space-y-1.5">
+                    <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-sm bg-primary/70"></span>komórka z problemem</div>
+                    <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-sm bg-ok/70"></span>brak problemu</div>
+                    <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-sm bg-neutral-400/50"></span>pytamy / brak odpowiedzi</div>
+                    <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-warn"></span>zgłoszenie obywatela</div>
+                </div>
             </section>
-        {% endif %}
 
-        <section>
-            <h3 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Źródła zewnętrzne ({{ detail.sources|length }})</h3>
-            {% for s in detail.sources %}
-                <div class="border border-slate-800 rounded-lg p-3 mb-2">
-                    <a href="{{ s.url }}" target="_blank" rel="noopener" class="font-medium hover:underline">{{ s.title }}</a>
-                    <div class="text-xs text-slate-400 mt-1">{{ s.publisher ?? s.kind }} · wiarygodność {{ (s.credibility * 100)|round }}% · {{ s.foundBy }}</div>
-                    {% if s.excerpt %}<div class="text-xs text-slate-300 mt-1">{{ s.excerpt }}</div>{% endif %}
-                </div>
-            {% else %}
-                <div class="text-slate-500">Brak. {% if detail.researchedAt %}Research zakończony {{ detail.researchedAt|date('H:i') }} bez potwierdzeń.{% else %}Research uruchomi się po osiągnięciu poziomu „prawdopodobne”.{% endif %}</div>
-            {% endfor %}
-        </section>
-
-        <section>
-            <h3 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Jak policzono confidence</h3>
-            {% set c = detail.confidenceBreakdown.components ?? {} %}
-            <div class="space-y-1">
-                {% for name, value in c %}
-                    <div class="flex items-center gap-2"><span class="w-24 text-slate-400">{{ name }}</span>
-                        <div class="flex-1 h-2 bg-slate-800 rounded"><div class="h-2 rounded {{ value < 0 ? 'bg-emerald-500' : 'bg-sky-500' }}" style="width: {{ (value|abs * 100)|round }}%"></div></div>
-                        <span class="w-14 text-right tabular-nums">{{ value|number_format(2) }}</span></div>
-                {% endfor %}
-            </div>
-        </section>
-
-        <section>
-            <h3 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Fale weryfikacji ({{ waves|length }}) · wysłano {{ detail.verification.sent }}, odpowiedzi {{ detail.verification.answered }}</h3>
-            <ol class="space-y-1">
-                {% for w in waves %}
-                    <li class="flex justify-between text-xs"><span>ring {{ w.ring }} · {{ w.targetCells|length }} komórek · {{ w.requestsSent }} urządzeń</span><span class="text-slate-400">{{ w.startedAt|date('H:i:s') }} {{ w.closedAt ? '→ zamknięta' : '→ otwarta' }}</span></li>
-                {% endfor %}
-            </ol>
-        </section>
-
-        <section>
-            <h3 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Zgłoszenia ({{ detail.reports|length }})</h3>
-            <ul class="space-y-1 max-h-48 overflow-y-auto">
-                {% for r in detail.reports %}
-                    <li class="text-xs text-slate-300">{{ r.createdAt|date('H:i:s') }} · {{ r.h3Cell }}{% if r.simulated %} · <span class="text-slate-500">sim</span>{% endif %}{% if r.description %} · „{{ r.description }}”{% endif %}</li>
-                {% endfor %}
-            </ul>
-        </section>
-
-        {% if is_granted('ROLE_OPERATOR') %}
-        <section class="border-t border-slate-800 pt-5">
-            <h3 class="text-xs uppercase tracking-wide text-slate-400 mb-2">Wyślij komunikat do obszaru</h3>
-            {% if detail.area %}
-            <form method="post" action="{{ path('command_incident_alert', {id: incident.id}) }}" class="space-y-2">
-                <input type="hidden" name="_token" value="{{ csrf_token('alert' ~ incident.id) }}">
-                <input name="title" required maxlength="160" value="Potwierdzono: {{ detail.typeLabel|lower }} w Twojej okolicy" class="w-full rounded bg-slate-800 border border-slate-700 px-3 py-2">
-                <textarea name="body" required rows="3" class="w-full rounded bg-slate-800 border border-slate-700 px-3 py-2">Problem zgłasza {{ detail.community.agreementPct ?? '—' }}% odpowiadających użytkowników. Służby zostały poinformowane. Sprawdź najbliższy punkt pomocy w aplikacji.</textarea>
-                <div class="flex gap-2">
-                    <select name="severity" class="rounded bg-slate-800 border border-slate-700 px-2 py-2"><option value="info">info</option><option value="warning" selected>ostrzeżenie</option><option value="danger">zagrożenie</option></select>
-                    <input name="ttlMinutes" type="number" min="5" max="1440" value="180" class="w-24 rounded bg-slate-800 border border-slate-700 px-2 py-2">
-                    <button class="flex-1 rounded bg-sky-600 hover:bg-sky-500 px-3 py-2 font-medium">Wyślij</button>
-                </div>
-            </form>
-            {% else %}
-                <div class="text-slate-500">Obszar nie został jeszcze wyznaczony.</div>
+            {% if detail.summary %}
+                <section class="card p-5 flex gap-3">
+                    <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tertiary-soft text-tertiary">{{ ui.icon('sparkles', 'w-4 h-4') }}</span>
+                    <div>
+                        <div class="eyebrow">Research AI {% if detail.researchedAt %}· {{ detail.researchedAt|date('H:i d.m') }}{% endif %}</div>
+                        <p class="mt-1 text-sm leading-relaxed">{{ detail.summary }}</p>
+                    </div>
+                </section>
             {% endif %}
-        </section>
-        {% endif %}
-    </aside>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <section class="card p-5">
+                    <h3 class="font-bold mb-3">Jak policzono wskaźnik</h3>
+                    {% set c = detail.confidenceBreakdown.components ?? {} %}
+                    {% if c %}
+                        <div class="space-y-2.5 text-sm">
+                            {% for name, value in c %}
+                                <div class="flex items-center gap-3">
+                                    <span class="w-24 text-neutral-500 text-xs">{{ name }}</span>
+                                    <div class="flex-1">{{ ui.bar(value, value < 0 ? 'ok' : (name == 'external' ? 'tertiary' : 'secondary')) }}</div>
+                                    <span class="w-12 text-right tabular-nums text-xs font-semibold">{{ value|number_format(2) }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-sm text-neutral-500">Jeszcze nie przeliczono.</div>
+                    {% endif %}
+                </section>
+
+                <section class="card p-5">
+                    <h3 class="font-bold mb-3">Fale weryfikacji <span class="text-neutral-500 font-normal text-sm">· wysłano {{ detail.verification.sent }}, odpowiedzi {{ detail.verification.answered }}</span></h3>
+                    {% if waves %}
+                        <ol class="space-y-2 text-sm">
+                            {% for w in waves %}
+                                <li class="flex items-center gap-3">
+                                    <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold {{ w.open ? 'bg-tertiary text-white' : 'bg-secondary-soft text-secondary' }}">{{ w.ring }}</span>
+                                    <span class="flex-1 min-w-0 leading-snug">{{ w.targetCells|length }} komórek · {{ w.requestsSent }} urządzeń<span class="block text-[11px] text-neutral-500 tabular-nums">{{ w.startedAt|date('H:i:s') }} {{ w.open ? '· otwarta' : '· zamknięta' }}</span></span>
+                                    {% if w.open %}<span class="badge bg-tertiary-soft text-tertiary shrink-0">live</span>{% endif %}
+                                </li>
+                            {% endfor %}
+                        </ol>
+                    {% else %}
+                        <div class="text-sm text-neutral-500">Jeszcze nikogo nie pytano.</div>
+                    {% endif %}
+                </section>
+            </div>
+
+            <section class="card p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold">Zgłoszenia obywateli <span class="text-neutral-500 font-normal text-sm">({{ detail.reports|length }})</span></h3>
+                    <span class="text-[11px] text-neutral-500">surowe lokalizacje · widok audytowany</span>
+                </div>
+                <div class="max-h-64 overflow-y-auto -mx-2">
+                    <table class="table">
+                        <thead><tr><th>Czas</th><th>Komórka H3</th><th>Waga</th><th>Opis</th></tr></thead>
+                        <tbody>
+                        {% for r in detail.reports|reverse %}
+                            <tr>
+                                <td class="tabular-nums whitespace-nowrap">{{ r.createdAt|date('H:i:s') }}</td>
+                                <td class="font-mono text-xs">{{ r.h3Cell }}{% if r.simulated %} <span class="badge bg-neutral-200 text-neutral-500">sim</span>{% endif %}</td>
+                                <td class="tabular-nums">{{ r.weight }}</td>
+                                <td class="text-neutral-700">{{ r.description ?? '—' }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="4" class="text-neutral-500">Brak zgłoszeń.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <aside class="flex flex-col gap-4">
+            {% if is_granted('ROLE_OPERATOR') and open %}
+            <section class="card p-5">
+                <h3 class="font-bold mb-3">Akcje operatora</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <form method="post" action="{{ path('command_incident_research', {id: id}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('research' ~ id) }}">
+                        <button class="btn-tertiary w-full" {% if not research.available %}title="Brak klucza API dla {{ research.provider }}"{% endif %}>{{ ui.icon('sparkles', 'w-4 h-4') }}Research AI</button>
+                    </form>
+                    <form method="post" action="{{ path('command_incident_resolve', {id: id}) }}" onsubmit="return confirm('Zamknąć incydent? Obywatele przestaną go widzieć na mapie.')">
+                        <input type="hidden" name="_token" value="{{ csrf_token('resolve' ~ id) }}">
+                        <button class="btn-inverted w-full">{{ ui.icon('check', 'w-4 h-4') }}Zamknij</button>
+                    </form>
+                </div>
+                <p class="mt-2 text-[11px] text-neutral-500">Dostawca research: {{ research.provider }}{% if not research.available %} (brak klucza API){% endif %}.</p>
+            </section>
+
+            <section class="card p-5">
+                <h3 class="font-bold mb-1 flex items-center gap-2">{{ ui.icon('send', 'w-4 h-4 text-primary') }}Komunikat do obszaru</h3>
+                <p class="text-xs text-neutral-500 mb-3">Push do urządzeń wewnątrz aktualnego obszaru zdarzenia.</p>
+                {% if detail.area %}
+                <form method="post" action="{{ path('command_incident_alert', {id: id}) }}" class="space-y-3">
+                    <input type="hidden" name="_token" value="{{ csrf_token('alert' ~ id) }}">
+                    <label class="block"><span class="label">Tytuł</span><input name="title" required maxlength="160" value="Potwierdzono: {{ detail.typeLabel|lower }} w Twojej okolicy" class="field"></label>
+                    <label class="block"><span class="label">Treść</span><textarea name="body" required rows="3" class="field">Problem zgłasza {{ detail.community.agreementPct ?? '—' }}% odpowiadających użytkowników. Służby zostały poinformowane. Sprawdź najbliższy punkt pomocy w aplikacji.</textarea></label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="block"><span class="label">Waga</span>
+                            <select name="severity" class="field"><option value="info">Informacja</option><option value="warning" selected>Ostrzeżenie</option><option value="danger">Zagrożenie</option></select></label>
+                        <label class="block"><span class="label">Ważny (min)</span><input name="ttlMinutes" type="number" min="5" max="1440" value="180" class="field"></label>
+                    </div>
+                    <button class="btn-primary w-full">{{ ui.icon('send', 'w-4 h-4') }}Wyślij komunikat</button>
+                </form>
+                {% else %}
+                    <div class="card-lite p-4 text-sm text-neutral-500">Obszar nie został jeszcze wyznaczony – komunikat będzie dostępny po pierwszej fali weryfikacji.</div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            <section class="card p-5">
+                <h3 class="font-bold mb-3">Źródła zewnętrzne <span class="text-neutral-500 font-normal text-sm">({{ detail.sources|length }})</span></h3>
+                <div class="space-y-2">
+                    {% for s in detail.sources %}
+                        <div class="card-lite p-3">
+                            <div class="flex items-start justify-between gap-2">
+                                <a href="{{ s.url }}" target="_blank" rel="noopener" class="font-semibold text-sm leading-snug hover:underline">{{ s.title }}</a>
+                                <span class="badge shrink-0 {{ s.foundBy == 'ai' ? 'bg-tertiary-soft text-tertiary' : (s.foundBy == 'operator' ? 'bg-primary-soft text-primary' : 'bg-neutral-200 text-neutral-700') }}">{{ s.foundBy }}</span>
+                            </div>
+                            <div class="mt-1 text-[11px] text-neutral-500">{{ s.publisher ?? s.kind }} · wiarygodność {{ (s.credibility * 100)|round }}%</div>
+                            {% if s.excerpt %}<div class="mt-1.5 text-xs text-neutral-700 leading-relaxed">{{ s.excerpt }}</div>{% endif %}
+                        </div>
+                    {% else %}
+                        <div class="text-sm text-neutral-500">{% if detail.researchedAt %}Research zakończony {{ detail.researchedAt|date('H:i') }} bez potwierdzeń.{% else %}Brak. Research uruchomi się po osiągnięciu poziomu „prawdopodobne”.{% endif %}</div>
+                    {% endfor %}
+                </div>
+
+                {% if is_granted('ROLE_OPERATOR') and open %}
+                <details class="mt-4 group">
+                    <summary class="cursor-pointer list-none btn-outlined w-full">{{ ui.icon('plus', 'w-4 h-4') }}Dodaj źródło ręcznie</summary>
+                    <form method="post" action="{{ path('command_incident_add_source', {id: id}) }}" class="mt-3 space-y-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('source' ~ id) }}">
+                        <label class="block"><span class="label">URL</span><input name="url" type="url" required class="field" placeholder="https://..."></label>
+                        <label class="block"><span class="label">Tytuł</span><input name="title" required maxlength="255" class="field" placeholder="Komunikat PSP / operatora sieci"></label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="block"><span class="label">Rodzaj</span>
+                                <select name="kind" class="field">{% for k, l in sourceKinds %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></label>
+                            <label class="block"><span class="label">Wiarygodność</span><input name="credibility" type="number" step="0.05" min="0" max="1" value="0.9" class="field"></label>
+                        </div>
+                        <label class="block"><span class="label">Wydawca</span><input name="publisher" maxlength="255" class="field" placeholder="np. Enea Operator"></label>
+                        <label class="block"><span class="label">Fragment</span><textarea name="excerpt" rows="2" class="field"></textarea></label>
+                        <button class="btn-secondary w-full">Zapisz źródło</button>
+                    </form>
+                </details>
+                {% endif %}
+            </section>
+
+            <section class="card p-5">
+                <h3 class="font-bold mb-3">Oś czasu</h3>
+                <ol class="relative border-l border-neutral-200 ml-2 space-y-3 text-sm">
+                    {% set events = [{t: detail.startedAt, label: 'Wykryto klaster zgłoszeń', color: 'bg-secondary'}] %}
+                    {% for w in waves %}{% set events = events|merge([{t: w.startedAt|date(constant('DATE_ATOM')), label: 'Fala weryfikacji · ring ' ~ w.ring ~ ' · ' ~ w.requestsSent ~ ' urządzeń', color: 'bg-tertiary'}]) %}{% endfor %}
+                    {% for s in detail.sources %}{% set events = events|merge([{t: s.foundAt, label: 'Źródło: ' ~ s.title, color: 'bg-tertiary'}]) %}{% endfor %}
+                    {% if detail.researchedAt %}{% set events = events|merge([{t: detail.researchedAt, label: 'Research AI zakończony', color: 'bg-tertiary'}]) %}{% endif %}
+                    {% if detail.lastConfirmedAt %}{% set events = events|merge([{t: detail.lastConfirmedAt, label: 'Wysoka wiarygodność osiągnięta', color: 'bg-primary'}]) %}{% endif %}
+                    {% if incident.resolvedAt %}{% set events = events|merge([{t: incident.resolvedAt|date(constant('DATE_ATOM')), label: 'Incydent zamknięty', color: 'bg-ok'}]) %}{% endif %}
+                    {% for e in events|sort((a, b) => a.t <=> b.t) %}
+                        <li class="ml-4">
+                            <span class="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full {{ e.color }}"></span>
+                            <div class="text-[11px] text-neutral-500 tabular-nums">{{ e.t|date('d.m H:i:s') }}</div>
+                            <div class="leading-snug">{{ e.label }}</div>
+                        </li>
+                    {% endfor %}
+                </ol>
+            </section>
+
+            {% if auditEntries %}
+            <section class="card p-5">
+                <h3 class="font-bold mb-3">Audyt dostępu</h3>
+                <ul class="space-y-1.5 text-xs">
+                    {% for a in auditEntries %}
+                        <li class="flex items-center justify-between gap-2"><span class="truncate">{{ a.actor }} · {{ auditLabels[a.action]|default(a.action) }}</span><span class="text-neutral-500 tabular-nums shrink-0">{{ a.createdAt|date('d.m H:i') }}</span></li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+        </aside>
+    </div>
 </div>
+
 <script>
     const detail = {{ detail|json_encode|raw }};
-    const stateColor = {positive: '#ef4444', negative: '#22c55e', unknown: '#64748b'};
-    const map = new maplibregl.Map({container: 'map', style: 'https://tiles.openfreemap.org/styles/dark', center: detail.centroid.coordinates, zoom: 13.5});
-    map.addControl(new maplibregl.NavigationControl());
+    const stateColor = window.TARCZA.cellColor;
+    const map = window.TARCZA.autosize(new maplibregl.Map({container: 'map', style: window.TARCZA.mapStyle, center: detail.centroid.coordinates, zoom: 13.5, attributionControl: false}));
+    map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
+    map.addControl(new maplibregl.AttributionControl({compact: true}), 'bottom-right');
     function colorize(fc) { fc.features.forEach(f => f.properties.color = stateColor[f.properties.state]); return fc; }
     map.on('load', () => {
         map.addSource('cells', {type: 'geojson', data: colorize(detail.cellsGeoJson)});
-        map.addLayer({id: 'cells-fill', type: 'fill', source: 'cells', paint: {'fill-color': ['get', 'color'], 'fill-opacity': ['case', ['==', ['get', 'state'], 'unknown'], 0.25, 0.5]}});
-        map.addLayer({id: 'cells-line', type: 'line', source: 'cells', paint: {'line-color': ['get', 'color'], 'line-width': 1}});
+        map.addLayer({id: 'cells-fill', type: 'fill', source: 'cells', paint: {'fill-color': ['get', 'color'], 'fill-opacity': ['case', ['==', ['get', 'state'], 'unknown'], 0.18, 0.45]}});
+        map.addLayer({id: 'cells-line', type: 'line', source: 'cells', paint: {'line-color': ['get', 'color'], 'line-width': 1.2}});
         map.addSource('area', {type: 'geojson', data: {type: 'Feature', geometry: detail.area ?? detail.centroid, properties: {}}});
-        map.addLayer({id: 'area-line', type: 'line', source: 'area', filter: ['!=', '$type', 'Point'], paint: {'line-color': '#f8fafc', 'line-width': 2.5, 'line-dasharray': [2, 1]}});
+        map.addLayer({id: 'area-line', type: 'line', source: 'area', filter: ['!=', '$type', 'Point'], paint: {'line-color': '#14213D', 'line-width': 2.5, 'line-dasharray': [2, 1.5]}});
         map.addSource('reports', {type: 'geojson', data: {type: 'FeatureCollection', features: detail.reports.map(r => ({type: 'Feature', geometry: r.location, properties: {}}))}});
-        map.addLayer({id: 'reports', type: 'circle', source: 'reports', paint: {'circle-color': '#fbbf24', 'circle-radius': 4, 'circle-stroke-color': '#0f172a', 'circle-stroke-width': 1}});
+        map.addLayer({id: 'reports', type: 'circle', source: 'reports', paint: {'circle-color': '#D97706', 'circle-radius': 4, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
         map.on('click', 'cells-fill', e => {
             const p = e.features[0].properties;
-            new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<div style="color:#0f172a;font-size:12px"><b>${p.h3}</b><br>stan: ${p.state} · ring ${p.ring}<br>zgłoszeń ${p.reports} · TAK ${p.yes} · NIE ${p.no} · pytano ${p.asked}</div>`).addTo(map);
+            new maplibregl.Popup({closeButton: false}).setLngLat(e.lngLat).setHTML(`<b>${p.h3}</b><br>stan: ${p.state} · ring ${p.ring}<br>zgłoszeń ${p.reports} · problem ${p.yes} · brak ${p.no} · pytano ${p.asked}`).addTo(map);
         });
     });
-    const es = new EventSource({{ mercure('incidents/' ~ incident.id)|json_encode|raw }}, {withCredentials: true});
+    const es = new EventSource({{ mercure('incidents/' ~ id)|json_encode|raw }}, {withCredentials: true});
     es.onmessage = e => {
         const msg = JSON.parse(e.data);
         if (msg.event !== 'incident.updated') return;
         map.getSource('cells')?.setData(colorize(msg.cells));
         map.getSource('area')?.setData({type: 'Feature', geometry: msg.incident.area ?? detail.centroid, properties: {}});
         document.getElementById('score').textContent = Math.round(msg.incident.confidenceScore * 100) + '%';
-        if (['research_completed', 'external_source', 'wave_closed'].includes(msg.reason)) setTimeout(() => window.location.reload(), 800);
+        if (['research_completed', 'external_source', 'wave_closed', 'resolved'].includes(msg.reason)) setTimeout(() => window.location.reload(), 800);
     };
 </script>
 {% endblock %}

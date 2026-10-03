@@ -1,0 +1,70 @@
+{% extends 'command/_layout.html.twig' %}
+{% import 'command/_macros.html.twig' as ui %}
+{% block title %}Operatorzy - Tarcza Command{% endblock %}
+{% block main %}
+<div class="flex flex-col gap-4">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <div class="eyebrow">Identity</div>
+            <h1 class="text-2xl font-bold tracking-tight">Konta Command Center</h1>
+        </div>
+        {{ ui.stat('Kont', operators|length) }}
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-4">
+        <section class="flex flex-col gap-3">
+            {% for o in operators %}
+                {% set oid = o.id.toRfc4122 %}
+                <details class="card group">
+                    <summary class="list-none cursor-pointer p-4 flex items-center gap-4">
+                        <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white font-bold {{ 'ROLE_ADMIN' in o.roles ? 'bg-secondary' : ('ROLE_OPERATOR' in o.roles ? 'bg-primary' : 'bg-tertiary') }}">{{ o.displayName|slice(0, 1)|upper }}</span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block font-semibold">{{ o.displayName }}{% if app.user and o.email == app.user.email %} <span class="text-xs text-neutral-500 font-normal">(to Ty)</span>{% endif %}</span>
+                            <span class="block text-xs text-neutral-500 truncate">{{ o.email }}{% if o.organisation %} · {{ o.organisation }}{% endif %}</span>
+                        </span>
+                        <span class="hidden md:flex gap-1">{% for r in o.roles|filter(r => r != 'ROLE_ANALYST' or o.roles|length == 1) %}{{ ui.role_badge(r) }}{% endfor %}</span>
+                        <span class="text-xs text-neutral-500 whitespace-nowrap hidden lg:inline">od {{ o.createdAt|date('d.m.Y') }}</span>
+                        {{ ui.icon('chevron-right', 'w-4 h-4 text-neutral-400 transition group-open:rotate-90') }}
+                    </summary>
+                    <form method="post" action="{{ path('command_operator_update', {id: oid}) }}" class="border-t border-neutral-200/60 p-4 grid md:grid-cols-2 gap-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('operator' ~ oid) }}">
+                        <label class="block"><span class="label">Nazwa wyświetlana</span><input name="displayName" value="{{ o.displayName }}" required maxlength="120" class="field"></label>
+                        <label class="block"><span class="label">Organizacja</span><input name="organisation" value="{{ o.organisation }}" maxlength="120" class="field"></label>
+                        <div>
+                            <span class="label">Role</span>
+                            <div class="flex flex-wrap gap-2">
+                                {% for r in roles %}<label class="chip-off cursor-pointer has-[:checked]:bg-secondary has-[:checked]:text-white"><input type="checkbox" name="roles[]" value="{{ r }}" class="sr-only" {{ r in o.roles ? 'checked' }}>{{ ui.role_badge(r)|striptags }}</label>{% endfor %}
+                            </div>
+                        </div>
+                        <label class="block"><span class="label">Nowe hasło (puste = bez zmian)</span><input name="newPassword" type="password" minlength="8" autocomplete="new-password" class="field" placeholder="min. 8 znaków"></label>
+                        <div class="md:col-span-2 flex justify-end"><button class="btn-secondary">{{ ui.icon('check', 'w-4 h-4') }}Zapisz konto</button></div>
+                    </form>
+                </details>
+            {% else %}
+                {{ ui.empty('Brak kont. Uruchom <code>make seed</code>.', 'users') }}
+            {% endfor %}
+        </section>
+
+        <aside>
+            <section class="card p-5 sticky top-5">
+                <h3 class="font-bold mb-1 flex items-center gap-2">{{ ui.icon('plus', 'w-4 h-4 text-primary') }}Nowe konto</h3>
+                <p class="text-xs text-neutral-500 mb-3">Analityk: tylko odczyt. Operator: komunikaty, źródła, schrony. Administrator: konta i audyt.</p>
+                <form method="post" action="{{ path('command_operator_create') }}" class="space-y-3">
+                    <input type="hidden" name="_token" value="{{ csrf_token('operator_create') }}">
+                    <label class="block"><span class="label">E-mail</span><input name="email" type="email" required maxlength="180" class="field" placeholder="dyzurny@czk.gov.pl"></label>
+                    <label class="block"><span class="label">Nazwa wyświetlana</span><input name="displayName" required maxlength="120" class="field" placeholder="Operator dyżurny"></label>
+                    <label class="block"><span class="label">Organizacja</span><input name="organisation" maxlength="120" class="field" placeholder="CZK Poznań"></label>
+                    <label class="block"><span class="label">Hasło</span><input name="password" type="password" required minlength="8" autocomplete="new-password" class="field" placeholder="min. 8 znaków"></label>
+                    <div>
+                        <span class="label">Role</span>
+                        <div class="flex flex-wrap gap-2">
+                            {% for r in roles %}<label class="chip-off cursor-pointer has-[:checked]:bg-secondary has-[:checked]:text-white"><input type="checkbox" name="roles[]" value="{{ r }}" class="sr-only" {{ r == 'ROLE_ANALYST' ? 'checked' }}>{{ ui.role_badge(r)|striptags }}</label>{% endfor %}
+                        </div>
+                    </div>
+                    <button class="btn-primary w-full">{{ ui.icon('plus', 'w-4 h-4') }}Utwórz konto</button>
+                </form>
+            </section>
+        </aside>
+    </div>
+</div>
+{% endblock %}

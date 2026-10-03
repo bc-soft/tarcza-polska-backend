@@ -1,0 +1,69 @@
+{% extends 'command/_layout.html.twig' %}
+{% import 'command/_macros.html.twig' as ui %}
+{% block title %}Komunikaty - Tarcza Command{% endblock %}
+{% block main %}
+<div class="flex flex-col gap-4">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <div class="eyebrow">Alerting</div>
+            <h1 class="text-2xl font-bold tracking-tight">Komunikaty do obywateli</h1>
+        </div>
+        <div class="flex gap-3">
+            {{ ui.stat('Aktywne', activeCount) }}
+            {{ ui.stat('Wysłane łącznie', alerts|length) }}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-4">
+        <section class="card overflow-hidden">
+            <table class="table">
+                <thead><tr><th>Komunikat</th><th>Waga</th><th>Zasięg</th><th>Autor</th><th>Czas</th><th>Status</th></tr></thead>
+                <tbody>
+                {% for a in alerts %}
+                    <tr>
+                        <td class="max-w-md"><div class="font-semibold leading-snug">{{ a.title }}</div><div class="mt-1 text-xs text-neutral-700 line-clamp-2">{{ a.body }}</div></td>
+                        <td>{{ ui.severity_badge(a.severity) }}</td>
+                        <td class="text-xs whitespace-nowrap"><span class="font-semibold tabular-nums">{{ a.deliveredCount }}</span> urządzeń{% if a.incident %}<br><a href="{{ path('command_incident', {id: a.incident.id}) }}" class="text-tertiary hover:underline">{{ a.incident.type.label }}</a>{% endif %}</td>
+                        <td class="text-xs text-neutral-700">{{ a.createdBy }}</td>
+                        <td class="text-xs text-neutral-500 whitespace-nowrap tabular-nums">{{ a.createdAt|date('d.m H:i') }}<br>do {{ a.expiresAt|date('d.m H:i') }}</td>
+                        <td>{% if a.active %}<span class="badge bg-ok-soft text-ok">aktywny</span>{% else %}<span class="badge bg-neutral-200 text-neutral-500">wygasł</span>{% endif %}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="6">{{ ui.empty('Nie wysłano jeszcze żadnego komunikatu.', 'bell') }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <aside>
+            {% if is_granted('ROLE_OPERATOR') %}
+            <section class="card p-5 sticky top-5">
+                <h3 class="font-bold mb-1 flex items-center gap-2">{{ ui.icon('send', 'w-4 h-4 text-primary') }}Nowy komunikat</h3>
+                <p class="text-xs text-neutral-500 mb-3">Obszar = aktualny obszar wybranego incydentu. Push trafia do urządzeń widzianych w nim w ciągu 24 h.</p>
+                {% if targets %}
+                <form method="post" action="{{ path('command_alert_create') }}" class="space-y-3">
+                    <input type="hidden" name="_token" value="{{ csrf_token('alert_create') }}">
+                    <label class="block"><span class="label">Incydent</span>
+                        <select name="incidentId" required class="field">
+                            {% for t in targets %}<option value="{{ t.id }}">{{ t.typeLabel }} · {{ (t.confidenceScore * 100)|round }}% · {{ t.cells.positive }} komórek</option>{% endfor %}
+                        </select></label>
+                    <label class="block"><span class="label">Tytuł</span><input name="title" required maxlength="160" class="field" placeholder="Awaria w Twojej okolicy"></label>
+                    <label class="block"><span class="label">Treść</span><textarea name="body" required rows="4" class="field" placeholder="Co się dzieje, co robić, gdzie szukać pomocy."></textarea></label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="block"><span class="label">Waga</span>
+                            <select name="severity" class="field"><option value="info">Informacja</option><option value="warning" selected>Ostrzeżenie</option><option value="danger">Zagrożenie</option></select></label>
+                        <label class="block"><span class="label">Ważny (min)</span><input name="ttlMinutes" type="number" min="5" max="1440" value="180" class="field"></label>
+                    </div>
+                    <button class="btn-primary w-full">{{ ui.icon('send', 'w-4 h-4') }}Opublikuj</button>
+                </form>
+                {% else %}
+                    {{ ui.empty('Żaden otwarty incydent nie ma jeszcze wyznaczonego obszaru.', 'hex') }}
+                {% endif %}
+            </section>
+            {% else %}
+                {{ ui.empty('Publikacja komunikatów wymaga roli operatora.', 'info') }}
+            {% endif %}
+        </aside>
+    </div>
+</div>
+{% endblock %}

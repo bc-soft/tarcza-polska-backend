@@ -1,100 +1,185 @@
 {% extends 'command/_layout.html.twig' %}
+{% import 'command/_macros.html.twig' as ui %}
 {% block title %}Mapa sytuacyjna - Tarcza Command{% endblock %}
 {% block main %}
-{% set levelColor = {'unverified': '#64748b', 'likely': '#f59e0b', 'high': '#f97316', 'confirmed': '#ef4444'} %}
-<div class="grid grid-cols-1 lg:grid-cols-[380px_1fr] h-[calc(100vh-3.5rem)]">
-    <aside class="border-r border-slate-800 bg-slate-900/60 overflow-y-auto">
-        <div class="grid grid-cols-3 gap-px bg-slate-800 border-b border-slate-800">
-            <div class="bg-slate-900 p-3"><div class="text-[11px] uppercase tracking-wide text-slate-400">Urządzenia 24h</div><div class="text-xl font-semibold" id="stat-devices">{{ stats.activeDevices24h }}</div></div>
-            <div class="bg-slate-900 p-3"><div class="text-[11px] uppercase tracking-wide text-slate-400">Zgłoszenia 1h</div><div class="text-xl font-semibold" id="stat-reports">{{ stats.reportsLastHour }}</div></div>
-            <div class="bg-slate-900 p-3"><div class="text-[11px] uppercase tracking-wide text-slate-400">Otwarte</div><div class="text-xl font-semibold" id="stat-open">{{ stats.openIncidents }}</div></div>
+<div class="flex flex-col gap-4 h-full">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <div class="eyebrow">Command Center</div>
+            <h1 class="text-2xl font-bold tracking-tight">Mapa sytuacyjna</h1>
         </div>
-        <div class="px-4 pt-4 pb-2 text-xs uppercase tracking-wide text-slate-400">Incydenty</div>
-        <ul id="incident-list" class="divide-y divide-slate-800">
-            {% for i in incidents %}
-                <li data-incident-id="{{ i.id }}" class="p-4 hover:bg-slate-800/60 cursor-pointer">
-                    <a href="{{ path('command_incident', {id: i.id}) }}" class="block">
-                        <div class="flex items-center justify-between gap-2">
-                            <span class="font-medium">{{ i.typeLabel }}</span>
-                            <span class="text-xs rounded-full px-2 py-0.5 border" style="border-color: {{ levelColor[i.confidenceLevel] }}; color: {{ levelColor[i.confidenceLevel] }}">{{ i.confidenceLabel }} · {{ (i.confidenceScore * 100)|round }}%</span>
-                        </div>
-                        <div class="text-xs text-slate-400 mt-1">{{ i.status }} · zgłoszeń {{ i.community.reports }} · odpowiedzi {{ i.community.answers }}{% if i.community.agreementPct is not null %} · zgodność {{ i.community.agreementPct }}%{% endif %}</div>
-                    </a>
-                </li>
-            {% else %}
-                <li class="p-4 text-sm text-slate-500">Brak otwartych incydentów. Uruchom <code>make simulate</code>, aby zobaczyć scenariusz demo.</li>
-            {% endfor %}
-        </ul>
-        <div class="px-4 pt-6 pb-2 text-xs uppercase tracking-wide text-slate-400">Ostatnie komunikaty</div>
-        <ul class="divide-y divide-slate-800 text-sm">
-            {% for a in alerts %}
-                <li class="p-4"><div class="font-medium">{{ a.title }}</div><div class="text-xs text-slate-400">{{ a.createdAt|date('H:i d.m') }} · {{ a.createdBy }} · dostarczono do {{ a.deliveredCount }}</div></li>
-            {% else %}
-                <li class="p-4 text-slate-500">Brak komunikatów.</li>
-            {% endfor %}
-        </ul>
-    </aside>
-    <div id="map" class="h-full w-full"></div>
+        <div class="flex items-center gap-2 text-xs text-neutral-500">
+            <span id="live-dot" class="h-2 w-2 rounded-full bg-warn animate-pulse"></span><span id="live-label">Łączenie z Mercure…</span>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        {{ ui.stat('Otwarte incydenty', stats.openIncidents, 'stat-open') }}
+        {{ ui.stat('Zgłoszenia / 1h', stats.reportsLastHour, 'stat-reports') }}
+        {{ ui.stat('Urządzenia / 24h', stats.activeDevices24h, 'stat-devices') }}
+        {{ ui.stat('Aktywne komunikaty', stats.activeAlerts, 'stat-alerts') }}
+        {{ ui.stat('Schrony otwarte', stats.sheltersOpen ~ ' / ' ~ stats.sheltersTotal, 'stat-shelters') }}
+        <div class="stat">
+            <div class="eyebrow">Siatka analityczna</div>
+            <div class="stat-value">H3 · 9</div>
+            <div class="text-xs text-neutral-500">~100 m / komórka</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-4 flex-1 min-h-[560px]">
+        <aside class="flex flex-col gap-3 min-h-0">
+            <div class="flex items-center gap-2 overflow-x-auto pb-1" id="type-filters">
+                <button type="button" data-type="" class="chip-on">Wszystkie (<span id="count-all">{{ incidents|length }}</span>)</button>
+                {% for value, label in {'power_outage': 'Prąd', 'water_outage': 'Woda', 'fuel_shortage': 'Paliwo', 'road_blocked': 'Drogi', 'shelter_issue': 'Schrony', 'other_threat': 'Inne'} %}
+                    <button type="button" data-type="{{ value }}" class="chip-off">{{ label }}</button>
+                {% endfor %}
+            </div>
+            <div class="card flex-1 min-h-0 overflow-y-auto p-2" id="incident-list"></div>
+            <a href="{{ path('command_incident_list') }}" class="btn-secondary w-full">Pełna lista incydentów {{ ui.icon('chevron-right', 'w-4 h-4') }}</a>
+        </aside>
+
+        <section class="card relative overflow-hidden min-h-[520px]">
+            <div id="map" class="absolute inset-0 rounded-2xl"></div>
+            <div class="absolute top-3 left-3 right-3 flex flex-wrap items-center gap-2 pointer-events-none">
+                <div class="flex items-center gap-1 rounded-full bg-surface-3/95 shadow-card p-1 pointer-events-auto" id="layer-toggles">
+                    <button type="button" data-layer="incidents" class="chip-on">{{ ui.icon('hex', 'w-3.5 h-3.5') }}Incydenty</button>
+                    <button type="button" data-layer="shelters" class="chip-on">{{ ui.icon('home', 'w-3.5 h-3.5') }}Schrony</button>
+                    <button type="button" data-layer="alerts" class="chip-off">{{ ui.icon('bell', 'w-3.5 h-3.5') }}Komunikaty</button>
+                </div>
+                <div class="ml-auto hidden md:flex items-center gap-2 rounded-full bg-surface-3/95 shadow-card px-3 py-2 text-[11px] font-semibold text-neutral-700 pointer-events-auto">
+                    {{ ui.icon('hex', 'w-3.5 h-3.5 text-tertiary') }} Siatka analityczna H3 · Res 9 (~100 m)
+                </div>
+            </div>
+            <div class="absolute bottom-3 left-3 rounded-2xl bg-surface-3/95 shadow-card px-4 py-3 text-xs space-y-1.5">
+                <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-sm" style="background:#1B4DB1"></span>Potwierdzone (służby / źródła)</div>
+                <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-sm" style="background:#EA580C"></span>Wysoka pewność (weryfikacja H3)</div>
+                <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-sm" style="background:#F59E0B"></span>Prawdopodobne (zgłoszenia)</div>
+                <div class="flex items-center gap-2"><span class="h-3 w-3 rounded-sm" style="background:#8A93A8"></span>Niezweryfikowane</div>
+            </div>
+        </section>
+    </div>
+
+    <section class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-bold">Ostatnie komunikaty</h2>
+            <a href="{{ path('command_alert_list') }}" class="text-sm font-semibold text-tertiary hover:underline">Wszystkie</a>
+        </div>
+        {% if alerts %}
+            <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {% for a in alerts %}
+                    <div class="card-lite p-4">
+                        <div class="flex items-center justify-between gap-2">{{ ui.severity_badge(a.severity) }}<span class="text-[11px] text-neutral-500">{{ ui.ago(a.createdAt) }}</span></div>
+                        <div class="mt-2 font-semibold leading-snug">{{ a.title }}</div>
+                        <div class="mt-1 text-xs text-neutral-500">{{ a.createdBy }} · dostarczono do {{ a.deliveredCount }} urządzeń{% if not a.active %} · wygasł{% endif %}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            {{ ui.empty('Brak komunikatów. Wyślij pierwszy z poziomu incydentu lub zakładki <b>Komunikaty</b>.', 'bell') }}
+        {% endif %}
+    </section>
 </div>
+
 <script>
     const incidents = {{ incidents|json_encode|raw }};
-    const levelColor = {{ levelColor|json_encode|raw }};
-    const map = new maplibregl.Map({
-        container: 'map',
-        style: 'https://tiles.openfreemap.org/styles/dark',
-        center: [16.93, 52.41], zoom: 11.5,
-    });
-    map.addControl(new maplibregl.NavigationControl());
+    const shelterFeatures = {{ shelterFeatures|json_encode|raw }};
+    const alertFeatures = {{ alertFeatures|json_encode|raw }};
+    const {levelColor, severityColor} = window.TARCZA;
+    const levelLabel = {unverified: 'Niezweryfikowane', likely: 'Prawdopodobne', high: 'Wysoka pewność', confirmed: 'Potwierdzone'};
+    const statusLabel = {detected: 'Wykryty', verifying: 'Weryfikacja', active: 'Aktywny', resolved: 'Zamknięty'};
+    const byId = new Map(incidents.map(i => [i.id, i]));
+    let typeFilter = '';
 
-    function toCollection(items) {
-        return {type: 'FeatureCollection', features: items.map(i => ({
-            type: 'Feature', id: i.id,
-            geometry: i.area ?? i.centroid,
-            properties: {id: i.id, label: i.typeLabel, level: i.confidenceLevel, score: i.confidenceScore, color: levelColor[i.confidenceLevel]},
-        }))};
+    const map = window.TARCZA.autosize(new maplibregl.Map({container: 'map', style: window.TARCZA.mapStyle, center: [16.93, 52.41], zoom: 11.5, attributionControl: false}));
+    map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
+    map.addControl(new maplibregl.AttributionControl({compact: true}), 'bottom-right');
+
+    const visible = () => [...byId.values()].filter(i => !typeFilter || i.type === typeFilter);
+    const toCollection = items => ({type: 'FeatureCollection', features: items.map(i => ({
+        type: 'Feature', id: i.id, geometry: i.area ?? i.centroid,
+        properties: {id: i.id, label: i.typeLabel, level: i.confidenceLevel, score: i.confidenceScore, color: levelColor[i.confidenceLevel]},
+    }))});
+    const pct = i => Math.round(i.confidenceScore * 100);
+
+    function renderList() {
+        const items = visible().sort((a, b) => b.confidenceScore - a.confidenceScore);
+        document.getElementById('count-all').textContent = byId.size;
+        document.getElementById('stat-open').textContent = byId.size;
+        document.getElementById('incident-list').innerHTML = items.map(i => `
+            <a href="/command/incidents/${i.id}" class="block rounded-xl p-3.5 hover:bg-surface-2 transition" data-incident="${i.id}">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <div class="font-semibold leading-snug truncate">${i.typeLabel}</div>
+                        <div class="text-[11px] text-neutral-500 mt-0.5">${statusLabel[i.status] ?? i.status} · komórka ${i.centerCell} · ring ${i.currentRing}</div>
+                    </div>
+                    <span class="badge shrink-0" style="background:${levelColor[i.confidenceLevel]}1f;color:${levelColor[i.confidenceLevel]}">${pct(i)}%</span>
+                </div>
+                <div class="mt-2.5 h-1.5 w-full rounded-full bg-neutral-200/80 overflow-hidden"><div class="h-1.5 rounded-full" style="width:${pct(i)}%;background:${levelColor[i.confidenceLevel]}"></div></div>
+                <div class="mt-2 flex items-center justify-between text-[11px] text-neutral-500">
+                    <span>${levelLabel[i.confidenceLevel]}</span>
+                    <span>${i.community.reports} zgłoszeń · ${i.community.answers} odp.${i.community.agreementPct !== null ? ' · ' + i.community.agreementPct + '% zgodności' : ''}</span>
+                </div>
+            </a>`).join('') || `<div class="p-6 text-center text-sm text-neutral-500">Brak otwartych incydentów.<br><span class="text-xs">Uruchom <code>make simulate</code>, aby zobaczyć scenariusz demo.</span></div>`;
     }
 
     map.on('load', () => {
-        map.addSource('incidents', {type: 'geojson', data: toCollection(incidents), promoteId: 'id'});
-        map.addLayer({id: 'incident-fill', type: 'fill', source: 'incidents', filter: ['!=', '$type', 'Point'],
-            paint: {'fill-color': ['get', 'color'], 'fill-opacity': 0.35}});
-        map.addLayer({id: 'incident-line', type: 'line', source: 'incidents', filter: ['!=', '$type', 'Point'],
-            paint: {'line-color': ['get', 'color'], 'line-width': 2}});
-        map.addLayer({id: 'incident-point', type: 'circle', source: 'incidents', filter: ['==', '$type', 'Point'],
-            paint: {'circle-color': ['get', 'color'], 'circle-radius': 8, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
-        ['incident-fill', 'incident-point'].forEach(layer => map.on('click', layer, e => {
+        map.addSource('incidents', {type: 'geojson', data: toCollection(visible()), promoteId: 'id'});
+        map.addLayer({id: 'incident-fill', type: 'fill', source: 'incidents', filter: ['!=', '$type', 'Point'], paint: {'fill-color': ['get', 'color'], 'fill-opacity': 0.28}});
+        map.addLayer({id: 'incident-line', type: 'line', source: 'incidents', filter: ['!=', '$type', 'Point'], paint: {'line-color': ['get', 'color'], 'line-width': 2.5}});
+        map.addLayer({id: 'incident-point', type: 'circle', source: 'incidents', filter: ['==', '$type', 'Point'], paint: {'circle-color': ['get', 'color'], 'circle-radius': 9, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2}});
+
+        map.addSource('shelters', {type: 'geojson', data: {type: 'FeatureCollection', features: shelterFeatures}});
+        map.addLayer({id: 'shelter-point', type: 'circle', source: 'shelters', paint: {
+            'circle-color': ['match', ['get', 'status'], 'open', '#15803D', 'closed', '#D4213D', 'full', '#D97706', '#8A93A8'],
+            'circle-radius': 6, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2}});
+
+        map.addSource('alerts', {type: 'geojson', data: {type: 'FeatureCollection', features: alertFeatures}});
+        map.addLayer({id: 'alert-fill', type: 'fill', source: 'alerts', layout: {visibility: 'none'}, paint: {'fill-color': ['match', ['get', 'severity'], 'danger', severityColor.danger, 'warning', severityColor.warning, severityColor.info], 'fill-opacity': 0.12}});
+        map.addLayer({id: 'alert-line', type: 'line', source: 'alerts', layout: {visibility: 'none'}, paint: {'line-color': ['match', ['get', 'severity'], 'danger', severityColor.danger, 'warning', severityColor.warning, severityColor.info], 'line-width': 2, 'line-dasharray': [3, 2]}});
+
+        ['incident-fill', 'incident-point'].forEach(layer => {
+            map.on('click', layer, e => window.location = `/command/incidents/${e.features[0].properties.id}`);
+            map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
+            map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
+        });
+        map.on('click', 'shelter-point', e => {
             const p = e.features[0].properties;
-            window.location = `/command/incidents/${p.id}`;
-        }));
+            new maplibregl.Popup({closeButton: false}).setLngLat(e.lngLat).setHTML(`<b>${p.name}</b><br>${p.address ?? ''}<br>${p.statusLabel} · pojemność ${p.capacity ?? '—'}`).addTo(map);
+        });
+
         const first = incidents.find(i => i.area);
         if (first) {
             const coords = first.area.coordinates.flat(2);
-            const b = coords.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
-            map.fitBounds(b, {padding: 80, maxZoom: 14});
+            map.fitBounds(coords.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0])), {padding: 80, maxZoom: 14});
         }
     });
 
+    function refreshMap() { map.getSource('incidents')?.setData(toCollection(visible())); }
+    renderList();
+
+    document.getElementById('type-filters').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-type]'); if (!btn) return;
+        typeFilter = btn.dataset.type;
+        document.querySelectorAll('#type-filters button').forEach(b => b.className = b === btn ? 'chip-on' : 'chip-off');
+        renderList(); refreshMap();
+    });
+    const layerIds = {incidents: ['incident-fill', 'incident-line', 'incident-point'], shelters: ['shelter-point'], alerts: ['alert-fill', 'alert-line']};
+    document.getElementById('layer-toggles').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-layer]'); if (!btn) return;
+        const on = btn.classList.contains('chip-off');
+        btn.className = on ? 'chip-on' : 'chip-off';
+        layerIds[btn.dataset.layer].forEach(id => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
+    });
+
     // Live updates (Mercure, topic "incidents")
-    const byId = new Map(incidents.map(i => [i.id, i]));
     const es = new EventSource({{ mercure('incidents')|json_encode|raw }}, {withCredentials: true});
+    window.TARCZA.liveStatus(es, document.getElementById('live-dot'), document.getElementById('live-label'));
     es.onmessage = e => {
         const msg = JSON.parse(e.data);
         if (msg.event !== 'incident.updated') return;
         const i = msg.incident;
         if (i.status === 'resolved') byId.delete(i.id); else byId.set(i.id, i);
-        const items = [...byId.values()];
-        map.getSource('incidents')?.setData(toCollection(items));
-        document.getElementById('stat-open').textContent = items.length;
-        renderList(items);
+        renderList(); refreshMap();
     };
-    function renderList(items) {
-        const ul = document.getElementById('incident-list');
-        ul.innerHTML = items.sort((a, b) => b.confidenceScore - a.confidenceScore).map(i => `
-            <li class="p-4 hover:bg-slate-800/60"><a href="/command/incidents/${i.id}" class="block">
-              <div class="flex items-center justify-between gap-2"><span class="font-medium">${i.typeLabel}</span>
-              <span class="text-xs rounded-full px-2 py-0.5 border" style="border-color:${levelColor[i.confidenceLevel]};color:${levelColor[i.confidenceLevel]}">${i.confidenceLabel} · ${Math.round(i.confidenceScore * 100)}%</span></div>
-              <div class="text-xs text-slate-400 mt-1">${i.status} · zgłoszeń ${i.community.reports} · odpowiedzi ${i.community.answers}${i.community.agreementPct !== null ? ' · zgodność ' + i.community.agreementPct + '%' : ''}</div>
-            </a></li>`).join('') || '<li class="p-4 text-sm text-slate-500">Brak otwartych incydentów.</li>';
-    }
 </script>
 {% endblock %}
