@@ -6,13 +6,14 @@ namespace App\Shelter\Entity;
 
 use App\Identity\Entity\Device;
 use App\Shelter\Enum\ShelterStatus;
+use App\Shelter\Repository\ShelterStatusReportRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 
 /** Audit trail of citizen confirmations; the aggregate status lives on Shelter. */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ShelterStatusReportRepository::class)]
 #[ORM\Table(name: 'shelter_status_report')]
 #[ORM\Index(columns: ['shelter_id', 'created_at'], name: 'idx_ssr_shelter_created')]
 class ShelterStatusReport

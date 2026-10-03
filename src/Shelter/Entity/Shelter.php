@@ -108,6 +108,23 @@ class Shelter
         return $this->source;
     }
 
+    public function rename(string $name): void
+    {
+        $this->name = $name;
+    }
+
+    public function relocate(Point $location): void
+    {
+        $this->location = $location;
+    }
+
+    /** Operator decision: sets the status without counting it as a citizen confirmation. */
+    public function overrideStatus(ShelterStatus $status): void
+    {
+        $this->status = $status;
+        $this->lastConfirmedAt = new DateTimeImmutable();
+    }
+
     public function confirmStatus(ShelterStatus $status): void
     {
         $this->status = $status;
