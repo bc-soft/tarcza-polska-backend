@@ -1,0 +1,100 @@
+{% extends 'command/_layout.html.twig' %}
+{% block title %}Mapa sytuacyjna - Tarcza Command{% endblock %}
+{% block main %}
+{% set levelColor = {'unverified': '#64748b', 'likely': '#f59e0b', 'high': '#f97316', 'confirmed': '#ef4444'} %}
+<div class="grid grid-cols-1 lg:grid-cols-[380px_1fr] h-[calc(100vh-3.5rem)]">
+    <aside class="border-r border-slate-800 bg-slate-900/60 overflow-y-auto">
+        <div class="grid grid-cols-3 gap-px bg-slate-800 border-b border-slate-800">
+            <div class="bg-slate-900 p-3"><div class="text-[11px] uppercase tracking-wide text-slate-400">Urządzenia 24h</div><div class="text-xl font-semibold" id="stat-devices">{{ stats.activeDevices24h }}</div></div>
+            <div class="bg-slate-900 p-3"><div class="text-[11px] uppercase tracking-wide text-slate-400">Zgłoszenia 1h</div><div class="text-xl font-semibold" id="stat-reports">{{ stats.reportsLastHour }}</div></div>
+            <div class="bg-slate-900 p-3"><div class="text-[11px] uppercase tracking-wide text-slate-400">Otwarte</div><div class="text-xl font-semibold" id="stat-open">{{ stats.openIncidents }}</div></div>
+        </div>
+        <div class="px-4 pt-4 pb-2 text-xs uppercase tracking-wide text-slate-400">Incydenty</div>
+        <ul id="incident-list" class="divide-y divide-slate-800">
+            {% for i in incidents %}
+                <li data-incident-id="{{ i.id }}" class="p-4 hover:bg-slate-800/60 cursor-pointer">
+                    <a href="{{ path('command_incident', {id: i.id}) }}" class="block">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-medium">{{ i.typeLabel }}</span>
+                            <span class="text-xs rounded-full px-2 py-0.5 border" style="border-color: {{ levelColor[i.confidenceLevel] }}; color: {{ levelColor[i.confidenceLevel] }}">{{ i.confidenceLabel }} · {{ (i.confidenceScore * 100)|round }}%</span>
+                        </div>
+                        <div class="text-xs text-slate-400 mt-1">{{ i.status }} · zgłoszeń {{ i.community.reports }} · odpowiedzi {{ i.community.answers }}{% if i.community.agreementPct is not null %} · zgodność {{ i.community.agreementPct }}%{% endif %}</div>
+                    </a>
+                </li>
+            {% else %}
+                <li class="p-4 text-sm text-slate-500">Brak otwartych incydentów. Uruchom <code>make simulate</code>, aby zobaczyć scenariusz demo.</li>
+            {% endfor %}
+        </ul>
+        <div class="px-4 pt-6 pb-2 text-xs uppercase tracking-wide text-slate-400">Ostatnie komunikaty</div>
+        <ul class="divide-y divide-slate-800 text-sm">
+            {% for a in alerts %}
+                <li class="p-4"><div class="font-medium">{{ a.title }}</div><div class="text-xs text-slate-400">{{ a.createdAt|date('H:i d.m') }} · {{ a.createdBy }} · dostarczono do {{ a.deliveredCount }}</div></li>
+            {% else %}
+                <li class="p-4 text-slate-500">Brak komunikatów.</li>
+            {% endfor %}
+        </ul>
+    </aside>
+    <div id="map" class="h-full w-full"></div>
+</div>
+<script>
+    const incidents = {{ incidents|json_encode|raw }};
+    const levelColor = {{ levelColor|json_encode|raw }};
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://tiles.openfreemap.org/styles/dark',
+        center: [16.93, 52.41], zoom: 11.5,
+    });
+    map.addControl(new maplibregl.NavigationControl());
+
+    function toCollection(items) {
+        return {type: 'FeatureCollection', features: items.map(i => ({
+            type: 'Feature', id: i.id,
+            geometry: i.area ?? i.centroid,
+            properties: {id: i.id, label: i.typeLabel, level: i.confidenceLevel, score: i.confidenceScore, color: levelColor[i.confidenceLevel]},
+        }))};
+    }
+
+    map.on('load', () => {
+        map.addSource('incidents', {type: 'geojson', data: toCollection(incidents), promoteId: 'id'});
+        map.addLayer({id: 'incident-fill', type: 'fill', source: 'incidents', filter: ['!=', '$type', 'Point'],
+            paint: {'fill-color': ['get', 'color'], 'fill-opacity': 0.35}});
+        map.addLayer({id: 'incident-line', type: 'line', source: 'incidents', filter: ['!=', '$type', 'Point'],
+            paint: {'line-color': ['get', 'color'], 'line-width': 2}});
+        map.addLayer({id: 'incident-point', type: 'circle', source: 'incidents', filter: ['==', '$type', 'Point'],
+            paint: {'circle-color': ['get', 'color'], 'circle-radius': 8, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
+        ['incident-fill', 'incident-point'].forEach(layer => map.on('click', layer, e => {
+            const p = e.features[0].properties;
+            window.location = `/command/incidents/${p.id}`;
+        }));
+        const first = incidents.find(i => i.area);
+        if (first) {
+            const coords = first.area.coordinates.flat(2);
+            const b = coords.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
+            map.fitBounds(b, {padding: 80, maxZoom: 14});
+        }
+    });
+
+    // Live updates (Mercure, topic "incidents")
+    const byId = new Map(incidents.map(i => [i.id, i]));
+    const es = new EventSource({{ mercure('incidents')|json_encode|raw }}, {withCredentials: true});
+    es.onmessage = e => {
+        const msg = JSON.parse(e.data);
+        if (msg.event !== 'incident.updated') return;
+        const i = msg.incident;
+        if (i.status === 'resolved') byId.delete(i.id); else byId.set(i.id, i);
+        const items = [...byId.values()];
+        map.getSource('incidents')?.setData(toCollection(items));
+        document.getElementById('stat-open').textContent = items.length;
+        renderList(items);
+    };
+    function renderList(items) {
+        const ul = document.getElementById('incident-list');
+        ul.innerHTML = items.sort((a, b) => b.confidenceScore - a.confidenceScore).map(i => `
+            <li class="p-4 hover:bg-slate-800/60"><a href="/command/incidents/${i.id}" class="block">
+              <div class="flex items-center justify-between gap-2"><span class="font-medium">${i.typeLabel}</span>
+              <span class="text-xs rounded-full px-2 py-0.5 border" style="border-color:${levelColor[i.confidenceLevel]};color:${levelColor[i.confidenceLevel]}">${i.confidenceLabel} · ${Math.round(i.confidenceScore * 100)}%</span></div>
+              <div class="text-xs text-slate-400 mt-1">${i.status} · zgłoszeń ${i.community.reports} · odpowiedzi ${i.community.answers}${i.community.agreementPct !== null ? ' · zgodność ' + i.community.agreementPct + '%' : ''}</div>
+            </a></li>`).join('') || '<li class="p-4 text-sm text-slate-500">Brak otwartych incydentów.</li>';
+    }
+</script>
+{% endblock %}

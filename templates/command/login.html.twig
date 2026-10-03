@@ -1,0 +1,28 @@
+{% extends 'base.html.twig' %}
+{% block title %}Logowanie - Tarcza Command{% endblock %}
+{% block body %}
+<div class="min-h-full flex items-center justify-center p-6">
+    <form method="post" class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-5 shadow-xl">
+        <div>
+            <div class="text-2xl font-semibold tracking-tight">🛡️ Tarcza Command</div>
+            <div class="text-slate-400 text-sm mt-1">Panel centrum zarządzania kryzysowego</div>
+        </div>
+        {% if error %}
+            <div class="rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 text-sm px-3 py-2">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+        {% endif %}
+        <label class="block space-y-1">
+            <span class="text-xs uppercase tracking-wide text-slate-400">E-mail</span>
+            <input type="email" name="_username" value="{{ last_username }}" required autofocus autocomplete="email"
+                   class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </label>
+        <label class="block space-y-1">
+            <span class="text-xs uppercase tracking-wide text-slate-400">Hasło</span>
+            <input type="password" name="_password" required autocomplete="current-password"
+                   class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </label>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+        <button class="w-full rounded-lg bg-sky-600 hover:bg-sky-500 transition px-3 py-2 font-medium">Zaloguj</button>
+        <p class="text-xs text-slate-500">Konto demo: <code>operator@tarcza.local</code> / <code>tarcza-demo</code> (po <code>make seed</code>)</p>
+    </form>
+</div>
+{% endblock %}
