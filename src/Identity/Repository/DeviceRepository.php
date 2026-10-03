@@ -108,6 +108,25 @@ final class DeviceRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * One phone = one push token. When a re-registered or rotated token is already bound to other
+     * devices (e.g. the previous installation after a 401), those rows lose it so a single phone
+     * never receives the same question twice. Returns the number of detached devices.
+     */
+    public function detachPushTokenFromOthers(string $pushToken, Device $keep): int
+    {
+        return (int) $this->createQueryBuilder('d')
+            ->update()
+            ->set('d.pushToken', ':null')
+            ->where('d.pushToken = :token')
+            ->andWhere('d.id != :keep')
+            ->setParameter('null', null)
+            ->setParameter('token', $pushToken)
+            ->setParameter('keep', $keep->getId(), 'uuid')
+            ->getQuery()
+            ->execute();
+    }
+
     public function countActive(int $hours = 24): int
     {
         return (int) $this->createQueryBuilder('d')

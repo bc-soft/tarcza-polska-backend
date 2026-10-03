@@ -23,9 +23,20 @@ final readonly class DeviceRegistrar
         $device = new Device();
         $device->setPlatform($request->platform);
         $device->setAppVersion($request->appVersion);
-        $device->setPushToken($request->pushToken);
         $this->devices->save($device, true);
+        if (null !== $request->pushToken) {
+            $this->bindPushToken($device, $request->pushToken);
+        }
 
         return ['device' => $device, 'token' => $this->jwt->create($device)];
+    }
+
+    /** Stores the FCM token on this device and takes it away from any other device that still holds it. */
+    public function bindPushToken(Device $device, string $pushToken): void
+    {
+        $device->setPushToken($pushToken);
+        $device->touch();
+        $this->devices->save($device, true);
+        $this->devices->detachPushTokenFromOthers($pushToken, $device);
     }
 }

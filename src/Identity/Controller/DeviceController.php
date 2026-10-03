@@ -91,11 +91,9 @@ final class DeviceController extends AbstractController
     #[OA\Put(summary: 'Register / rotate the FCM push token')]
     #[OA\RequestBody(content: new OA\JsonContent(ref: new \Nelmio\ApiDocBundle\Attribute\Model(type: UpdatePushTokenRequest::class)))]
     #[OA\Response(response: 204, description: 'Stored')]
-    public function updatePushToken(#[CurrentUser] Device $device, #[MapRequestPayload] UpdatePushTokenRequest $request): Response
+    public function updatePushToken(#[CurrentUser] Device $device, #[MapRequestPayload] UpdatePushTokenRequest $request, DeviceRegistrar $registrar): Response
     {
-        $device->setPushToken($request->pushToken);
-        $device->touch();
-        $this->em->flush();
+        $registrar->bindPushToken($device, $request->pushToken);
 
         return new Response(status: Response::HTTP_NO_CONTENT);
     }
