@@ -293,6 +293,8 @@
 <script>
     const detail = {{ detail|json_encode|raw }};
     const stateColor = window.TARCZA.cellColor;
+    const {esc} = window.TARCZA;
+    const cellStateLabel = {positive: 'problem potwierdzony', negative: 'brak problemu', unknown: 'brak danych'};
     const map = window.TARCZA.autosize(new maplibregl.Map({container: 'map', style: window.TARCZA.mapStyle, center: detail.centroid.coordinates, zoom: 13.5, attributionControl: false}));
     map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
     map.addControl(new maplibregl.AttributionControl({compact: true}), 'bottom-right');
@@ -303,14 +305,14 @@
         map.addLayer({id: 'cells-line', type: 'line', source: 'cells', paint: {'line-color': ['get', 'color'], 'line-width': 1.2}});
         map.addSource('area', {type: 'geojson', data: {type: 'Feature', geometry: detail.area ?? detail.centroid, properties: {}}});
         map.addLayer({id: 'area-line', type: 'line', source: 'area', filter: ['!=', '$type', 'Point'], paint: {'line-color': '#14213D', 'line-width': 2.5, 'line-dasharray': [2, 1.5]}});
-        map.addSource('reports', {type: 'geojson', data: {type: 'FeatureCollection', features: detail.reports.map(r => ({type: 'Feature', geometry: r.location, properties: {}}))}});
+        map.addSource('reports', {type: 'geojson', data: {type: 'FeatureCollection', features: detail.reports.map(r => ({type: 'Feature', geometry: r.location, properties: {description: r.description ?? '', createdAt: r.createdAt, weight: r.weight, reputation: r.reporterReputation, simulated: r.simulated}}))}});
         map.addLayer({id: 'reports', type: 'circle', source: 'reports', paint: {'circle-color': '#D97706', 'circle-radius': 4, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
-        map.on('click', 'cells-fill', e => {
-            const p = e.features[0].properties;
-            new maplibregl.Popup({closeButton: false}).setLngLat(e.lngLat).setHTML(`<b>${p.h3}</b><br>stan: ${p.state} · ring ${p.ring}<br>zgłoszeń ${p.reports} · problem ${p.yes} · brak ${p.no} · pytano ${p.asked}`).addTo(map);
-        });
+        window.TARCZA.hover(map, [
+            {layers: ['reports'], html: p => `<b>Zgłoszenie</b> · ${new Date(p.createdAt).toLocaleString('pl-PL', {dateStyle: 'short', timeStyle: 'short'})}${p.description ? '<br>' + esc(p.description) : ''}<br>waga ${p.weight} · reputacja ${p.reputation}${p.simulated ? ' · symulacja' : ''}`},
+            {layers: ['cells-fill'], html: p => `<b class="font-mono">${esc(p.h3)}</b><br>${cellStateLabel[p.state] ?? esc(p.state)} · ring ${p.ring}<br>zgłoszeń ${p.reports} · problem ${p.yes} · brak ${p.no} · pytano ${p.asked}`},
+        ]);
     });
-    const es = new EventSource({{ mercure('incidents/' ~ id)|json_encode|raw }}, {withCredentials: true});
+    const es = window.TARCZA.subscribe({{ mercure('incidents/' ~ id)|json_encode|raw }});
     es.onmessage = e => {
         const msg = JSON.parse(e.data);
         if (msg.event !== 'incident.updated') return;

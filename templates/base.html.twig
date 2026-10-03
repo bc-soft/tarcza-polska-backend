@@ -70,6 +70,8 @@
                 .maplibregl-ctrl-group { @apply rounded-2xl overflow-hidden shadow-card; border: 0 !important; }
                 .maplibregl-ctrl-group button { width: 40px !important; height: 40px !important; }
                 .maplibregl-popup-content { @apply rounded-xl shadow-float px-4 py-3 text-neutral text-xs font-sans; }
+                .tarcza-hover { pointer-events: none; }
+                .tarcza-hover .maplibregl-popup-content { @apply leading-relaxed; }
             }
         </style>
         <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
@@ -83,11 +85,28 @@
                 severityColor: {info: '#1B4DB1', warning: '#D97706', danger: '#D4213D'},
                 // Cards are laid out after fonts/CSS load; keep the WebGL canvas in sync with its container.
                 autosize: map => { new ResizeObserver(() => map.resize()).observe(map.getContainer()); return map; },
-                // Live indicator: EventSource retries silently, so only a CLOSED stream means "offline".
-                liveStatus: (es, dot, label) => {
-                    const set = (cls, text) => { dot.className = 'h-2 w-2 rounded-full ' + cls; label.textContent = text; };
-                    es.onopen = () => set('bg-ok animate-pulse', 'Połączono z Mercure');
-                    es.onerror = () => set(es.readyState === EventSource.CLOSED ? 'bg-primary' : 'bg-warn animate-pulse', es.readyState === EventSource.CLOSED ? 'Brak połączenia live' : 'Łączenie z Mercure…');
+                // Live indicator (hidden until the first event): EventSource retries silently, so only a CLOSED stream means "offline".
+                liveStatus: (es, el) => {
+                    const set = (cls, text) => { el.classList.remove('hidden'); el.firstElementChild.className = 'h-2 w-2 rounded-full ' + cls; el.lastElementChild.textContent = text; };
+                    es.onopen = () => set('bg-ok animate-pulse', 'Na żywo');
+                    es.onerror = () => es.readyState === EventSource.CLOSED ? set('bg-primary', 'Brak aktualizacji na żywo') : set('bg-warn animate-pulse', 'Wznawianie połączenia…');
+                },
+                // The hub accepts anonymous subscribers, so no cookies: credentials + "cors_origins *" would be rejected by the browser.
+                subscribe: url => new EventSource(url),
+                esc: v => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]),
+                // One tooltip per map, shown above the cursor for the topmost hovered feature.
+                // entries: [{layers: [...layer ids], html: properties => string}]
+                hover: (map, entries) => {
+                    const popup = new maplibregl.Popup({closeButton: false, closeOnClick: false, anchor: 'bottom', offset: 14, maxWidth: '300px', className: 'tarcza-hover'});
+                    const all = entries.flatMap(e => e.layers);
+                    map.on('mousemove', e => {
+                        const layers = all.filter(id => map.getLayer(id));
+                        const hit = layers.length ? map.queryRenderedFeatures(e.point, {layers})[0] : undefined;
+                        map.getCanvas().style.cursor = hit ? 'pointer' : '';
+                        if (!hit) { popup.remove(); return; }
+                        popup.setLngLat(e.lngLat).setHTML(entries.find(x => x.layers.includes(hit.layer.id)).html(hit.properties)).addTo(map);
+                    });
+                    map.getCanvas().addEventListener('mouseleave', () => popup.remove());
                 },
             };
         </script>
@@ -96,7 +115,8 @@
             {% block importmap %}{{ importmap('app') }}{% endblock %}
         {% endblock %}
     </head>
-    <body class="h-full bg-canvas text-neutral font-sans antialiased">
+    {# Turbo Drive off: page scripts are inline and re-running them in a shared global scope breaks the maps. #}
+    <body class="h-full bg-canvas text-neutral font-sans antialiased" data-turbo="false">
         {% block body %}{% endblock %}
     </body>
 </html>

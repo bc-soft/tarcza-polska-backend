@@ -8,9 +8,7 @@
             <div class="eyebrow">Command Center</div>
             <h1 class="text-2xl font-bold tracking-tight">Mapa sytuacyjna</h1>
         </div>
-        <div class="flex items-center gap-2 text-xs text-neutral-500">
-            <span id="live-dot" class="h-2 w-2 rounded-full bg-warn animate-pulse"></span><span id="live-label">Łączenie z Mercure…</span>
-        </div>
+        <div id="live-status" class="hidden flex items-center gap-2 text-xs text-neutral-500"><span></span><span></span></div>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -43,8 +41,13 @@
             <div class="absolute top-3 left-3 right-3 flex flex-wrap items-center gap-2 pointer-events-none">
                 <div class="flex items-center gap-1 rounded-full bg-surface-3/95 shadow-card p-1 pointer-events-auto" id="layer-toggles">
                     <button type="button" data-layer="incidents" class="chip-on">{{ ui.icon('hex', 'w-3.5 h-3.5') }}Incydenty</button>
-                    <button type="button" data-layer="shelters" class="chip-on">{{ ui.icon('home', 'w-3.5 h-3.5') }}Schrony</button>
+                    <button type="button" data-layer="shelters" class="chip-off">{{ ui.icon('home', 'w-3.5 h-3.5') }}Schrony</button>
                     <button type="button" data-layer="alerts" class="chip-off">{{ ui.icon('bell', 'w-3.5 h-3.5') }}Komunikaty</button>
+                </div>
+                <div class="hidden items-center gap-1 rounded-full bg-surface-3/95 shadow-card p-1 pointer-events-auto" id="shelter-filters">
+                    {% for value, s in {'free': ['Wolne', '#15803D'], 'full': ['Pełne', '#D97706'], 'closed': ['Zamknięte', '#D4213D'], 'unknown': ['Niezdefiniowane', '#8A93A8']} %}
+                        <button type="button" data-occupancy="{{ value }}" class="chip-on"><span class="h-2.5 w-2.5 rounded-full ring-2 ring-white" style="background:{{ s[1] }}"></span>{{ s[0] }}</button>
+                    {% endfor %}
                 </div>
                 <div class="ml-auto hidden md:flex items-center gap-2 rounded-full bg-surface-3/95 shadow-card px-3 py-2 text-[11px] font-semibold text-neutral-700 pointer-events-auto">
                     {{ ui.icon('hex', 'w-3.5 h-3.5 text-tertiary') }} Siatka analityczna H3 · Res 9 (~100 m)
@@ -84,11 +87,16 @@
     const incidents = {{ incidents|json_encode|raw }};
     const shelterFeatures = {{ shelterFeatures|json_encode|raw }};
     const alertFeatures = {{ alertFeatures|json_encode|raw }};
-    const {levelColor, severityColor} = window.TARCZA;
+    const {levelColor, severityColor, esc} = window.TARCZA;
     const levelLabel = {unverified: 'Niezweryfikowane', likely: 'Prawdopodobne', high: 'Wysoka pewność', confirmed: 'Potwierdzone'};
     const statusLabel = {detected: 'Wykryty', verifying: 'Weryfikacja', active: 'Aktywny', resolved: 'Zamknięty'};
     const byId = new Map(incidents.map(i => [i.id, i]));
     let typeFilter = '';
+    // Shelter buckets for the map filter: free (open, room left), full, closed, unknown.
+    const shelterBucket = p => p.status === 'closed' ? 'closed' : (p.status === 'full' || p.occupancy === 'full') ? 'full' : p.status === 'open' ? 'free' : 'unknown';
+    const shelterColor = {free: '#15803D', full: '#D97706', closed: '#D4213D', unknown: '#8A93A8'};
+    shelterFeatures.forEach(f => f.properties.bucket = shelterBucket(f.properties));
+    const shelterBuckets = new Set(Object.keys(shelterColor));
 
     const map = window.TARCZA.autosize(new maplibregl.Map({container: 'map', style: window.TARCZA.mapStyle, center: [{{ region.center.lng }}, {{ region.center.lat }}], zoom: 11.5, attributionControl: false}));
     map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
@@ -97,7 +105,8 @@
     const visible = () => [...byId.values()].filter(i => !typeFilter || i.type === typeFilter);
     const toCollection = items => ({type: 'FeatureCollection', features: items.map(i => ({
         type: 'Feature', id: i.id, geometry: i.area ?? i.centroid,
-        properties: {id: i.id, label: i.typeLabel, level: i.confidenceLevel, score: i.confidenceScore, color: levelColor[i.confidenceLevel]},
+        properties: {id: i.id, label: i.typeLabel, level: i.confidenceLevel, score: i.confidenceScore, color: levelColor[i.confidenceLevel],
+            status: statusLabel[i.status] ?? i.status, poi: i.poi?.name ?? '', reports: i.community.reports, answers: i.community.answers, agreement: i.community.agreementPct ?? ''},
     }))});
     const pct = i => Math.round(i.confidenceScore * 100);
 
@@ -129,29 +138,20 @@
         map.addLayer({id: 'incident-point', type: 'circle', source: 'incidents', filter: ['==', '$type', 'Point'], paint: {'circle-color': ['get', 'color'], 'circle-radius': 9, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2}});
 
         map.addSource('shelters', {type: 'geojson', data: {type: 'FeatureCollection', features: shelterFeatures}});
-        map.addLayer({id: 'shelter-point', type: 'circle', source: 'shelters', paint: {
-            'circle-color': ['match', ['get', 'status'], 'open', '#15803D', 'closed', '#D4213D', 'full', '#D97706', '#8A93A8'],
+        map.addLayer({id: 'shelter-point', type: 'circle', source: 'shelters', layout: {visibility: 'none'}, paint: {
+            'circle-color': ['match', ['get', 'bucket'], ...Object.entries(shelterColor).flat(), '#8A93A8'],
             'circle-radius': 6, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2}});
 
         map.addSource('alerts', {type: 'geojson', data: {type: 'FeatureCollection', features: alertFeatures}});
         map.addLayer({id: 'alert-fill', type: 'fill', source: 'alerts', layout: {visibility: 'none'}, paint: {'fill-color': ['match', ['get', 'severity'], 'danger', severityColor.danger, 'warning', severityColor.warning, severityColor.info], 'fill-opacity': 0.12}});
         map.addLayer({id: 'alert-line', type: 'line', source: 'alerts', layout: {visibility: 'none'}, paint: {'line-color': ['match', ['get', 'severity'], 'danger', severityColor.danger, 'warning', severityColor.warning, severityColor.info], 'line-width': 2, 'line-dasharray': [3, 2]}});
 
-        ['incident-fill', 'incident-point'].forEach(layer => {
-            map.on('click', layer, e => window.location = `/command/incidents/${e.features[0].properties.id}`);
-            map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
-            map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
-        });
-        map.on('click', 'shelter-point', e => {
-            const p = e.features[0].properties;
-            new maplibregl.Popup({closeButton: false}).setLngLat(e.lngLat).setHTML(`<b>${p.name}</b><br>${p.address ?? ''}<br>${p.statusLabel} · pojemność ${p.capacity ?? '—'}`).addTo(map);
-        });
-
-        const first = incidents.find(i => i.area);
-        if (first) {
-            const coords = first.area.coordinates.flat(2);
-            map.fitBounds(coords.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0])), {padding: 80, maxZoom: 14});
-        }
+        ['incident-fill', 'incident-point'].forEach(layer => map.on('click', layer, e => window.location = `/command/incidents/${e.features[0].properties.id}`));
+        window.TARCZA.hover(map, [
+            {layers: ['shelter-point'], html: p => `<b>${esc(p.name)}</b>${p.address ? '<br>' + esc(p.address) : ''}<br>${esc(p.statusLabel)} · ${esc(p.occupancyLabel)}<br>pojemność ${esc(p.capacity ?? '—')} · potwierdzeń ${esc(p.confirmationCount)}`},
+            {layers: ['incident-point', 'incident-fill'], html: p => `<b>${esc(p.label)}</b>${p.poi ? '<br>' + esc(p.poi) : ''}<br>${esc(p.status)} · ${esc(levelLabel[p.level])} ${Math.round(p.score * 100)}%<br>${p.reports} zgłoszeń · ${p.answers} odp.${p.agreement !== '' ? ' · ' + p.agreement + '% zgodności' : ''}<br><span style="color:#5B6478">Kliknij, aby otworzyć</span>`},
+            {layers: ['alert-fill'], html: p => `<b>${esc(p.title)}</b><br>${esc(p.body)}<br><span style="color:#5B6478">wygasa ${new Date(p.expiresAt).toLocaleString('pl-PL', {dateStyle: 'short', timeStyle: 'short'})}</span>`},
+        ]);
     });
 
     function refreshMap() { map.getSource('incidents')?.setData(toCollection(visible())); }
@@ -169,11 +169,19 @@
         const on = btn.classList.contains('chip-off');
         btn.className = on ? 'chip-on' : 'chip-off';
         layerIds[btn.dataset.layer].forEach(id => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
+        if (btn.dataset.layer === 'shelters') ['hidden', 'flex'].forEach((cls, i) => document.getElementById('shelter-filters').classList.toggle(cls, i ? on : !on));
+    });
+    document.getElementById('shelter-filters').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-occupancy]'); if (!btn) return;
+        const on = btn.classList.contains('chip-off');
+        btn.className = on ? 'chip-on' : 'chip-off';
+        on ? shelterBuckets.add(btn.dataset.occupancy) : shelterBuckets.delete(btn.dataset.occupancy);
+        map.getLayer('shelter-point') && map.setFilter('shelter-point', ['in', ['get', 'bucket'], ['literal', [...shelterBuckets]]]);
     });
 
     // Live updates (Mercure, topic "incidents")
-    const es = new EventSource({{ mercure('incidents')|json_encode|raw }}, {withCredentials: true});
-    window.TARCZA.liveStatus(es, document.getElementById('live-dot'), document.getElementById('live-label'));
+    const es = window.TARCZA.subscribe({{ mercure('incidents')|json_encode|raw }});
+    window.TARCZA.liveStatus(es, document.getElementById('live-status'));
     es.onmessage = e => {
         const msg = JSON.parse(e.data);
         if (msg.event !== 'incident.updated') return;
