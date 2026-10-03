@@ -7,9 +7,9 @@ namespace App\Reporting\Controller;
 use App\Identity\Entity\Device;
 use App\Reporting\Dto\CreateReportRequest;
 use App\Reporting\Entity\Report;
-use App\Reporting\Enum\ReportType;
 use App\Reporting\Service\ReportSubmitter;
 use App\Reporting\View\ReportStatusView;
+use App\Reporting\View\ReportTypeOptionView;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -49,10 +49,7 @@ final class ReportController extends AbstractController
     #[OA\Response(response: 200, description: 'List of types', content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/ReportTypeOption')))]
     public function types(): JsonResponse
     {
-        return new JsonResponse(array_map(
-            static fn (ReportType $t) => ['value' => $t->value, 'label' => $t->label()],
-            ReportType::cases(),
-        ));
+        return new JsonResponse(ReportTypeOptionView::all());
     }
 
     #[Route('/{id}', name: 'api_report_show', methods: ['GET'])]

@@ -6,6 +6,10 @@ namespace App\Tests\Contract;
 
 use App\Alerting\Entity\Alert;
 use App\Alerting\View\AlertView;
+use App\Fuel\Entity\FuelStation;
+use App\Fuel\Enum\FuelAvailability;
+use App\Fuel\Enum\FuelType;
+use App\Fuel\View\FuelStationView;
 use App\Guidance\Model\OfflineBundle;
 use App\Guidance\Service\ProcedureCatalog;
 use App\Guidance\View\OfflineBundleView;
@@ -23,10 +27,13 @@ use App\Reporting\Entity\ReportPhoto;
 use App\Reporting\Enum\ReportType;
 use App\Reporting\View\ReportPhotoView;
 use App\Reporting\View\ReportStatusView;
+use App\Reporting\View\ReportTypeOptionView;
 use App\Shared\Api\ApiExceptionListener;
 use App\Shared\Api\ApiProblemException;
 use App\Shared\Api\GeoJson;
 use App\Shared\Geo\Point;
+use App\Shared\Poi\PoiKind;
+use App\Shared\Poi\PoiRef;
 use App\Shelter\Entity\Shelter;
 use App\Shelter\Enum\ShelterStatus;
 use App\Shelter\View\ShelterView;
@@ -224,7 +231,36 @@ final class CitizenApiContractTest extends KernelTestCase
         $report->assignTo($this->incident());
         $this->assertMatches('ReportStatusView', ReportStatusView::toArray($report));
 
-        $this->assertMatches('ReportTypeOption', ['value' => ReportType::RoadBlocked->value, 'label' => ReportType::RoadBlocked->label()]);
+        foreach (ReportTypeOptionView::all() as $option) {
+            $this->assertMatches('ReportTypeOption', $option);
+        }
+    }
+
+    public function testPointScopedViews(): void
+    {
+        $station = new FuelStation('Orlen Jeżyce', new Point(52.41, 16.9), self::CELL, 'fixture', 'node/1');
+        $station->setBrand('Orlen');
+        $station->setFuelTypes([FuelType::Pb95, FuelType::Diesel]);
+        $this->assertMatches('FuelStationView', FuelStationView::toArray($station));
+        $station->confirmAvailability([FuelType::Diesel], FuelAvailability::Unavailable);
+        $this->assertMatches('FuelStationView', FuelStationView::toArray($station, 123.4));
+        $this->assertMatches('MapFeature', FuelStationView::toFeature($station));
+
+        $poi = new PoiRef(PoiKind::FuelStation, $station->getId(), 'Orlen Jeżyce', $station->getLocation());
+        $report = new Report($this->device(), ReportType::FuelShortage, new Point(52.4, 16.9), self::CELL, null);
+        $report->attachPoi($poi);
+        $report->setFuelTypes([FuelType::Diesel]);
+        $this->assertMatches('ReportAccepted', ReportStatusView::accepted($report));
+
+        $incident = new Incident(ReportType::FuelShortage, $station->getLocation(), self::CELL);
+        $incident->bindToPoi($poi, self::CELL);
+        $incident->mergeFuelTypes([FuelType::Diesel]);
+        $this->assertMatches('IncidentView', IncidentPublicView::toArray($incident));
+        $this->assertMatches('MapFeature', IncidentPublicView::toFeature($incident));
+
+        $wave = new VerificationWave($incident, 0, [$station->getId()->toRfc4122()], 90);
+        $question = new VerificationRequest($wave, $this->device(), self::CELL, ReportType::FuelShortage->pointVerificationQuestion('Orlen Jeżyce', 'Olej napędowy'), $poi);
+        $this->assertMatches('VerificationQuestion', VerificationQuestionView::toArray($question));
     }
 
     public function testErrorEnvelopes(): void

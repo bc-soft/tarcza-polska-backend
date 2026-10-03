@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shelter\Entity;
 
 use App\Shared\Geo\Point;
+use App\Shelter\Enum\ShelterAvailability;
 use App\Shelter\Enum\ShelterOccupancy;
 use App\Shelter\Enum\ShelterStatus;
 use App\Shelter\Repository\ShelterRepository;
@@ -49,6 +50,17 @@ class Shelter
     /** Source of the record: 'seed', 'import:<name>', 'operator'. */
     #[ORM\Column(length: 64)]
     private string $source;
+
+    /** Identifier in the source register (e.g. "OZO-6D94271C9708" on dane.gov.pl). */
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $externalId = null;
+
+    #[ORM\Column(length: 16, enumType: ShelterAvailability::class, options: ['default' => 'unknown'])]
+    private ShelterAvailability $availability = ShelterAvailability::Unknown;
+
+    /** @var list<string> gmina, powiat, województwo (from the register) */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    private array $region = [];
 
     public function __construct(string $name, Point $location, string $source = 'seed')
     {
@@ -111,6 +123,38 @@ class Shelter
     public function getSource(): string
     {
         return $this->source;
+    }
+
+    public function getExternalId(): ?string
+    {
+        return $this->externalId;
+    }
+
+    public function setExternalId(?string $externalId): void
+    {
+        $this->externalId = null === $externalId ? null : mb_substr($externalId, 0, 64);
+    }
+
+    public function getAvailability(): ShelterAvailability
+    {
+        return $this->availability;
+    }
+
+    public function setAvailability(ShelterAvailability $availability): void
+    {
+        $this->availability = $availability;
+    }
+
+    /** @return list<string> */
+    public function getRegion(): array
+    {
+        return $this->region;
+    }
+
+    /** @param list<string> $region */
+    public function setRegion(array $region): void
+    {
+        $this->region = array_values($region);
     }
 
     public function rename(string $name): void

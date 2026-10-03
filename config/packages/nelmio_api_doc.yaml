@@ -59,6 +59,20 @@ nelmio_api_doc:
                             items: { }
                             description: 'Point: [lng, lat]; Polygon: [[[lng, lat], ...]]; MultiPolygon: [[[[lng, lat], ...]]]'
                 IncidentStatus: { type: string, enum: [detected, verifying, active, resolved] }
+                ReportScope: { type: string, enum: [area, point], description: 'area = polygon of cells; point = one object (fuel station / shelter)' }
+                PoiKind: { type: string, enum: [fuel_station, shelter] }
+                FuelType: { type: string, enum: [pb95, pb98, diesel, lpg] }
+                FuelAvailability: { type: string, enum: [unknown, available, unavailable] }
+                ShelterAvailability: { type: string, enum: [unknown, always, on_demand, scheduled], description: 'Opening regime from the national register' }
+                PoiRef:
+                    type: object
+                    description: The object a point-scoped report / incident / question is about.
+                    required: [kind, id, name]
+                    properties:
+                        kind: { $ref: '#/components/schemas/PoiKind' }
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        location: { $ref: '#/components/schemas/GeoJsonGeometry' }
                 ConfidenceLevel: { type: string, enum: [unverified, likely, high, confirmed] }
                 AlertSeverity: { type: string, enum: [info, warning, danger] }
                 ShelterOccupancy: { type: string, enum: [unknown, plenty, limited, full], description: 'Room left in an open shelter' }
@@ -109,7 +123,7 @@ nelmio_api_doc:
                 IncidentSummary:
                     type: object
                     description: Public incident fields shared by IncidentView and the map feature properties.
-                    required: [id, type, typeLabel, status, statusLabel, confidenceLevel, confidenceLabel, confidenceScore, startedAt, lastActivityAt, community]
+                    required: [id, type, typeLabel, status, statusLabel, confidenceLevel, confidenceLabel, confidenceScore, startedAt, lastActivityAt, community, scope, poi, fuelTypes]
                     properties:
                         id: { type: string, format: uuid }
                         type: { $ref: '#/components/schemas/ReportType' }
@@ -124,6 +138,9 @@ nelmio_api_doc:
                         lastConfirmedAt: { type: string, format: date-time, nullable: true }
                         community: { $ref: '#/components/schemas/Community' }
                         summary: { type: string, nullable: true, description: 'AI research summary, when available' }
+                        scope: { $ref: '#/components/schemas/ReportScope' }
+                        poi: { nullable: true, allOf: [{ $ref: '#/components/schemas/PoiRef' }], description: 'scope=point: the station / shelter this incident is about' }
+                        fuelTypes: { type: array, items: { $ref: '#/components/schemas/FuelType' }, description: 'Fuel types reported missing (fuel_shortage)' }
                 IncidentView:
                     allOf:
                         - { $ref: '#/components/schemas/IncidentSummary' }
@@ -156,6 +173,45 @@ nelmio_api_doc:
                           properties:
                               kind: { type: string, enum: [incident] }
 
+                # ---- fuel stations ------------------------------------------------------------
+                FuelStationFuel:
+                    type: object
+                    required: [type, label, status, statusLabel]
+                    properties:
+                        type: { $ref: '#/components/schemas/FuelType' }
+                        label: { type: string }
+                        status: { $ref: '#/components/schemas/FuelAvailability' }
+                        statusLabel: { type: string }
+                        confirmedAt: { type: string, format: date-time, nullable: true }
+                FuelStationSummary:
+                    type: object
+                    required: [id, name, fuels, shortage, missingFuelTypes, confirmationCount]
+                    properties:
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        brand: { type: string, nullable: true }
+                        address: { type: string, nullable: true }
+                        fuels: { type: array, items: { $ref: '#/components/schemas/FuelStationFuel' }, description: 'Fuel types sold (or ever reported) at this station with current availability' }
+                        shortage: { type: boolean, description: 'At least one fuel type currently reported missing' }
+                        missingFuelTypes: { type: array, items: { $ref: '#/components/schemas/FuelType' } }
+                        lastConfirmedAt: { type: string, format: date-time, nullable: true }
+                        confirmationCount: { type: integer }
+                        distanceMeters: { type: integer, description: 'Only in GET /fuel-stations?lat&lng and the offline bundle' }
+                FuelStationView:
+                    allOf:
+                        - { $ref: '#/components/schemas/FuelStationSummary' }
+                        - type: object
+                          required: [location]
+                          properties:
+                              location: { $ref: '#/components/schemas/GeoJsonGeometry' }
+                FuelStationFeatureProperties:
+                    allOf:
+                        - { $ref: '#/components/schemas/FuelStationSummary' }
+                        - type: object
+                          required: [kind]
+                          properties:
+                              kind: { type: string, enum: [fuel_station] }
+
                 # ---- shelters -----------------------------------------------------------------
                 ShelterSummary:
                     type: object
@@ -169,6 +225,8 @@ nelmio_api_doc:
                         statusLabel: { type: string }
                         occupancy: { $ref: '#/components/schemas/ShelterOccupancy' }
                         occupancyLabel: { type: string }
+                        availability: { $ref: '#/components/schemas/ShelterAvailability' }
+                        availabilityLabel: { type: string }
                         lastConfirmedAt: { type: string, format: date-time, nullable: true }
                         confirmationCount: { type: integer }
                         distanceMeters: { type: integer, description: 'Only in GET /shelters?lat&lng' }
@@ -225,17 +283,19 @@ nelmio_api_doc:
                         id: { type: string, format: uuid, description: 'Same value as properties.id' }
                         geometry:
                             allOf: [{ $ref: '#/components/schemas/GeoJsonGeometry' }]
-                            description: 'incident: area polygon (centroid Point while the area is empty); shelter: Point; alert: polygon'
+                            description: 'incident (scope=area): polygon, centroid Point while the area is empty; incident (scope=point): Point at the object; shelter / fuel_station: Point; alert: polygon'
                         properties:
                             oneOf:
                                 - { $ref: '#/components/schemas/IncidentFeatureProperties' }
                                 - { $ref: '#/components/schemas/ShelterFeatureProperties' }
+                                - { $ref: '#/components/schemas/FuelStationFeatureProperties' }
                                 - { $ref: '#/components/schemas/AlertFeatureProperties' }
                             discriminator:
                                 propertyName: kind
                                 mapping:
                                     incident: '#/components/schemas/IncidentFeatureProperties'
                                     shelter: '#/components/schemas/ShelterFeatureProperties'
+                                    fuel_station: '#/components/schemas/FuelStationFeatureProperties'
                                     alert: '#/components/schemas/AlertFeatureProperties'
                 MapFeatureCollection:
                     type: object
@@ -249,17 +309,31 @@ nelmio_api_doc:
                 # ---- reports ------------------------------------------------------------------
                 ReportTypeOption:
                     type: object
-                    required: [value, label]
+                    required: [value, label, scope, poiKind, fuelTypes]
                     properties:
                         value: { $ref: '#/components/schemas/ReportType' }
                         label: { type: string }
+                        scope: { $ref: '#/components/schemas/ReportScope' }
+                        poiKind: { nullable: true, allOf: [{ $ref: '#/components/schemas/PoiKind' }], description: 'For point types: which object picker to show' }
+                        fuelTypes:
+                            type: array
+                            description: 'Non-empty only for fuel_shortage: the fuel-type choices to show'
+                            items:
+                                type: object
+                                required: [value, label]
+                                properties:
+                                    value: { $ref: '#/components/schemas/FuelType' }
+                                    label: { type: string }
                 ReportAccepted:
                     type: object
-                    required: [reportId, h3Cell, createdAt]
+                    required: [reportId, h3Cell, createdAt, scope, poi, fuelTypes]
                     properties:
                         reportId: { type: string, format: uuid }
                         h3Cell: { type: string }
                         createdAt: { type: string, format: date-time }
+                        scope: { $ref: '#/components/schemas/ReportScope' }
+                        poi: { nullable: true, allOf: [{ $ref: '#/components/schemas/PoiRef' }], description: 'The station / shelter the report was bound to (point types)' }
+                        fuelTypes: { type: array, items: { $ref: '#/components/schemas/FuelType' } }
                 PhotoAccepted:
                     type: object
                     description: Returned right after a photo upload; analysis runs in the background and is visible to operators only.
@@ -300,7 +374,7 @@ nelmio_api_doc:
                 # ---- verification -------------------------------------------------------------
                 VerificationQuestion:
                     type: object
-                    required: [verificationId, incidentId, type, typeLabel, question, context, options, sentAt, expiresAt, answered]
+                    required: [verificationId, incidentId, type, typeLabel, question, context, poi, options, sentAt, expiresAt, answered]
                     properties:
                         verificationId: { type: string, format: uuid }
                         incidentId: { type: string, format: uuid }
@@ -308,6 +382,15 @@ nelmio_api_doc:
                         typeLabel: { type: string }
                         question: { type: string }
                         context: { type: string }
+                        poi:
+                            nullable: true
+                            description: 'Point verification: the station / shelter the question is about (show its name; it may be a neighbour of the reported one)'
+                            type: object
+                            required: [kind, id, name]
+                            properties:
+                                kind: { $ref: '#/components/schemas/PoiKind' }
+                                id: { type: string, format: uuid }
+                                name: { type: string }
                         options:
                             type: array
                             items: { $ref: '#/components/schemas/VerificationAnswer' }

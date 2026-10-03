@@ -61,6 +61,23 @@ final class IncidentRepository extends ServiceEntityRepository
         return false === $id ? null : $this->find(Uuid::fromString($id));
     }
 
+    /** Open point-scoped incident about the same object (fuel station / shelter), if any. */
+    public function findOpenForPoi(ReportType $type, Uuid $poiId): ?Incident
+    {
+        /** @var Incident|null */
+        return $this->createQueryBuilder('i')
+            ->where('i.type = :type')
+            ->andWhere('i.poiId = :poi')
+            ->andWhere('i.status <> :resolved')
+            ->setParameter('type', $type)
+            ->setParameter('poi', $poiId)
+            ->setParameter('resolved', IncidentStatus::Resolved)
+            ->orderBy('i.lastActivityAt', SortDirection::Descending)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /** @return list<Incident> */
     public function findOpen(): array
     {

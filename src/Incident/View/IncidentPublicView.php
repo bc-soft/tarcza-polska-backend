@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Incident\View;
 
+use App\Fuel\Enum\FuelType;
 use App\Incident\Entity\Incident;
 use App\Shared\Api\GeoJson;
 
@@ -37,6 +38,9 @@ final class IncidentPublicView
                 'agreementPct' => $answered > 0 ? (int) round(100 * $t['yes'] / $answered) : null,
             ],
             'summary' => $incident->getAiSummary(),
+            'scope' => $incident->getScope()->value,
+            'poi' => $incident->poiRef()?->toArray(),
+            'fuelTypes' => array_map(static fn (FuelType $t) => $t->value, $incident->getFuelTypes()),
             'area' => $incident->getArea(),
         ];
     }

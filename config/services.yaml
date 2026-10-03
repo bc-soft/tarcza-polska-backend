@@ -13,6 +13,7 @@ parameters:
     app.openai.model: '%env(OPENAI_MODEL)%'
     app.firebase.credentials: '%env(resolve:FIREBASE_CREDENTIALS)%'
     app.alerting.auto_alert_level: '%env(AUTO_ALERT_LEVEL)%'
+    app.overpass_url: '%env(OVERPASS_URL)%'
 
 services:
     _defaults:
@@ -33,6 +34,7 @@ services:
             string $openAiModel: '%app.openai.model%'
             string $firebaseCredentials: '%app.firebase.credentials%'
             string $autoAlertLevel: '%app.alerting.auto_alert_level%'
+            string $overpassUrl: '%app.overpass_url%'
             array $externalSourceFeeds: '%app.external_sources.feeds%'
             int $externalSourcesPollMinutes: '%app.external_sources.poll_minutes%'
 

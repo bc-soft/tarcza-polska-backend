@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Reporting\Enum;
 
+use App\Shared\Poi\PoiKind;
+
 /**
  * What a citizen can report. Each type carries its verification question (asked to nearby users).
  */
@@ -48,6 +50,39 @@ enum ReportType: string
     public function yesMeansProblemPresent(): bool
     {
         return self::OtherThreat === $this;
+    }
+
+    /**
+     * Area types cluster by distance and are verified cell by cell; point types attach to one object
+     * (a fuel station, a shelter) and are verified by asking people at that object and its neighbours.
+     */
+    public function scope(): ReportScope
+    {
+        return match ($this) {
+            self::FuelShortage, self::ShelterIssue => ReportScope::Point,
+            default => ReportScope::Area,
+        };
+    }
+
+    public function poiKind(): ?PoiKind
+    {
+        return match ($this) {
+            self::FuelShortage => PoiKind::FuelStation,
+            self::ShelterIssue => PoiKind::Shelter,
+            default => null,
+        };
+    }
+
+    /** Question about one specific object (point types); $detail = fuel types for stations. */
+    public function pointVerificationQuestion(string $poiName, string $detail = ''): string
+    {
+        return match ($this) {
+            self::FuelShortage => '' !== $detail
+                ? \sprintf('Czy na stacji %s jest teraz dostępne paliwo: %s?', $poiName, $detail)
+                : \sprintf('Czy na stacji %s jest teraz dostępne paliwo?', $poiName),
+            self::ShelterIssue => \sprintf('Czy schron %s jest teraz dostępny (otwarty i można do niego wejść)?', $poiName),
+            default => $this->verificationQuestion(),
+        };
     }
 
     /** Typical spatial footprint used for clustering radius scaling (meters). */
