@@ -7,8 +7,14 @@ Konwencje:
 
 * JSON, UTF-8, czasy w ISO 8601 (UTC), identyfikatory to UUID v7.
 * Wszystko przestrzenne jest GeoJSON w WGS84, kolejność współrzędnych `[lng, lat]`.
-* Błędy mają jeden kształt: `{"error": {"code": "validation_failed", "message": "...", "violations": [{"field": "lat", "message": "..."}]}}`.
+* Błędy mają jeden kształt (`ErrorResponse` w OpenAPI): `{"error": {"code": "validation_failed", "message": "...", "violations": [{"field": "lat", "message": "..."}]}}`.
+  Kody: `bad_request`, `unauthorized`, `token_expired`, `forbidden`, `not_found`, `conflict`, `gone`,
+  `verification_already_answered`, `verification_expired`, `validation_failed`, `too_many_requests` (+ nagłówek `Retry-After`
+  i `error.retryAfter` w sekundach), `internal_error`.
 * Autoryzacja: nagłówek `Authorization: Bearer <jwt>`.
+* `GET /map`, `GET /verifications/pending` i `GET /alerts` zwracają `ETag`; z `If-None-Match` odpowiadają `304 Not Modified`.
+* Każda odpowiedź `/api/v1/*` ma schemat w `components.schemas` (`DeviceProfile`, `IncidentView`, `MapFeatureCollection`, ...);
+  `tests/Contract` pilnuje, żeby widoki PHP nie rozjechały się ze specyfikacją.
 
 ## Citizen (`/api/v1`, rola `ROLE_CITIZEN`)
 
@@ -17,9 +23,10 @@ Konwencje:
 | Metoda | Ścieżka | Opis |
 |---|---|---|
 | POST | `/api/v1/devices` | Rejestracja anonimowego urządzenia. Body: `{platform?, appVersion?, pushToken?}`. Odpowiedź 201: `{deviceId, token}`. Publiczne. Token przechowuj w secure storage, ważny 30 dni. |
-| GET | `/api/v1/devices/me` | Profil urządzenia (ostatnia lokalizacja, komórka H3). |
-| PUT | `/api/v1/devices/me/location` | `{lat, lng, accuracyMeters?}` → `{h3Cell}`. Wysyłaj przy starcie, powrocie na foreground i przesunięciu > 150 m. |
-| PUT | `/api/v1/devices/me/push-token` | `{pushToken}` po każdej rotacji tokenu FCM. |
+| GET | `/api/v1/devices/me` | Profil urządzenia (ostatnia lokalizacja, komórka H3, `locationSource`, `preferences`). |
+| PUT | `/api/v1/devices/me/location` | `{lat, lng, accuracyMeters?, source?}` → `{h3Cell}`. `source` ∈ `home` (adres z onboardingu), `gps` (domyślne), `background` (tryb czuwania). 429 przy > 30 / min. |
+| PUT | `/api/v1/devices/me/preferences` | `{locationRefresh: bool}` → 204. Zgoda na push `location_refresh` (domyślnie `true`). |
+| PUT | `/api/v1/devices/me/push-token` | `{pushToken}` po każdej rotacji tokenu FCM. Token jest odpinany od innych urządzeń (jeden telefon = jeden token). |
 
 ### Zgłoszenia (DETECT)
 
@@ -27,7 +34,7 @@ Konwencje:
 |---|---|---|
 | GET | `/api/v1/reports/types` | Kategorie z etykietami PL do ekranu zgłoszenia. |
 | POST | `/api/v1/reports` | `{type, lat, lng, description?}` → 202 `{reportId, h3Cell, createdAt}`. 429 przy > 10 zgłoszeń / 10 min. |
-| GET | `/api/v1/reports/{id}` | Status mojego zgłoszenia: do jakiego incydentu trafiło i z jakim confidence. |
+| GET | `/api/v1/reports/{id}` | Status mojego zgłoszenia: do jakiego incydentu trafiło (`incident.{type,typeLabel,status,statusLabel,confidenceLevel,confidenceLabel,confidenceScore}`), `null` zanim klastrowanie je przypisze. |
 
 Wartości `type`: `power_outage`, `water_outage`, `fuel_shortage`, `road_blocked`, `shelter_issue`, `other_threat`.
 
@@ -37,20 +44,20 @@ Wartości `type`: `power_outage`, `water_outage`, `fuel_shortage`, `road_blocked
 |---|---|---|
 | GET | `/api/v1/map?bbox=minLng,minLat,maxLng,maxLat` | Jedna `FeatureCollection` na ekran mapy. `properties.kind` ∈ `incident` (poligon obszaru lub punkt, gdy obszar jeszcze pusty), `shelter` (punkt), `alert` (poligon). |
 | GET | `/api/v1/incidents?lat&lng` | Otwarte incydenty; z `lat/lng` tylko te, których obszar zawiera moją pozycję. |
-| GET | `/api/v1/incidents/{id}` | Widok publiczny: `confidenceLevel`, `confidenceScore`, `community.agreementPct`, `summary`, `area`. Bez surowych punktów. |
+| GET | `/api/v1/incidents/{id}` | Widok publiczny: `status` + `statusLabel`, `confidenceLevel`, `confidenceScore`, `community.agreementPct`, `summary`, `area` (`null`, dopóki incydent jest tylko wykryty). Bez surowych punktów. |
 
 Poziomy `confidenceLevel`: `unverified`, `likely`, `high`, `confirmed` (kolory w panelu: szary, bursztyn, pomarańcz, czerwień).
 
 ### Aktywna weryfikacja (VERIFY)
 
-Push FCM niesie `data: {type: "verification", verificationId, incidentId}`. Treść pytania dociągnij z API,
-bo push może nie dojść albo dojść po czasie.
+Push FCM niesie `data: {type: "verification", verificationId, incidentId, incidentType, expiresAt}` (iOS: `apns-priority: 10`,
+`interruption-level: time-sensitive`). Treść pytania dociągnij z API, bo push może nie dojść albo dojść po czasie.
 
 | Metoda | Ścieżka | Opis |
 |---|---|---|
 | GET | `/api/v1/verifications/pending` | Pytania czekające na odpowiedź (polluj na foreground). |
 | GET | `/api/v1/verifications/{id}` | Jedno pytanie: `question`, `context`, `options`, `expiresAt`. |
-| POST | `/api/v1/verifications/{id}/response` | `{answer: "yes" | "no" | "unknown"}`. 409 gdy już odpowiedziano, 410 gdy wygasło. |
+| POST | `/api/v1/verifications/{id}/response` | `{answer: "yes" | "no" | "unknown"}`. 409 `verification_already_answered`, 410 `verification_expired`. |
 
 Odpowiedź jest surowa (TAK na „czy masz prąd?”), normalizację robi backend.
 
@@ -74,6 +81,14 @@ Push FCM niesie `data: {type: "alert", alertId}`.
 ### Zdrowie
 
 `GET /api/v1/health` (publiczne) zwraca wersje PostGIS i H3.
+
+### Push (FCM)
+
+| `data.type` | Pola `data` | Priorytet |
+|---|---|---|
+| `verification` | `verificationId`, `incidentId`, `incidentType`, `expiresAt` | wysoki, time-sensitive |
+| `alert` | `alertId` | wysoki, time-sensitive |
+| `location_refresh` | - | normalny; gdy pozycja starsza niż 24 h, maks. 1 / dobę, nie w godz. 21-8, tylko przy `preferences.locationRefresh = true` |
 
 ## Command (`/api/command`, rola `ROLE_ANALYST`+)
 

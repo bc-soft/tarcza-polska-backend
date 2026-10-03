@@ -56,16 +56,21 @@ operatora i aplikacja mobilna ich nie używa.
 | HTTP | `error.code` | Kiedy |
 |---|---|---|
 | 400 | `bad_request` | zły parametr query (np. `bbox`) |
-| 401 | `unauthorized` | brak lub wygasły token → zarejestruj urządzenie ponownie |
+| 401 | `unauthorized` | brak lub niepoprawny token → zarejestruj urządzenie ponownie |
+| 401 | `token_expired` | token wygasł (30 dni) → zarejestruj urządzenie ponownie |
 | 403 | `forbidden` | brak uprawnień |
 | 404 | `not_found` | zły identyfikator albo cudzy zasób |
-| 409 | `conflict` | pytanie weryfikacyjne już ma odpowiedź |
-| 410 | `http_error` | pytanie weryfikacyjne wygasło |
+| 409 | `verification_already_answered` | pytanie weryfikacyjne już ma odpowiedź |
+| 410 | `verification_expired` | pytanie weryfikacyjne wygasło |
 | 422 | `validation_failed` | błędne body, lista pól w `violations` |
-| 429 | `too_many_requests` | limit zgłoszeń: 10 na 10 minut; lokalizacja: 30 na minutę |
+| 429 | `too_many_requests` | limit zgłoszeń: 10 na 10 minut; lokalizacja: 30 na minutę. Nagłówek `Retry-After` i `error.retryAfter` podają sekundy do odblokowania |
 | 500 | `internal_error` | błąd backendu |
 
 Pole `violations[].field` odpowiada nazwie pola w body, więc można je mapować na pola formularza.
+Kształt błędu to schemat `ErrorResponse` w `openapi.json`; każdy endpoint ma wypisane kody 4xx, które realnie zwraca.
+
+Endpointy odpytywane cyklicznie (`GET /map`, `GET /verifications/pending`, `GET /alerts`) zwracają nagłówek `ETag`.
+Wyślij go z powrotem w `If-None-Match`, a dostaniesz `304 Not Modified` bez treści, gdy nic się nie zmieniło.
 
 ---
 
@@ -85,11 +90,14 @@ Content-Type: application/json
 ```
 
 * `platform`: `ios` | `android` | `web` | `simulator`.
-* Token zapisz w bezpiecznym magazynie (`flutter_secure_storage`). Przy 401 usuń token i zarejestruj się ponownie
-  (powstanie nowe urządzenie, to akceptowalne).
+* Token zapisz w bezpiecznym magazynie (`flutter_secure_storage`). Przy 401 (`unauthorized` lub `token_expired`) usuń
+  token i zarejestruj się ponownie, podając aktualny `pushToken`. Powstanie nowe urządzenie, a token FCM zostanie
+  odpięty od starego, więc telefon nie dostanie dwóch pytań.
 * Token FCM możesz podać od razu albo później przez `PUT /api/v1/devices/me/push-token` (`{ "pushToken": "..." }`, 204).
   Wysyłaj go **przy każdej rotacji** (`FirebaseMessaging.instance.onTokenRefresh`).
-* `GET /api/v1/devices/me` zwraca profil: `deviceId`, `platform`, `hasPushToken`, `lastLocation` (GeoJSON Point lub null), `h3Cell`, `locationUpdatedAt`.
+* `GET /api/v1/devices/me` zwraca profil (`DeviceProfile`): `deviceId`, `platform`, `hasPushToken`, `lastLocation` (GeoJSON Point lub null),
+  `h3Cell`, `locationUpdatedAt`, `locationSource` (`home` | `gps` | `background` | null), `preferences.locationRefresh`.
+* `PUT /api/v1/devices/me/preferences` `{ "locationRefresh": false }` (204) wyłącza przypomnienia o lokalizacji (patrz §10).
 
 ---
 
@@ -100,7 +108,7 @@ wybrania, kogo zapytać w weryfikacji, i komu dostarczyć alert. Bez pozycji urz
 
 ```http
 PUT /api/v1/devices/me/location
-{ "lat": 52.4125, "lng": 16.9020, "accuracyMeters": 12.5 }
+{ "lat": 52.4125, "lng": 16.9020, "accuracyMeters": 12.5, "source": "gps" }
 ```
 ```json
 { "h3Cell": "891e24aa5c7ffff" }
@@ -111,7 +119,12 @@ Kiedy wysyłać:
 2. po przemieszczeniu o więcej niż ~150 m (to rozmiar komórki mapy),
 3. nie częściej niż raz na kilkanaście sekund (limit 30/min).
 
-Lokalizacja w tle nie jest wymagana na MVP. Zgłoszenie (`POST /api/v1/reports`) także aktualizuje pozycję urządzenia.
+`source` mówi, skąd pochodzi pozycja: `home` (adres z onboardingu, same współrzędne), `gps` (domyślne, pierwszy plan),
+`background` (tryb czuwania). Backend przechowuje nadal jedną pozycję (wygrywa ostatni `PUT`), ale zna jej źródło
+i zwraca je w profilu, żeby aplikacja mogła pokazać „adres domowy” vs „ostatnia pozycja GPS”.
+
+Lokalizacja w tle nie jest wymagana na MVP. Zgłoszenie (`POST /api/v1/reports`) także aktualizuje pozycję urządzenia
+(jako `gps`).
 
 ---
 
@@ -138,6 +151,7 @@ Każdy `Feature` ma `properties.kind` ∈ `incident` | `shelter` | `alert`:
     "type": "power_outage",
     "typeLabel": "Brak prądu",
     "status": "verifying",
+    "statusLabel": "Trwa weryfikacja",
     "confidenceLevel": "likely",
     "confidenceLabel": "Prawdopodobne",
     "confidenceScore": 0.43,
@@ -152,7 +166,9 @@ Każdy `Feature` ma `properties.kind` ∈ `incident` | `shelter` | `alert`:
 
 Zasady renderowania:
 
-* **Incydent** ma geometrię `MultiPolygon` (zasięg) albo `Point` (gdy zasięg nie jest jeszcze wyznaczony). Dla punktu narysuj marker, dla poligonu wypełnienie z przezroczystością ~35 % i obrys.
+* Każdy `Feature` ma to samo UUID w `id` i w `properties.id` (dla wszystkich `kind`). Schemat: `MapFeature` z `properties`
+  jako `oneOf` po `kind` (`IncidentFeatureProperties` | `ShelterFeatureProperties` | `AlertFeatureProperties`).
+* **Incydent** ma geometrię `MultiPolygon` (zasięg) albo `Point` (gdy zasięg nie jest jeszcze wyznaczony). Dla punktu narysuj marker, dla poligonu wypełnienie z przezroczystością ~35 % i obrys. `statusLabel`: Wykryte / Trwa weryfikacja / Zasięg ustalony / Zakończone.
 * Kolor incydentu zależy od `confidenceLevel` (tak samo jak w panelu operatora):
 
 | `confidenceLevel` | Etykieta | Kolor |
@@ -164,7 +180,7 @@ Zasady renderowania:
 
 * `community.agreementPct` to zdanie z opisu produktu: „Problem zgłasza 86 % odpowiadających użytkowników”. `null`, gdy nikt jeszcze nie odpowiedział.
 * **Schron** to `Point` z `properties.status` ∈ `open` | `closed` | `full` | `unknown` (etykiety w `statusLabel`), `name`, `address`, `capacity`, `lastConfirmedAt`, `confirmationCount`.
-* **Alert** to poligon z `title`, `body`, `severity` ∈ `info` | `warning` | `danger`, `expiresAt`, `incidentId`.
+* **Alert** to poligon z `title`, `body`, `severity` ∈ `info` | `warning` | `danger`, `createdAt`, `expiresAt`, `active`, `incidentId` (ten sam model co w `GET /alerts`).
 
 Biblioteka: `flutter_map` z warstwą `PolygonLayer`/`MarkerLayer` i kafelkami OSM albo MapLibre (`maplibre_gl`)
 z kafelkami OpenFreeMap (`https://tiles.openfreemap.org/styles/liberty`, bez klucza). Do parsowania GeoJSON
@@ -317,10 +333,17 @@ Backend wysyła przez Firebase Cloud Messaging wiadomości z sekcją `notificati
 
 | `data.type` | Pozostałe pola `data` | Co zrobić po tapnięciu |
 |---|---|---|
-| `verification` | `verificationId`, `incidentId`, `type` (typ incydentu) | otwórz ekran pytania, pobierz `GET /api/v1/verifications/{verificationId}` |
+| `verification` | `verificationId`, `incidentId`, `incidentType`, `expiresAt` (ISO 8601) | otwórz ekran pytania, pobierz `GET /api/v1/verifications/{verificationId}`; jeśli `expiresAt` minęło, od razu pokaż „pytanie wygasło” |
 | `alert` | `alertId` | otwórz ekran alertu, pobierz `GET /api/v1/alerts/{alertId}` |
+| `location_refresh` | - | po otwarciu pobierz GPS i wyślij `PUT /api/v1/devices/me/location` |
 
-Wiadomości weryfikacyjne mają wysoki priorytet (Android `priority: high`, iOS `apns-priority: 10`, dźwięk domyślny).
+Pytania i alerty idą z wysokim priorytetem (Android `priority: high`, iOS `apns-push-type: alert`, `apns-priority: 10`,
+`interruption-level: time-sensitive`, dźwięk domyślny). Time-sensitive wymaga capability *Time Sensitive Notifications*
+w aplikacji iOS; bez niej push dochodzi jak zwykły alert.
+
+`location_refresh` („Czy nadal jesteś w tej okolicy?”) ma priorytet normalny i idzie tylko, gdy `locationUpdatedAt` jest
+starsze niż 24 h, maks. raz na dobę, nie między 21:00 a 8:00 (Europe/Warsaw) i tylko przy `preferences.locationRefresh = true`.
+Urządzenia w trybie czuwania (`source = background`) odświeżają pozycję same, więc w praktyce go nie dostają.
 
 Po stronie Fluttera: `firebase_messaging`, obsługa `onMessage` (pierwszy plan: pokaż pytanie od razu, bez
 czekania na tapnięcie), `onMessageOpenedApp` i `getInitialMessage` (start z pusha), `onTokenRefresh` → `PUT push-token`.
@@ -335,7 +358,7 @@ w aplikacji przez `FirebaseMessaging.instance.getToken()`. Aplikacja i tak musi 
 
 ## 11. Rekomendowany cykl życia ekranu głównego
 
-1. Start: jeśli brak tokena → `POST /devices`; w przeciwnym razie `GET /devices/me` (401 → ponowna rejestracja).
+1. Start: jeśli brak tokena → `POST /devices`; w przeciwnym razie `GET /devices/me` (401 → ponowna rejestracja z aktualnym `pushToken`).
 2. Pobierz pozycję z GPS → `PUT /devices/me/location`.
 3. Równolegle: `GET /map?bbox=` (okno mapy), `GET /verifications/pending`, `GET /alerts?lat&lng`.
 4. Jeśli `pending` niepuste → pokaż pytanie jako arkusz na mapie.
@@ -434,6 +457,8 @@ make console c="dbal:run-sql \"DELETE FROM device WHERE simulated\""
 * Brak trybu offline po stronie serwera; cache schronów i ostatniego stanu mapy to zadanie aplikacji.
 * Brak tłumaczeń: etykiety przychodzą po polsku, wartości enumów są stałe i po angielsku.
 * Brak paginacji: listy są krótkie z założenia (bbox, najbliższe 10, pending).
+* Brak geokodowania adresu po stronie backendu: adres z onboardingu zamieniasz na współrzędne systemowym geokoderem
+  (`geocoding`), do API trafiają tylko `lat`/`lng`.
 
 Jeśli czegoś brakuje w API, najkrótsza droga to zgłoszenie w repo backendu z przykładowym żądaniem i oczekiwaną
 odpowiedzią; dodanie endpointu w istniejącym module to zwykle kilkanaście minut.
