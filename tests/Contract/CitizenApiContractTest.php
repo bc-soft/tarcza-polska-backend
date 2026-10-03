@@ -6,6 +6,10 @@ namespace App\Tests\Contract;
 
 use App\Alerting\Entity\Alert;
 use App\Alerting\View\AlertView;
+use App\Guidance\Model\OfflineBundle;
+use App\Guidance\Service\ProcedureCatalog;
+use App\Guidance\View\OfflineBundleView;
+use App\Guidance\View\ProcedureView;
 use App\Identity\Entity\Device;
 use App\Identity\Enum\LocationSource;
 use App\Identity\View\DeviceProfileView;
@@ -129,6 +133,32 @@ final class CitizenApiContractTest extends KernelTestCase
         foreach (IncidentTimelineView::list($entries) as $entry) {
             $this->assertMatches('IncidentTimelineEntry', $entry);
         }
+    }
+
+    public function testProceduresAndOfflineBundle(): void
+    {
+        $catalog = new ProcedureCatalog();
+        foreach (ProcedureView::list($catalog->all()) as $procedure) {
+            $this->assertMatches('Procedure', $procedure);
+        }
+
+        $center = new Point(52.4121, 16.9012);
+        $incident = $this->incident();
+        $incident->setArea($this->polygon());
+        $alert = new Alert('Test', 'Treść', Alert::SEVERITY_WARNING, $this->polygon(), 'system', new DateTimeImmutable('+1 hour'), $incident);
+        $bundle = new OfflineBundle(
+            center: $center,
+            radiusMeters: 15000,
+            generatedAt: new DateTimeImmutable(),
+            validUntil: new DateTimeImmutable('+24 hours'),
+            shelters: [new Shelter('Schron Jeżyce', new Point(52.41, 16.9))],
+            alerts: [$alert],
+            incidents: [$incident, $this->incident()],
+            procedures: $catalog->forType(ReportType::PowerOutage),
+        );
+
+        $this->assertMatches('OfflineBundle', OfflineBundleView::toArray($bundle));
+        $this->assertMatches('OfflineBundle', OfflineBundleView::toArray(new OfflineBundle($center, 1000, new DateTimeImmutable(), new DateTimeImmutable('+1 day'), [], [], [], [])));
     }
 
     public function testShelterViewAndFeature(): void

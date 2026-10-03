@@ -311,6 +311,30 @@ nelmio_api_doc:
                         thanks: { type: string, description: 'Polish thank-you line to show the user' }
 
                 # ---- health -------------------------------------------------------------------
+                Procedure:
+                    type: object
+                    description: Offline-safe safety checklist (Polish).
+                    required: [id, title, summary, steps, appliesTo, priority]
+                    properties:
+                        id: { type: string, example: power-outage }
+                        title: { type: string }
+                        summary: { type: string }
+                        steps: { type: array, items: { type: string } }
+                        appliesTo: { type: array, items: { $ref: '#/components/schemas/ReportType' }, description: 'Empty = general procedure' }
+                        priority: { type: integer, description: 'Higher first' }
+                OfflineBundle:
+                    type: object
+                    description: Snapshot to cache for degraded / offline mode around one position.
+                    required: [generatedAt, validUntil, center, radiusMeters, shelters, alerts, incidents, procedures]
+                    properties:
+                        generatedAt: { type: string, format: date-time }
+                        validUntil: { type: string, format: date-time, description: 'Refresh after this time (24 h) or on foreground' }
+                        center: { $ref: '#/components/schemas/GeoJsonGeometry' }
+                        radiusMeters: { type: integer }
+                        shelters: { type: array, items: { $ref: '#/components/schemas/ShelterView' }, description: 'Nearest first, with distanceMeters' }
+                        alerts: { type: array, items: { $ref: '#/components/schemas/AlertView' } }
+                        incidents: { type: array, items: { $ref: '#/components/schemas/IncidentView' } }
+                        procedures: { type: array, items: { $ref: '#/components/schemas/Procedure' } }
                 HealthStatus:
                     type: object
                     required: [status, time]

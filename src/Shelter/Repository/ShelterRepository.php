@@ -31,6 +31,26 @@ final class ShelterRepository extends ServiceEntityRepository
         return $this->byIds($ids);
     }
 
+    /** @return list<Shelter> inside the radius, nearest first (offline bundle) */
+    public function findWithinRadius(Point $point, int $radiusMeters, int $limit = 50): array
+    {
+        $sql = <<<SQL
+            SELECT id FROM shelter
+            WHERE ST_DWithin(location::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radius)
+            ORDER BY location::geography <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+            LIMIT :limit
+            SQL;
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn($sql, ['lng' => $point->lng, 'lat' => $point->lat, 'radius' => $radiusMeters, 'limit' => $limit]);
+
+        $byId = [];
+        foreach ($this->byIds($ids) as $shelter) {
+            $byId[$shelter->getId()->toRfc4122()] = $shelter;
+        }
+
+        return array_values(array_filter(array_map(static fn (string $id) => $byId[$id] ?? null, $ids)));
+    }
+
     /** @return list<Shelter> nearest first */
     public function findNearest(Point $point, int $limit = 5): array
     {
