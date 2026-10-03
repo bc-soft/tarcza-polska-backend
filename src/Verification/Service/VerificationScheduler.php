@@ -98,7 +98,8 @@ final readonly class VerificationScheduler
             $this->push->send([$request->getDevice()], PushMessage::verification(
                 $request->getId()->toRfc4122(),
                 $question,
-                ['incidentId' => $incident->getId()->toRfc4122(), 'type' => $incident->getType()->value],
+                $request->getExpiresAt(),
+                ['incidentId' => $incident->getId()->toRfc4122(), 'incidentType' => $incident->getType()->value],
             ));
         }
 

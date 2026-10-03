@@ -38,13 +38,9 @@ final readonly class FcmPushSender implements PushSenderInterface
             $cloudMessage = CloudMessage::new()
                 ->toToken($token)
                 ->withNotification(Notification::create($message->title, $message->body))
-                ->withData($message->data);
-
-            if ($message->highPriority) {
-                $cloudMessage = $cloudMessage
-                    ->withAndroidConfig(AndroidConfig::fromArray(['priority' => 'high']))
-                    ->withApnsConfig(ApnsConfig::fromArray(['headers' => ['apns-priority' => '10'], 'payload' => ['aps' => ['sound' => 'default']]]));
-            }
+                ->withData($message->data)
+                ->withAndroidConfig(AndroidConfig::fromArray(['priority' => $message->highPriority ? 'high' : 'normal']))
+                ->withApnsConfig(ApnsConfig::fromArray(self::apns($message)));
 
             try {
                 $this->messaging->send($cloudMessage);
@@ -58,5 +54,27 @@ final readonly class FcmPushSender implements PushSenderInterface
         }
 
         return $count;
+    }
+
+    /**
+     * APNs headers / aps payload. Urgent messages (verification questions live 90 s) go with
+     * apns-priority 10 and interruption-level time-sensitive; reminders with priority 5.
+     *
+     * @return array<string, mixed>
+     */
+    private static function apns(PushMessage $message): array
+    {
+        $aps = ['sound' => 'default'];
+        if ($message->timeSensitive) {
+            $aps['interruption-level'] = 'time-sensitive';
+        }
+
+        return [
+            'headers' => [
+                'apns-push-type' => 'alert',
+                'apns-priority' => $message->highPriority ? '10' : '5',
+            ],
+            'payload' => ['aps' => $aps],
+        ];
     }
 }
