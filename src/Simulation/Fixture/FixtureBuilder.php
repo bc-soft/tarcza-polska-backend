@@ -28,6 +28,7 @@ use App\Reporting\Model\PhotoAnalysis;
 use App\Reporting\Service\PhotoStorage;
 use App\Shared\Geo\H3;
 use App\Shared\Geo\Point;
+use App\Shared\Geo\Region;
 use App\Shared\Poi\PoiRef;
 use App\Shelter\Entity\Shelter;
 use App\Shelter\Enum\ShelterAvailability;
@@ -70,14 +71,15 @@ final class FixtureBuilder
         private readonly ShelterRepository $shelters,
         private readonly OperatorRepository $operators,
         private readonly UserPasswordHasherInterface $hasher,
-        private readonly CityCatalog $catalog,
+        private readonly ZoneCatalog $catalog,
+        private readonly Region $region,
     ) {
         $this->rng = new FixtureRandom(42);
         $this->clock = new FixtureClock();
     }
 
     /** @return array<string, int> what was created */
-    public function load(int $seed, int $cityLimit, bool $reset): array
+    public function load(int $seed, int $zoneLimit, bool $reset): array
     {
         $this->rng = new FixtureRandom($seed);
         $this->clock = new FixtureClock();
@@ -88,17 +90,17 @@ final class FixtureBuilder
         }
         $this->ensureOperators();
 
-        foreach ($this->catalog->cities($cityLimit) as $index => $city) {
-            $stations = $this->ensureFuelStations($city);
-            $shelters = $this->ensureShelters($city);
-            $devices = $this->devices($city, 50);
+        foreach ($this->catalog->zones($zoneLimit) as $index => $zone) {
+            $stations = $this->ensureFuelStations($zone);
+            $shelters = $this->ensureShelters($zone);
+            $devices = $this->devices($zone, 50);
             $this->em->flush();
 
             foreach ($this->areaPlan($index) as [$type, $state]) {
-                $this->areaIncident($city, $type, $state, $devices);
+                $this->areaIncident($zone, $type, $state, $devices);
             }
             foreach ($this->pointPlan($index) as [$type, $state]) {
-                $this->pointIncident($city, $type, $state, $devices, $stations, $shelters);
+                $this->pointIncident($zone, $type, $state, $devices, $stations, $shelters);
             }
             $this->randomPoiConfirmations($stations, $shelters);
 
@@ -143,20 +145,20 @@ final class FixtureBuilder
     }
 
     /** @return list<FuelStation> */
-    private function ensureFuelStations(City $city): array
+    private function ensureFuelStations(Zone $zone): array
     {
-        $existing = $this->stations->findWithinRadius($city->center, 8000, 40);
+        $existing = $this->stations->findWithinRadius($zone->center, 3000, 40);
         if (\count($existing) >= 5) {
             return $existing;
         }
         $brands = ['Orlen', 'BP', 'Shell', 'Circle K', 'MOL', 'Moya', 'Amic'];
         for ($i = \count($existing); $i < 6; ++$i) {
-            $location = $this->rng->around($city->center, 5000);
+            $location = $this->rng->around($zone->center, 1500);
             $brand = $this->rng->pick($brands);
-            $street = $this->rng->pick($city->streets);
-            $station = new FuelStation(\sprintf('%s %s', $brand, $street), $location, $this->h3->cellFor($location), self::SOURCE, \sprintf('%s-%s-%d', $city->name, $brand, $i));
+            $street = $this->rng->pick($zone->streets);
+            $station = new FuelStation(\sprintf('%s %s', $brand, $street), $location, $this->h3->cellFor($location), self::SOURCE, \sprintf('%s-%s-%d', $zone->name, $brand, $i));
             $station->setBrand($brand);
-            $station->setAddress(\sprintf('ul. %s %d, %s', $street, $this->rng->int(2, 180), $city->name));
+            $station->setAddress(\sprintf('ul. %s %d, %s', $street, $this->rng->int(2, 180), $this->region->name));
             $station->setFuelTypes($this->rng->chance(0.7) ? FuelType::cases() : [FuelType::Pb95, FuelType::Diesel]);
             $this->em->persist($station);
             $existing[] = $station;
@@ -167,21 +169,21 @@ final class FixtureBuilder
     }
 
     /** @return list<Shelter> */
-    private function ensureShelters(City $city): array
+    private function ensureShelters(Zone $zone): array
     {
-        $existing = $this->shelters->findWithinRadius($city->center, 8000, 40);
+        $existing = $this->shelters->findWithinRadius($zone->center, 3000, 40);
         if (\count($existing) >= 5) {
             return $existing;
         }
         for ($i = \count($existing); $i < 6; ++$i) {
-            $location = $this->rng->around($city->center, 5000);
-            $street = $this->rng->pick($city->streets);
-            $address = \sprintf('ul. %s %d, %s', $street, $this->rng->int(1, 120), $city->name);
+            $location = $this->rng->around($zone->center, 1500);
+            $street = $this->rng->pick($zone->streets);
+            $address = \sprintf('ul. %s %d, %s', $street, $this->rng->int(1, 120), $this->region->name);
             $shelter = new Shelter('Miejsce ochronne · '.$address, $location, self::SOURCE);
             $shelter->setAddress($address);
             $shelter->setCapacity($this->rng->pick([80, 150, 300, 500, 800, 1200]));
             $shelter->setAvailability($this->rng->pick([ShelterAvailability::Always, ShelterAvailability::OnDemand, ShelterAvailability::Scheduled]));
-            $shelter->setRegion([$city->name, $this->rng->pick($city->districts)]);
+            $shelter->setRegion([$this->region->name, $zone->name]);
             $this->em->persist($shelter);
             $existing[] = $shelter;
             $this->bump('shelters');
@@ -191,7 +193,7 @@ final class FixtureBuilder
     }
 
     /** @return list<Device> */
-    private function devices(City $city, int $n): array
+    private function devices(Zone $zone, int $n): array
     {
         $devices = [];
         for ($i = 0; $i < $n; ++$i) {
@@ -199,7 +201,7 @@ final class FixtureBuilder
             $device->setPlatform($this->rng->pick(['android', 'ios']));
             $device->setAppVersion('0.3.'.$this->rng->int(0, 9));
             $device->markSimulated();
-            $location = $this->rng->around($city->center, 6000);
+            $location = $this->rng->around($zone->center, 2500);
             $device->updateLocation($location, $this->h3->cellFor($location));
             $this->clock->backdate($device, [
                 'createdAt' => $this->clock->ago(\sprintf('%d days', $this->rng->int(1, 40))),
@@ -216,44 +218,44 @@ final class FixtureBuilder
     // ------------------------------------------------------------------ plans
 
     /** @return list<array{0: ReportType, 1: string}> */
-    private function areaPlan(int $cityIndex): array
+    private function areaPlan(int $zoneIndex): array
     {
         $states = ['detected', 'verifying', 'active', 'confirmed', 'resolved_confirmed', 'resolved_false_alarm', 'resolved_expired'];
         $plan = [];
         $types = [ReportType::PowerOutage, ReportType::WaterOutage, ReportType::RoadBlocked, ReportType::OtherThreat];
         foreach ($types as $t => $type) {
-            $plan[] = [$type, $states[($cityIndex + $t) % \count($states)]];
-            $plan[] = [$type, $states[($cityIndex + $t + 3) % \count($states)]];
+            $plan[] = [$type, $states[($zoneIndex + $t) % \count($states)]];
+            $plan[] = [$type, $states[($zoneIndex + $t + 3) % \count($states)]];
         }
 
         return $plan;
     }
 
     /** @return list<array{0: ReportType, 1: string}> */
-    private function pointPlan(int $cityIndex): array
+    private function pointPlan(int $zoneIndex): array
     {
         $fuelStates = ['verifying', 'confirmed', 'detected', 'resolved_confirmed'];
         $shelterStates = ['active', 'verifying', 'resolved_false_alarm'];
 
         return [
-            [ReportType::FuelShortage, $fuelStates[$cityIndex % 4]],
-            [ReportType::FuelShortage, $fuelStates[($cityIndex + 1) % 4]],
-            [ReportType::ShelterIssue, $shelterStates[$cityIndex % 3]],
+            [ReportType::FuelShortage, $fuelStates[$zoneIndex % 4]],
+            [ReportType::FuelShortage, $fuelStates[($zoneIndex + 1) % 4]],
+            [ReportType::ShelterIssue, $shelterStates[$zoneIndex % 3]],
         ];
     }
 
     // ------------------------------------------------------------------ area incidents
 
     /** @param list<Device> $devices */
-    private function areaIncident(City $city, ReportType $type, string $state, array $devices): void
+    private function areaIncident(Zone $zone, ReportType $type, string $state, array $devices): void
     {
         $t0 = $this->clock->ago(\sprintf('%d minutes', $this->rng->int(20, 36 * 60)));
-        $center = $this->rng->around($city->center, 5500);
+        $center = $this->rng->around($zone->center, 1500);
         $centerCell = $this->h3->cellFor($center);
         $incident = new Incident($type, $center, $centerCell);
         $this->em->persist($incident);
         $this->clock->backdate($incident, ['startedAt' => $t0, 'lastActivityAt' => $t0]);
-        $district = $this->rng->pick($city->districts);
+        $district = $zone->name;
 
         $reportCount = match ($state) {
             'detected' => $this->rng->int(1, 2),
@@ -283,7 +285,7 @@ final class FixtureBuilder
         }
         $this->areaCalculator->recompute($incident);
 
-        $this->finishIncident($incident, $state, $type, $district, $reports, $t, $city);
+        $this->finishIncident($incident, $state, $type, $district, $reports, $t, $zone);
     }
 
     /**
@@ -359,7 +361,7 @@ final class FixtureBuilder
      * @param list<FuelStation> $stations
      * @param list<Shelter>     $shelters
      */
-    private function pointIncident(City $city, ReportType $type, string $state, array $devices, array $stations, array $shelters): void
+    private function pointIncident(Zone $zone, ReportType $type, string $state, array $devices, array $stations, array $shelters): void
     {
         $t0 = $this->clock->ago(\sprintf('%d minutes', $this->rng->int(15, 30 * 60)));
         $fuelTypes = [];
@@ -420,7 +422,7 @@ final class FixtureBuilder
         }
         $this->areaCalculator->recompute($incident);
 
-        $this->finishIncident($incident, $state, $type, $poi->name, $reports, $t, $city);
+        $this->finishIncident($incident, $state, $type, $poi->name, $reports, $t, $zone);
     }
 
     /**
@@ -510,13 +512,13 @@ final class FixtureBuilder
     }
 
     /** @param list<Report> $reports */
-    private function finishIncident(Incident $incident, string $state, ReportType $type, string $placeName, array $reports, DateTimeImmutable $t, City $city): void
+    private function finishIncident(Incident $incident, string $state, ReportType $type, string $placeName, array $reports, DateTimeImmutable $t, Zone $zone): void
     {
         $confirmedLike = \in_array($state, ['confirmed', 'resolved_confirmed'], true);
         $hasSources = $confirmedLike || ('active' === $state && $this->rng->chance(0.5));
 
         if ($hasSources) {
-            $t = $this->sources($incident, $type, $placeName, $city, $t, $confirmedLike);
+            $t = $this->sources($incident, $type, $placeName, $zone, $t, $confirmedLike);
         }
         if (\in_array($state, ['active', 'confirmed', 'resolved_confirmed', 'resolved_false_alarm'], true) && $this->rng->chance(0.6)) {
             $this->photos($reports, $type, $this->rng->int(1, 2));
@@ -558,7 +560,7 @@ final class FixtureBuilder
         $this->bump('incidents.'.$type->value);
     }
 
-    private function sources(Incident $incident, ReportType $type, string $placeName, City $city, DateTimeImmutable $t, bool $official): DateTimeImmutable
+    private function sources(Incident $incident, ReportType $type, string $placeName, Zone $zone, DateTimeImmutable $t, bool $official): DateTimeImmutable
     {
         $catalog = [
             ReportType::PowerOutage->value => [['Enea Operator', 'https://www.operator.enea.pl/komunikaty/awaria-%s', 'Awaria sieci SN: %s', ExternalSource::KIND_OPERATOR, 0.9], ['TVN24', 'https://tvn24.pl/%s-bez-pradu', 'Kilka tysięcy odbiorców bez prądu w rejonie %s', ExternalSource::KIND_MEDIA, 0.7]],
@@ -577,7 +579,7 @@ final class FixtureBuilder
             $foundBy = $this->rng->pick(['ai', 'rss', 'operator']);
             $source = new ExternalSource($incident, \sprintf($urlTpl, $slug.'-'.$incident->getId()->toBase32()), \sprintf($titleTpl, $placeName), $kind, $credibility, $foundBy);
             $source->setPublisher($publisher);
-            $source->setExcerpt(\sprintf('%s informuje o zdarzeniu w rejonie %s (%s). Trwają działania służb.', $publisher, $placeName, $city->name));
+            $source->setExcerpt(\sprintf('%s informuje o zdarzeniu w rejonie %s (%s). Trwają działania służb.', $publisher, $placeName, $this->region->name.', '.$zone->name));
             $source->setPublishedAt($t->modify(\sprintf('-%d minutes', $this->rng->int(2, 40))));
             $this->em->persist($source);
             $this->clock->backdate($source, ['foundAt' => $t->modify(\sprintf('+%d seconds', 30 * $i))]);
