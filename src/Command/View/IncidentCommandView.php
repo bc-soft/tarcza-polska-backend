@@ -55,11 +55,20 @@ final readonly class IncidentCommandView
                 'weight' => round($r->getWeight(), 2),
                 'createdAt' => $r->getCreatedAt()->format(\DATE_ATOM),
                 'simulated' => $r->getDevice()->isSimulated(),
-            ], $incident->getReports()->toArray()),
+            ], self::sortedReports($incident)),
             'cellsGeoJson' => $this->cellsCollection($incident),
             'sources' => array_map(static fn (ExternalSource $s) => $s->toArray(), $sources),
             'verification' => $verificationStats,
         ];
+    }
+
+    /** @return list<Report> oldest first */
+    private static function sortedReports(Incident $incident): array
+    {
+        $reports = $incident->getReports()->toArray();
+        usort($reports, static fn (Report $a, Report $b) => $a->getCreatedAt() <=> $b->getCreatedAt());
+
+        return $reports;
     }
 
     /** @return array<string, mixed> FeatureCollection of hexagons with state + tallies */

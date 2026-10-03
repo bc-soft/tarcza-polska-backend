@@ -27,7 +27,7 @@ dowieźć działający mechanizm end-to-end w 48 godzin.
 | Push | Firebase Cloud Messaging (`kreait/firebase-php`) | prompty weryfikacyjne i alerty na Flutterze, iOS i Android |
 | Auth | LexikJWTAuthenticationBundle | anonimowa tożsamość urządzenia (Citizen) i konta operatorów (Command) |
 | Dokumentacja API | NelmioApiDocBundle (OpenAPI 3) pod `/api/doc` | zespół Fluttera generuje klienta Dart z jednego pliku |
-| AI | Claude API, SDK `anthropic-ai/sdk`, model `claude-opus-5`, narzędzie web search | research incydentu w jednym wywołaniu, bez własnych scraperów |
+| AI | OpenAI Responses API (`openai-php/client`, domyślnie `gpt-5`) lub Claude API (`anthropic-ai/sdk`, `claude-opus-5`), wybór przez `RESEARCH_PROVIDER` | research incydentu w jednym wywołaniu z wbudowanym web search, bez własnych scraperów |
 | Command Center | Twig + Tailwind (CDN) + MapLibre GL JS + Mercure | zespół backendowy robi panel bez osobnego frontu |
 | Mapy | OpenFreeMap (kafelki wektorowe, bez klucza); `flutter_map` po stronie mobile | darmowe i wystarczające na demo |
 | Jakość | PHPStan poziom 8, php-cs-fixer, PHPUnit 13, Foundry | `make qa` = pełna bramka lokalna, to samo w GitHub Actions |
@@ -136,12 +136,19 @@ To jest argument dla jury, że AI nie jest arbitrem prawdziwości. Testy w
 
 ### 3.4 AI jako research & correlation engine
 
-`Intelligence\Service\ClaudeResearcher`: jedno wywołanie `messages.create` z modelem `claude-opus-5`,
-narzędziem `web_search_20260209` (lista dozwolonych domen: operatorzy energetyczni, wodociągi, RCB, PAP,
-media lokalne) i strukturalnym wyjściem (`output_config.format` = JSON schema). Wynik to lista źródeł
-z URL, wydawcą, wiarygodnością i flagą „potwierdza to zdarzenie”. Źródła potwierdzające zapisujemy jako
-`ExternalSource`, a `ConfidenceCalculator` decyduje, ile są warte. Bez `ANTHROPIC_API_KEY` handler
-loguje i pomija. Na scenie bez internetu: `bin/console tarcza:simulate:confirm`.
+Model językowy dotyka systemu w jednym miejscu: `Intelligence\Service\ResearcherInterface`. Dostawcę
+wybiera zmienna `RESEARCH_PROVIDER` (`openai` domyślnie, `anthropic`, `none`) przez `ResearcherFactory`.
+
+* Część wspólna (`ResearchPrompt`): prompt po polsku w roli analityka CZK, lista zaufanych domen
+  (operatorzy energetyczni, wodociągi, RCB, PAP, media lokalne) i ścisły JSON schema odpowiedzi
+  (lista źródeł z URL, wydawcą, wiarygodnością, datą i flagą „potwierdza to zdarzenie”) oraz parser.
+* `OpenAiResearcher`: Responses API, narzędzie `web_search` z filtrem `allowed_domains` (limit 20 domen),
+  `text.format` = `json_schema` ze `strict: true`, `max_tool_calls` = 6.
+* `ClaudeResearcher`: `messages.create` z `web_search_20260209` i `output_config.format` = JSON schema.
+
+Źródła potwierdzające zapisujemy jako `ExternalSource`, a `ConfidenceCalculator` decyduje, ile są warte.
+Wybrany dostawca bez klucza API = research pominięty z wpisem w logu, reszta działa. Na scenie bez
+internetu: `bin/console tarcza:simulate:confirm`.
 
 ### 3.5 Bezpieczeństwo i prywatność
 
@@ -183,6 +190,6 @@ kodem, worker mode FrankenPHP, Caddy wystawia TLS dla `SERVER_NAME`).
 * Firebase wymaga projektu i `google-services.json` po stronie Fluttera; załóżcie to w pierwszej godzinie,
   bo blokuje całą fazę 2. Backend działa bez FCM (pushe są logowane, aplikacja polluje `/verifications/pending`).
 * Tło lokalizacji na iOS jest kapryśne. Na demo wystarczy lokalizacja z foregroundu plus symulator.
-* Klucz do Claude API: koszt przy kilkudziesięciu incydentach jest pomijalny; `max_uses` web search = 6.
+* Klucz do OpenAI lub Claude: koszt przy kilkudziesięciu incydentach jest pomijalny; limit 6 wyszukiwań na research.
 * Command Center w Twig jest świadomym kompromisem na rzecz czasu; API `/api/command/*` jest gotowe,
   gdyby ktoś chciał dołożyć osobny front.

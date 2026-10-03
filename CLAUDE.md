@@ -9,6 +9,7 @@ Zasady:
   Zapis do encji cudzego modułu robimy przez jego serwis albo zdarzenie, nigdy bezpośrednio.
 - Geometria: `App\Shared\Geo\Point` + typy Doctrine `geo_point` / `geo_geometry`; H3 wyłącznie przez `App\Shared\Geo\H3` (SQL).
 - Confidence liczy tylko `Confidence\Service\ConfidenceCalculator` (deterministycznie); AI dokłada `ExternalSource`.
+- Research AI: dostawca z `RESEARCH_PROVIDER` (openai | anthropic | none) przez `ResearcherFactory`; prompt, schema i parser są wspólne w `ResearchPrompt`, nie duplikuj ich w klasach dostawców.
 - Widok publiczny (`IncidentPublicView`) nie może ujawniać surowych lokalizacji raportów.
 - Po zmianie encji: `make migration` i commit migracji. Nie edytuj wygenerowanych migracji ręcznie poza SQL dla PostGIS.
 - Bramka jakości: `make qa` (php-cs-fixer, PHPStan lvl 8, PHPUnit). Nie wyciszaj PHPStan ignorami.

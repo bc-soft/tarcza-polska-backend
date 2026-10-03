@@ -81,7 +81,6 @@ class Incident
 
     /** @var Collection<int, Report> */
     #[ORM\OneToMany(targetEntity: Report::class, mappedBy: 'incident')]
-    #[ORM\OrderBy(['createdAt' => 'ASC'])]
     private Collection $reports;
 
     /** @var Collection<string, IncidentCell> keyed by H3 index */

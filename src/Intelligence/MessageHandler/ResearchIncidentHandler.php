@@ -38,7 +38,7 @@ final readonly class ResearchIncidentHandler
             return;
         }
         if (!$this->researcher->isEnabled()) {
-            $this->logger->notice('ANTHROPIC_API_KEY not set, skipping research for incident {id}', ['id' => $command->incidentId]);
+            $this->logger->notice('Research provider {provider} has no credentials, skipping research for incident {id}', ['provider' => $this->researcher->name(), 'id' => $command->incidentId]);
             $incident->recordResearch(null);
             $this->em->flush();
 
@@ -48,7 +48,7 @@ final readonly class ResearchIncidentHandler
         try {
             $result = $this->researcher->research($incident, $this->placeNamer->nameFor($incident->getCentroid()));
         } catch (Throwable $e) {
-            $this->logger->error('Research failed for incident {id}: {error}', ['id' => $command->incidentId, 'error' => $e->getMessage()]);
+            $this->logger->error('Research ({provider}) failed for incident {id}: {error}', ['provider' => $this->researcher->name(), 'id' => $command->incidentId, 'error' => $e->getMessage()]);
             throw $e; // let Messenger retry
         }
 

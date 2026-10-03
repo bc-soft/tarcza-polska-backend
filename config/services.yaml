@@ -6,8 +6,11 @@ parameters:
     app.verification.max_ring: '%env(int:VERIFICATION_MAX_RING)%'
     app.verification.devices_per_cell: '%env(int:VERIFICATION_DEVICES_PER_CELL)%'
     app.verification.cooldown_min: '%env(int:VERIFICATION_COOLDOWN_MIN)%'
+    app.research.provider: '%env(RESEARCH_PROVIDER)%'
     app.anthropic.api_key: '%env(ANTHROPIC_API_KEY)%'
     app.anthropic.model: '%env(ANTHROPIC_MODEL)%'
+    app.openai.api_key: '%env(OPENAI_API_KEY)%'
+    app.openai.model: '%env(OPENAI_MODEL)%'
     app.firebase.credentials: '%env(FIREBASE_CREDENTIALS)%'
 
 services:
@@ -22,8 +25,11 @@ services:
             int $maxRing: '%app.verification.max_ring%'
             int $devicesPerCell: '%app.verification.devices_per_cell%'
             int $cooldownMinutes: '%app.verification.cooldown_min%'
+            string $researchProvider: '%app.research.provider%'
             string $anthropicApiKey: '%app.anthropic.api_key%'
             string $anthropicModel: '%app.anthropic.model%'
+            string $openAiApiKey: '%app.openai.api_key%'
+            string $openAiModel: '%app.openai.model%'
             string $firebaseCredentials: '%app.firebase.credentials%'
 
     App\:
@@ -35,6 +41,10 @@ services:
             - '../src/**/Message/'
             - '../src/**/Model/'
             - '../src/**/Enum/'
+
+    # AI research provider: RESEARCH_PROVIDER=openai | anthropic | none (see App\Intelligence\Service\ResearcherFactory).
+    App\Intelligence\Service\ResearcherInterface:
+        factory: ['@App\Intelligence\Service\ResearcherFactory', 'create']
 
     # Push delivery: FCM when FIREBASE_CREDENTIALS is set, otherwise a logging no-op sender.
     App\Notification\PushSenderInterface:

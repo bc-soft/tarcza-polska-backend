@@ -8,7 +8,7 @@ PHPStan i testów jednostkowych, ale nie są wymagane: wszystko działa w konten
 ## Pierwsze uruchomienie
 
 ```bash
-cp .env .env.local                # opcjonalnie: ANTHROPIC_API_KEY, FIREBASE_CREDENTIALS
+cp .env .env.local                # opcjonalnie: OPENAI_API_KEY (lub ANTHROPIC_API_KEY), FIREBASE_CREDENTIALS
 make build                        # obrazy: FrankenPHP + PostGIS/H3
 make up                           # https://localhost  (zaakceptuj lokalny certyfikat Caddy)
 make seed                         # konta operatorów + schrony w Poznaniu
@@ -45,8 +45,11 @@ działają bez Dockera (platforma Composera jest przypięta do rozszerzeń konte
 
 | Zmienna | Domyślnie | Znaczenie |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | puste | pusty = research AI pominięty (handler loguje) |
-| `ANTHROPIC_MODEL` | `claude-opus-5` | model do researchu |
+| `RESEARCH_PROVIDER` | `openai` | dostawca researchu AI: `openai`, `anthropic` lub `none` |
+| `OPENAI_API_KEY` | puste | klucz OpenAI; pusty = research pominięty (handler loguje) |
+| `OPENAI_MODEL` | `gpt-5` | model OpenAI do researchu (musi wspierać narzędzie web search) |
+| `ANTHROPIC_API_KEY` | puste | klucz Claude, używany gdy `RESEARCH_PROVIDER=anthropic` |
+| `ANTHROPIC_MODEL` | `claude-opus-5` | model Claude do researchu |
 | `FIREBASE_CREDENTIALS` | puste | ścieżka do JSON konta serwisowego; pusty = pushe tylko logowane |
 | `H3_RESOLUTION` | 9 | rozdzielczość komórek (~174 m) |
 | `INCIDENT_CLUSTER_RADIUS_M` | 1500 | promień klastrowania raportów |

@@ -15,6 +15,7 @@
         "lexik/jwt-authentication-bundle": "^3.2",
         "nelmio/api-doc-bundle": "^5.13",
         "nelmio/cors-bundle": "^2.6.1",
+        "openai-php/client": "^0.21.0",
         "phpdocumentor/reflection-docblock": "^5.6.7",
         "phpstan/phpdoc-parser": "^2.3.6",
         "runtime/frankenphp-symfony": "^1.0",
