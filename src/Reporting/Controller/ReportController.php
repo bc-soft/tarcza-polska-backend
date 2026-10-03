@@ -72,11 +72,16 @@ final class ReportController extends AbstractController
         return new JsonResponse([
             'reportId' => $report->getId()->toRfc4122(),
             'type' => $report->getType()->value,
+            'typeLabel' => $report->getType()->label(),
             'createdAt' => $report->getCreatedAt()->format(\DATE_ATOM),
             'incident' => null === $incident ? null : [
                 'id' => $incident->getId()->toRfc4122(),
+                'type' => $incident->getType()->value,
+                'typeLabel' => $incident->getType()->label(),
                 'status' => $incident->getStatus()->value,
+                'statusLabel' => $incident->getStatus()->label(),
                 'confidenceLevel' => $incident->getConfidenceLevel()->value,
+                'confidenceLabel' => $incident->getConfidenceLevel()->label(),
                 'confidenceScore' => round($incident->getConfidenceScore(), 2),
             ],
         ]);

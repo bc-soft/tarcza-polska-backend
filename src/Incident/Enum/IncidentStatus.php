@@ -19,4 +19,14 @@ enum IncidentStatus: string
     {
         return self::Resolved !== $this;
     }
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Detected => 'Wykryte',
+            self::Verifying => 'Trwa weryfikacja',
+            self::Active => 'Zasięg ustalony',
+            self::Resolved => 'Zakończone',
+        };
+    }
 }
