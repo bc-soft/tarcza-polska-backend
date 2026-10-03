@@ -1,968 +1,1159 @@
 {
-  "openapi": "3.0.0",
-  "info": {
-    "title": "Tarcza Polska API",
-    "description": "Backend for the Tarcza Polska civil resilience platform.\n\n* `/api/v1/*` - Citizen mobile app (Flutter). Authenticate with the JWT returned by `POST /api/v1/devices`.\n* `/api/command/*` - Command Center. Authenticate with the JWT returned by `POST /api/command/login`.\n\nAll spatial payloads are GeoJSON (WGS84, `[lng, lat]` order).\n",
-    "version": "1.0.0"
-  },
-  "paths": {
-    "/api/v1/alerts": {
-      "get": {
-        "tags": [
-          "Alerts"
-        ],
-        "summary": "Active alerts covering my position",
-        "operationId": "get_api_alert_list",
-        "parameters": [
-          {
-            "name": "lat",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "lng",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Alerts"
-          }
-        }
-      }
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Tarcza Polska API",
+        "description": "Backend for the Tarcza Polska civil resilience platform.\n\n* `/api/v1/*` - Citizen mobile app (Flutter). Authenticate with the JWT returned by `POST /api/v1/devices`.\n* `/api/command/*` - Command Center. Authenticate with the JWT returned by `POST /api/command/login`.\n\nAll spatial payloads are GeoJSON (WGS84, `[lng, lat]` order).\n",
+        "version": "1.0.0"
     },
-    "/api/v1/alerts/{id}": {
-      "get": {
-        "tags": [
-          "Alerts"
-        ],
-        "summary": "Alert details (opened from a push)",
-        "operationId": "get_api_alert_show",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Alert"
-          }
-        }
-      }
-    },
-    "/api/command/alerts": {
-      "get": {
-        "tags": [
-          "Command"
-        ],
-        "summary": "Recent alerts",
-        "operationId": "get_api_command_alert_list",
-        "responses": {
-          "200": {
-            "description": "Alerts"
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Command"
-        ],
-        "summary": "Publish an alert to an area (incident area or explicit GeoJSON)",
-        "operationId": "post_api_command_alert_create",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateAlertRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Alert created; delivery runs asynchronously"
-          }
-        }
-      }
-    },
-    "/api/command/incidents": {
-      "get": {
-        "tags": [
-          "Command"
-        ],
-        "summary": "Incident feed for the Command Center (open first)",
-        "operationId": "get_api_command_incident_list",
-        "parameters": [
-          {
-            "name": "all",
-            "in": "query",
-            "description": "1 = include resolved",
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Incident summaries"
-          }
-        }
-      }
-    },
-    "/api/command/incidents/{id}": {
-      "get": {
-        "tags": [
-          "Command"
-        ],
-        "summary": "Full incident detail: raw reports, cells, sources, confidence breakdown (audit-logged)",
-        "operationId": "get_api_command_incident_show",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Incident detail"
-          }
-        }
-      }
-    },
-    "/api/command/incidents/{id}/sources": {
-      "get": {
-        "tags": [
-          "Command"
-        ],
-        "summary": "External sources attached to the incident",
-        "operationId": "get_api_command_incident_sources",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Sources"
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Command"
-        ],
-        "summary": "Attach an external/official source manually (raises confidence deterministically)",
-        "operationId": "post_api_command_incident_add_source",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AddExternalSourceRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Source stored"
-          }
-        }
-      }
-    },
-    "/api/command/incidents/{id}/resolve": {
-      "post": {
-        "tags": [
-          "Command"
-        ],
-        "summary": "Close an incident",
-        "operationId": "post_api_command_incident_resolve",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Resolution queued"
-          }
-        }
-      }
-    },
-    "/api/command/stats": {
-      "get": {
-        "tags": [
-          "Command"
-        ],
-        "summary": "Dashboard counters",
-        "operationId": "get_api_command_stats",
-        "responses": {
-          "200": {
-            "description": "Counters"
-          }
-        }
-      }
-    },
-    "/api/v1/devices": {
-      "post": {
-        "tags": [
-          "Devices"
-        ],
-        "summary": "Register an anonymous device and obtain a JWT",
-        "operationId": "post_api_device_register",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterDeviceRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Device created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "deviceId": {
-                      "type": "string",
-                      "format": "uuid"
+    "paths": {
+        "/api/v1/alerts": {
+            "get": {
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Active alerts covering my position",
+                "operationId": "get_api_alert_list",
+                "parameters": [
+                    {
+                        "name": "lat",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number"
+                        }
                     },
-                    "token": {
-                      "description": "Bearer token for /api/v1/*",
-                      "type": "string"
+                    {
+                        "name": "lng",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number"
+                        }
                     }
-                  },
-                  "type": "object"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Alerts"
+                    }
                 }
-              }
             }
-          }
         },
-        "security": []
-      }
-    },
-    "/api/v1/devices/me": {
-      "get": {
-        "tags": [
-          "Devices"
-        ],
-        "summary": "Current device profile",
-        "operationId": "get_api_device_me",
-        "responses": {
-          "200": {
-            "description": "Device"
-          }
-        }
-      }
-    },
-    "/api/v1/devices/me/location": {
-      "put": {
-        "tags": [
-          "Devices"
-        ],
-        "summary": "Update the last known location of the device (no history is kept)",
-        "operationId": "put_api_device_location",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateLocationRequest"
-              }
+        "/api/v1/alerts/{id}": {
+            "get": {
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Alert details (opened from a push)",
+                "operationId": "get_api_alert_show",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Alert"
+                    }
+                }
             }
-          }
         },
-        "responses": {
-          "200": {
-            "description": "Location stored, H3 cell returned"
-          }
-        }
-      }
-    },
-    "/api/v1/devices/me/push-token": {
-      "put": {
-        "tags": [
-          "Devices"
-        ],
-        "summary": "Register / rotate the FCM push token",
-        "operationId": "put_api_device_push_token",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePushTokenRequest"
-              }
+        "/api/command/alerts": {
+            "get": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Recent alerts",
+                "operationId": "get_api_command_alert_list",
+                "responses": {
+                    "200": {
+                        "description": "Alerts"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Publish an alert to an area (incident area or explicit GeoJSON)",
+                "operationId": "post_api_command_alert_create",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateAlertRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Alert created; delivery runs asynchronously"
+                    }
+                }
             }
-          }
         },
-        "responses": {
-          "204": {
-            "description": "Stored"
-          }
-        }
-      }
-    },
-    "/api/v1/incidents": {
-      "get": {
-        "tags": [
-          "Incidents"
-        ],
-        "summary": "Open incidents (optionally only those containing my position)",
-        "operationId": "get_api_incident_list",
-        "parameters": [
-          {
-            "name": "lat",
-            "in": "query",
-            "schema": {
-              "type": "number"
+        "/api/command/incidents": {
+            "get": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Incident feed for the Command Center (open first)",
+                "operationId": "get_api_command_incident_list",
+                "parameters": [
+                    {
+                        "name": "all",
+                        "in": "query",
+                        "description": "1 = include resolved",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Incident summaries"
+                    }
+                }
             }
-          },
-          {
-            "name": "lng",
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of public incident views"
-          }
-        }
-      }
-    },
-    "/api/v1/incidents/{id}": {
-      "get": {
-        "tags": [
-          "Incidents"
-        ],
-        "summary": "Public view of an incident (aggregated, no raw report positions)",
-        "operationId": "get_api_incident_show",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Incident"
-          }
-        }
-      }
-    },
-    "/api/v1/map": {
-      "get": {
-        "tags": [
-          "Incidents"
-        ],
-        "summary": "Everything visible on the citizen map inside a bbox, as GeoJSON",
-        "operationId": "get_api_map",
-        "parameters": [
-          {
-            "name": "bbox",
-            "in": "query",
-            "description": "minLng,minLat,maxLng,maxLat (defaults to Poland)",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "GeoJSON FeatureCollection; properties.kind in {incident, shelter, alert}"
-          }
-        }
-      }
-    },
-    "/api/v1/reports": {
-      "post": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Submit a report (type -> location -> optional description)",
-        "operationId": "post_api_report_create",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateReportRequest"
-              }
-            }
-          }
         },
-        "responses": {
-          "202": {
-            "description": "Accepted; clustering happens asynchronously"
-          },
-          "429": {
-            "description": "Too many reports from this device"
-          }
+        "/api/command/incidents/{id}": {
+            "get": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Full incident detail: raw reports, cells, sources, confidence breakdown (audit-logged)",
+                "operationId": "get_api_command_incident_show",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Incident detail"
+                    }
+                }
+            }
+        },
+        "/api/command/incidents/{id}/sources": {
+            "get": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "External sources attached to the incident",
+                "operationId": "get_api_command_incident_sources",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Sources"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Attach an external/official source manually (raises confidence deterministically)",
+                "operationId": "post_api_command_incident_add_source",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddExternalSourceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Source stored"
+                    }
+                }
+            }
+        },
+        "/api/command/incidents/{id}/resolve": {
+            "post": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Close an incident",
+                "operationId": "post_api_command_incident_resolve",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Resolution queued"
+                    }
+                }
+            }
+        },
+        "/api/command/shelters": {
+            "get": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "All shelters (registry view, alphabetical)",
+                "operationId": "get_api_command_shelter_list",
+                "responses": {
+                    "200": {
+                        "description": "Shelters"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Register a shelter",
+                "operationId": "post_api_command_shelter_create",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateShelterRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Shelter created"
+                    }
+                }
+            }
+        },
+        "/api/command/shelters/{id}": {
+            "put": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Update shelter master data (name, address, location, capacity)",
+                "operationId": "put_api_command_shelter_update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateShelterRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated shelter"
+                    }
+                }
+            }
+        },
+        "/api/command/shelters/{id}/status": {
+            "post": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Operator override of the shelter status (not counted as a citizen confirmation)",
+                "operationId": "post_api_command_shelter_status",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetShelterStatusRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated shelter"
+                    }
+                }
+            }
+        },
+        "/api/command/stats": {
+            "get": {
+                "tags": [
+                    "Command"
+                ],
+                "summary": "Dashboard counters",
+                "operationId": "get_api_command_stats",
+                "responses": {
+                    "200": {
+                        "description": "Counters"
+                    }
+                }
+            }
+        },
+        "/api/v1/devices": {
+            "post": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Register an anonymous device and obtain a JWT",
+                "operationId": "post_api_device_register",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterDeviceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Device created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "deviceId": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "token": {
+                                            "description": "Bearer token for /api/v1/*",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/api/v1/devices/me": {
+            "get": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Current device profile",
+                "operationId": "get_api_device_me",
+                "responses": {
+                    "200": {
+                        "description": "Device"
+                    }
+                }
+            }
+        },
+        "/api/v1/devices/me/location": {
+            "put": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Update the last known location of the device (no history is kept)",
+                "operationId": "put_api_device_location",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateLocationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Location stored, H3 cell returned"
+                    }
+                }
+            }
+        },
+        "/api/v1/devices/me/push-token": {
+            "put": {
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "Register / rotate the FCM push token",
+                "operationId": "put_api_device_push_token",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdatePushTokenRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "Stored"
+                    }
+                }
+            }
+        },
+        "/api/v1/incidents": {
+            "get": {
+                "tags": [
+                    "Incidents"
+                ],
+                "summary": "Open incidents (optionally only those containing my position)",
+                "operationId": "get_api_incident_list",
+                "parameters": [
+                    {
+                        "name": "lat",
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lng",
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of public incident views"
+                    }
+                }
+            }
+        },
+        "/api/v1/incidents/{id}": {
+            "get": {
+                "tags": [
+                    "Incidents"
+                ],
+                "summary": "Public view of an incident (aggregated, no raw report positions)",
+                "operationId": "get_api_incident_show",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Incident"
+                    }
+                }
+            }
+        },
+        "/api/v1/map": {
+            "get": {
+                "tags": [
+                    "Incidents"
+                ],
+                "summary": "Everything visible on the citizen map inside a bbox, as GeoJSON",
+                "operationId": "get_api_map",
+                "parameters": [
+                    {
+                        "name": "bbox",
+                        "in": "query",
+                        "description": "minLng,minLat,maxLng,maxLat (defaults to Poland)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "GeoJSON FeatureCollection; properties.kind in {incident, shelter, alert}"
+                    }
+                }
+            }
+        },
+        "/api/v1/reports": {
+            "post": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Submit a report (type -> location -> optional description)",
+                "operationId": "post_api_report_create",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateReportRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Accepted; clustering happens asynchronously"
+                    },
+                    "429": {
+                        "description": "Too many reports from this device"
+                    }
+                }
+            }
+        },
+        "/api/v1/reports/types": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Report categories with labels (for the report screen)",
+                "operationId": "get_api_report_types",
+                "responses": {
+                    "200": {
+                        "description": "List of types"
+                    }
+                }
+            }
+        },
+        "/api/v1/reports/{id}": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Status of one of my reports (which incident it joined)",
+                "operationId": "get_api_report_show",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Report"
+                    }
+                }
+            }
+        },
+        "/api/v1/health": {
+            "get": {
+                "summary": "Liveness + database/PostGIS/H3 readiness",
+                "operationId": "get_api_health",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/api/v1/shelters": {
+            "get": {
+                "tags": [
+                    "Shelters"
+                ],
+                "summary": "Shelters in a bbox, or the nearest ones to lat/lng",
+                "operationId": "get_api_shelter_list",
+                "parameters": [
+                    {
+                        "name": "bbox",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "lat",
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "lng",
+                        "in": "query",
+                        "schema": {
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Shelters"
+                    }
+                }
+            }
+        },
+        "/api/v1/shelters/{id}": {
+            "get": {
+                "tags": [
+                    "Shelters"
+                ],
+                "summary": "Shelter details",
+                "operationId": "get_api_shelter_show",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Shelter"
+                    }
+                }
+            }
+        },
+        "/api/v1/shelters/{id}/status": {
+            "post": {
+                "tags": [
+                    "Shelters"
+                ],
+                "summary": "Confirm the current status of a shelter (open / closed / full)",
+                "operationId": "post_api_shelter_confirm",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConfirmShelterStatusRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated shelter"
+                    }
+                }
+            }
+        },
+        "/api/v1/verifications/pending": {
+            "get": {
+                "tags": [
+                    "Verification"
+                ],
+                "summary": "Questions waiting for this device (poll on app foreground; pushes carry the same ids)",
+                "operationId": "get_api_verification_pending",
+                "responses": {
+                    "200": {
+                        "description": "List of pending questions"
+                    }
+                }
+            }
+        },
+        "/api/v1/verifications/{id}": {
+            "get": {
+                "tags": [
+                    "Verification"
+                ],
+                "summary": "One question (e.g. opened from a push)",
+                "operationId": "get_api_verification_show",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Question"
+                    }
+                }
+            }
+        },
+        "/api/v1/verifications/{id}/response": {
+            "post": {
+                "tags": [
+                    "Verification"
+                ],
+                "summary": "Answer YES / NO / UNKNOWN",
+                "operationId": "post_api_verification_respond",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RespondRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Recorded; returns the incident the answer fed into"
+                    },
+                    "409": {
+                        "description": "Already answered"
+                    },
+                    "410": {
+                        "description": "Question expired"
+                    }
+                }
+            }
         }
-      }
     },
-    "/api/v1/reports/types": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Report categories with labels (for the report screen)",
-        "operationId": "get_api_report_types",
-        "responses": {
-          "200": {
-            "description": "List of types"
-          }
+    "components": {
+        "schemas": {
+            "CreateAlertRequest": {
+                "required": [
+                    "title",
+                    "body"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 160
+                    },
+                    "body": {
+                        "type": "string",
+                        "maxLength": 2000
+                    },
+                    "severity": {
+                        "type": "string",
+                        "default": "warning",
+                        "enum": [
+                            "info",
+                            "warning",
+                            "danger"
+                        ]
+                    },
+                    "incidentId": {
+                        "title": "Incident whose current area becomes the alert area (if `area` is omitted).",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "area": {
+                        "title": "Explicit GeoJSON Polygon / MultiPolygon.",
+                        "type": "object",
+                        "nullable": true,
+                        "default": null,
+                        "additionalProperties": {
+                            "nullable": true
+                        }
+                    },
+                    "ttlMinutes": {
+                        "type": "integer",
+                        "default": 180,
+                        "maximum": 1440,
+                        "minimum": 5
+                    }
+                },
+                "type": "object"
+            },
+            "AddExternalSourceRequest": {
+                "required": [
+                    "url",
+                    "title"
+                ],
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "kind": {
+                        "type": "string",
+                        "default": "official",
+                        "enum": [
+                            "official",
+                            "infrastructure_operator",
+                            "media",
+                            "social",
+                            "other"
+                        ]
+                    },
+                    "credibility": {
+                        "type": "number",
+                        "format": "float",
+                        "default": 0.9,
+                        "maximum": 1,
+                        "minimum": 0
+                    },
+                    "publisher": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "excerpt": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "CreateShelterRequest": {
+                "required": [
+                    "name",
+                    "lat",
+                    "lng"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 160
+                    },
+                    "lat": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 90,
+                        "minimum": -90
+                    },
+                    "lng": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 180,
+                        "minimum": -180
+                    },
+                    "address": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateShelterRequest": {
+                "required": [
+                    "name",
+                    "lat",
+                    "lng"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 160
+                    },
+                    "lat": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 90,
+                        "minimum": -90
+                    },
+                    "lng": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 180,
+                        "minimum": -180
+                    },
+                    "address": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 255
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "ShelterStatus": {
+                "type": "string",
+                "enum": [
+                    "unknown",
+                    "open",
+                    "closed",
+                    "full"
+                ]
+            },
+            "SetShelterStatusRequest": {
+                "required": [
+                    "status"
+                ],
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/ShelterStatus"
+                    }
+                },
+                "type": "object"
+            },
+            "RegisterDeviceRequest": {
+                "properties": {
+                    "platform": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "enum": [
+                            "ios",
+                            "android",
+                            "web",
+                            "simulator"
+                        ]
+                    },
+                    "appVersion": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 32
+                    },
+                    "pushToken": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 4096
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateLocationRequest": {
+                "required": [
+                    "lat",
+                    "lng"
+                ],
+                "properties": {
+                    "lat": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 90,
+                        "minimum": -90
+                    },
+                    "lng": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 180,
+                        "minimum": -180
+                    },
+                    "accuracyMeters": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true,
+                        "default": null,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "UpdatePushTokenRequest": {
+                "required": [
+                    "pushToken"
+                ],
+                "properties": {
+                    "pushToken": {
+                        "type": "string",
+                        "maxLength": 4096
+                    }
+                },
+                "type": "object"
+            },
+            "ReportType": {
+                "type": "string",
+                "enum": [
+                    "power_outage",
+                    "water_outage",
+                    "fuel_shortage",
+                    "road_blocked",
+                    "shelter_issue",
+                    "other_threat"
+                ]
+            },
+            "CreateReportRequest": {
+                "required": [
+                    "type",
+                    "lat",
+                    "lng"
+                ],
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ReportType"
+                    },
+                    "lat": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 90,
+                        "minimum": -90
+                    },
+                    "lng": {
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 180,
+                        "minimum": -180
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 1000
+                    }
+                },
+                "type": "object"
+            },
+            "ConfirmShelterStatusRequest": {
+                "required": [
+                    "status"
+                ],
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/ShelterStatus"
+                    },
+                    "comment": {
+                        "type": "string",
+                        "nullable": true,
+                        "default": null,
+                        "maxLength": 500
+                    }
+                },
+                "type": "object"
+            },
+            "VerificationAnswer": {
+                "type": "string",
+                "enum": [
+                    "yes",
+                    "no",
+                    "unknown"
+                ]
+            },
+            "RespondRequest": {
+                "required": [
+                    "answer"
+                ],
+                "properties": {
+                    "answer": {
+                        "$ref": "#/components/schemas/VerificationAnswer"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "Bearer": {
+                "type": "http",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
         }
-      }
     },
-    "/api/v1/reports/{id}": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Status of one of my reports (which incident it joined)",
-        "operationId": "get_api_report_show",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Report"
-          }
+    "security": [
+        {
+            "Bearer": []
         }
-      }
-    },
-    "/api/v1/health": {
-      "get": {
-        "summary": "Liveness + database/PostGIS/H3 readiness",
-        "operationId": "get_api_health",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
+    ],
+    "tags": [
+        {
+            "name": "Devices",
+            "description": "Anonymous device identity and location"
         },
-        "security": []
-      }
-    },
-    "/api/v1/shelters": {
-      "get": {
-        "tags": [
-          "Shelters"
-        ],
-        "summary": "Shelters in a bbox, or the nearest ones to lat/lng",
-        "operationId": "get_api_shelter_list",
-        "parameters": [
-          {
-            "name": "bbox",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "lat",
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "lng",
-            "in": "query",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Shelters"
-          }
+        {
+            "name": "Reports",
+            "description": "Citizen reports (DETECT)"
+        },
+        {
+            "name": "Incidents",
+            "description": "Public incident view and map"
+        },
+        {
+            "name": "Verification",
+            "description": "Active crowd verification prompts (VERIFY / MAP)"
+        },
+        {
+            "name": "Alerts",
+            "description": "Area alerts for citizens (INFORM)"
+        },
+        {
+            "name": "Shelters",
+            "description": "Shelter map and status confirmations"
+        },
+        {
+            "name": "Command",
+            "description": "Operator endpoints"
         }
-      }
-    },
-    "/api/v1/shelters/{id}": {
-      "get": {
-        "tags": [
-          "Shelters"
-        ],
-        "summary": "Shelter details",
-        "operationId": "get_api_shelter_show",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Shelter"
-          }
-        }
-      }
-    },
-    "/api/v1/shelters/{id}/status": {
-      "post": {
-        "tags": [
-          "Shelters"
-        ],
-        "summary": "Confirm the current status of a shelter (open / closed / full)",
-        "operationId": "post_api_shelter_confirm",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConfirmShelterStatusRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Updated shelter"
-          }
-        }
-      }
-    },
-    "/api/v1/verifications/pending": {
-      "get": {
-        "tags": [
-          "Verification"
-        ],
-        "summary": "Questions waiting for this device (poll on app foreground; pushes carry the same ids)",
-        "operationId": "get_api_verification_pending",
-        "responses": {
-          "200": {
-            "description": "List of pending questions"
-          }
-        }
-      }
-    },
-    "/api/v1/verifications/{id}": {
-      "get": {
-        "tags": [
-          "Verification"
-        ],
-        "summary": "One question (e.g. opened from a push)",
-        "operationId": "get_api_verification_show",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Question"
-          }
-        }
-      }
-    },
-    "/api/v1/verifications/{id}/response": {
-      "post": {
-        "tags": [
-          "Verification"
-        ],
-        "summary": "Answer YES / NO / UNKNOWN",
-        "operationId": "post_api_verification_respond",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RespondRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Recorded; returns the incident the answer fed into"
-          },
-          "409": {
-            "description": "Already answered"
-          },
-          "410": {
-            "description": "Question expired"
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "schemas": {
-      "CreateAlertRequest": {
-        "required": [
-          "title",
-          "body"
-        ],
-        "properties": {
-          "title": {
-            "type": "string",
-            "maxLength": 160
-          },
-          "body": {
-            "type": "string",
-            "maxLength": 2000
-          },
-          "severity": {
-            "type": "string",
-            "default": "warning",
-            "enum": [
-              "info",
-              "warning",
-              "danger"
-            ]
-          },
-          "incidentId": {
-            "title": "Incident whose current area becomes the alert area (if `area` is omitted).",
-            "type": "string",
-            "nullable": true,
-            "default": null
-          },
-          "area": {
-            "title": "Explicit GeoJSON Polygon / MultiPolygon.",
-            "type": "object",
-            "nullable": true,
-            "default": null,
-            "additionalProperties": {
-              "nullable": true
-            }
-          },
-          "ttlMinutes": {
-            "type": "integer",
-            "default": 180,
-            "maximum": 1440,
-            "minimum": 5
-          }
-        },
-        "type": "object"
-      },
-      "AddExternalSourceRequest": {
-        "required": [
-          "url",
-          "title"
-        ],
-        "properties": {
-          "url": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string",
-            "maxLength": 255
-          },
-          "kind": {
-            "type": "string",
-            "default": "official",
-            "enum": [
-              "official",
-              "infrastructure_operator",
-              "media",
-              "social",
-              "other"
-            ]
-          },
-          "credibility": {
-            "type": "number",
-            "format": "float",
-            "default": 0.9,
-            "maximum": 1,
-            "minimum": 0
-          },
-          "publisher": {
-            "type": "string",
-            "nullable": true,
-            "default": null
-          },
-          "excerpt": {
-            "type": "string",
-            "nullable": true,
-            "default": null
-          }
-        },
-        "type": "object"
-      },
-      "RegisterDeviceRequest": {
-        "properties": {
-          "platform": {
-            "type": "string",
-            "nullable": true,
-            "default": null,
-            "enum": [
-              "ios",
-              "android",
-              "web",
-              "simulator"
-            ]
-          },
-          "appVersion": {
-            "type": "string",
-            "nullable": true,
-            "default": null,
-            "maxLength": 32
-          },
-          "pushToken": {
-            "type": "string",
-            "nullable": true,
-            "default": null,
-            "maxLength": 4096
-          }
-        },
-        "type": "object"
-      },
-      "UpdateLocationRequest": {
-        "required": [
-          "lat",
-          "lng"
-        ],
-        "properties": {
-          "lat": {
-            "type": "number",
-            "format": "float",
-            "maximum": 90,
-            "minimum": -90
-          },
-          "lng": {
-            "type": "number",
-            "format": "float",
-            "maximum": 180,
-            "minimum": -180
-          },
-          "accuracyMeters": {
-            "type": "number",
-            "format": "float",
-            "nullable": true,
-            "default": null,
-            "minimum": 0
-          }
-        },
-        "type": "object"
-      },
-      "UpdatePushTokenRequest": {
-        "required": [
-          "pushToken"
-        ],
-        "properties": {
-          "pushToken": {
-            "type": "string",
-            "maxLength": 4096
-          }
-        },
-        "type": "object"
-      },
-      "ReportType": {
-        "type": "string",
-        "enum": [
-          "power_outage",
-          "water_outage",
-          "fuel_shortage",
-          "road_blocked",
-          "shelter_issue",
-          "other_threat"
-        ]
-      },
-      "CreateReportRequest": {
-        "required": [
-          "type",
-          "lat",
-          "lng"
-        ],
-        "properties": {
-          "type": {
-            "$ref": "#/components/schemas/ReportType"
-          },
-          "lat": {
-            "type": "number",
-            "format": "float",
-            "maximum": 90,
-            "minimum": -90
-          },
-          "lng": {
-            "type": "number",
-            "format": "float",
-            "maximum": 180,
-            "minimum": -180
-          },
-          "description": {
-            "type": "string",
-            "nullable": true,
-            "default": null,
-            "maxLength": 1000
-          }
-        },
-        "type": "object"
-      },
-      "ShelterStatus": {
-        "type": "string",
-        "enum": [
-          "unknown",
-          "open",
-          "closed",
-          "full"
-        ]
-      },
-      "ConfirmShelterStatusRequest": {
-        "required": [
-          "status"
-        ],
-        "properties": {
-          "status": {
-            "$ref": "#/components/schemas/ShelterStatus"
-          },
-          "comment": {
-            "type": "string",
-            "nullable": true,
-            "default": null,
-            "maxLength": 500
-          }
-        },
-        "type": "object"
-      },
-      "VerificationAnswer": {
-        "type": "string",
-        "enum": [
-          "yes",
-          "no",
-          "unknown"
-        ]
-      },
-      "RespondRequest": {
-        "required": [
-          "answer"
-        ],
-        "properties": {
-          "answer": {
-            "$ref": "#/components/schemas/VerificationAnswer"
-          }
-        },
-        "type": "object"
-      }
-    },
-    "securitySchemes": {
-      "Bearer": {
-        "type": "http",
-        "bearerFormat": "JWT",
-        "scheme": "bearer"
-      }
-    }
-  },
-  "security": [
-    {
-      "Bearer": []
-    }
-  ],
-  "tags": [
-    {
-      "name": "Devices",
-      "description": "Anonymous device identity and location"
-    },
-    {
-      "name": "Reports",
-      "description": "Citizen reports (DETECT)"
-    },
-    {
-      "name": "Incidents",
-      "description": "Public incident view and map"
-    },
-    {
-      "name": "Verification",
-      "description": "Active crowd verification prompts (VERIFY / MAP)"
-    },
-    {
-      "name": "Alerts",
-      "description": "Area alerts for citizens (INFORM)"
-    },
-    {
-      "name": "Shelters",
-      "description": "Shelter map and status confirmations"
-    },
-    {
-      "name": "Command",
-      "description": "Operator endpoints"
-    }
-  ]
+    ]
 }

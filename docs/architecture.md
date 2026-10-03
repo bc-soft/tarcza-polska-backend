@@ -28,7 +28,7 @@ dowieźć działający mechanizm end-to-end w 48 godzin.
 | Auth | LexikJWTAuthenticationBundle | anonimowa tożsamość urządzenia (Citizen) i konta operatorów (Command) |
 | Dokumentacja API | NelmioApiDocBundle (OpenAPI 3) pod `/api/doc` | zespół Fluttera generuje klienta Dart z jednego pliku |
 | AI | OpenAI Responses API (`openai-php/client`, domyślnie `gpt-5`) lub Claude API (`anthropic-ai/sdk`, `claude-opus-5`), wybór przez `RESEARCH_PROVIDER` | research incydentu w jednym wywołaniu z wbudowanym web search, bez własnych scraperów |
-| Command Center | Twig + Tailwind (CDN) + MapLibre GL JS + Mercure | zespół backendowy robi panel bez osobnego frontu |
+| Command Center | Twig + Tailwind (CDN, tokeny design systemu Tarcza) + MapLibre GL JS + Mercure | zespół backendowy robi panel bez osobnego frontu; ten sam język wizualny co aplikacja mobilna (ADR 0006) |
 | Mapy | OpenFreeMap (kafelki wektorowe, bez klucza); `flutter_map` po stronie mobile | darmowe i wystarczające na demo |
 | Jakość | PHPStan poziom 8, php-cs-fixer, PHPUnit 13, Foundry | `make qa` = pełna bramka lokalna, to samo w GitHub Actions |
 | Hosting | Hetzner (DE/FI) lub inny VPS w UE, `compose.prod.yaml`, Caddy auto-TLS | jedna maszyna, jeden plik, deploy w 2 minuty |
@@ -161,6 +161,7 @@ internetu: `bin/console tarcza:simulate:confirm`.
 * Urządzenie przechowuje jedną aktualną lokalizację, bez historii. Brak jakichkolwiek danych osobowych.
 * Rate limiter na `POST /api/v1/reports` (10 / 10 min / urządzenie) i na aktualizację lokalizacji.
 * Odczyt szczegółów incydentu w Command Center i każda akcja operatora trafiają do `audit_log`.
+  Administrator przegląda dziennik w panelu (`/command/audit`) i zarządza kontami (`/command/operators`).
 * Mercure: publikacja tylko z backendu (JWT), subskrypcja anonimowa na tematy `incidents` i `incidents/{id}`,
   które niosą wyłącznie dane dozwolone dla operatora panelu (panel jest za logowaniem).
 

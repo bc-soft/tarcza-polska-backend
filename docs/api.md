@@ -88,6 +88,17 @@ Push FCM niesie `data: {type: "alert", alertId}`.
 | POST | `/api/command/incidents/{id}/resolve` | operator | zamknięcie incydentu. |
 | GET | `/api/command/alerts` | analyst | ostatnie komunikaty. |
 | POST | `/api/command/alerts` | operator | `{title, body, severity, incidentId?, area?, ttlMinutes}`. Obszar = `area` albo aktualny obszar incydentu. |
+| GET | `/api/command/shelters` | analyst | rejestr schronów (wszystkie, alfabetycznie). |
+| POST | `/api/command/shelters` | operator | `{name, lat, lng, address?, capacity?}` - nowy schron (`source = operator`). |
+| PUT | `/api/command/shelters/{id}` | operator | edycja danych podstawowych `{name, lat, lng, address?, capacity?}`. |
+| POST | `/api/command/shelters/{id}/status` | operator | `{status}` - nadpisanie statusu przez operatora (nie liczy się jako potwierdzenie obywatela). |
+
+### Panel Twig (`/command`, sesja)
+
+Te same akcje są dostępne z panelu jako formularze POST z CSRF: `/command` (mapa sytuacyjna), `/command/incidents`
+(lista z filtrami `status`, `type`, `level`, `all=1`), `/command/incidents/{id}` (detal + akcje: komunikat, źródło,
+ponowny research AI, zamknięcie), `/command/alerts`, `/command/shelters`, a dla `ROLE_ADMIN` `/command/audit`
+i `/command/operators` (konta i role). Każda akcja trafia do `audit_log`.
 
 ## Realtime (Mercure)
 
