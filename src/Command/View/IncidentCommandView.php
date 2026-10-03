@@ -6,7 +6,9 @@ namespace App\Command\View;
 
 use App\Incident\Entity\Incident;
 use App\Incident\Entity\IncidentCell;
+use App\Incident\Service\IncidentTimeline;
 use App\Incident\View\IncidentPublicView;
+use App\Incident\View\IncidentTimelineView;
 use App\Intelligence\Entity\ExternalSource;
 use App\Reporting\Entity\Report;
 use App\Shared\Api\GeoJson;
@@ -18,8 +20,10 @@ use App\Shared\Geo\H3;
  */
 final readonly class IncidentCommandView
 {
-    public function __construct(private H3 $h3)
-    {
+    public function __construct(
+        private H3 $h3,
+        private IncidentTimeline $timeline,
+    ) {
     }
 
     /** @return array<string, mixed> */
@@ -59,6 +63,9 @@ final readonly class IncidentCommandView
             'cellsGeoJson' => $this->cellsCollection($incident),
             'sources' => array_map(static fn (ExternalSource $s) => $s->toArray(), $sources),
             'verification' => $verificationStats,
+            'resolution' => $incident->getResolution()?->value,
+            'resolutionLabel' => $incident->getResolution()?->label(),
+            'timeline' => IncidentTimelineView::list($this->timeline->entries($incident)),
         ];
     }
 

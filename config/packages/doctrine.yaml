@@ -3,7 +3,7 @@ doctrine:
         url: '%env(resolve:DATABASE_URL)%'
         profiling_collect_backtrace: '%kernel.debug%'
         # PostGIS / H3 own these objects, keep them out of schema diffs
-        schema_filter: '~^(?!(spatial_ref_sys|geography_columns|geometry_columns|raster_columns|raster_overviews|topology|layer))~'
+        schema_filter: '~^(?!(spatial_ref_sys|geography_columns|geometry_columns|raster_columns|raster_overviews|topology|layer|messenger_messages))~'
         types:
             geo_point: App\Shared\Doctrine\Type\GeoPointType
             geo_geometry: App\Shared\Doctrine\Type\GeoGeometryType

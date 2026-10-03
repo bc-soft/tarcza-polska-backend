@@ -6,6 +6,7 @@ namespace App\Incident\Entity;
 
 use App\Incident\Enum\CellState;
 use App\Incident\Enum\ConfidenceLevel;
+use App\Incident\Enum\IncidentResolution;
 use App\Incident\Enum\IncidentStatus;
 use App\Incident\Repository\IncidentRepository;
 use App\Reporting\Entity\Report;
@@ -69,6 +70,9 @@ class Incident
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $resolvedAt = null;
 
+    #[ORM\Column(length: 16, nullable: true, enumType: IncidentResolution::class)]
+    private ?IncidentResolution $resolution = null;
+
     /** Highest verification ring asked so far (0 = core only). */
     #[ORM\Column(type: Types::SMALLINT, options: ['default' => -1])]
     private int $currentRing = -1;
@@ -114,12 +118,18 @@ class Incident
         return $this->status;
     }
 
-    public function setStatus(IncidentStatus $status): void
+    public function setStatus(IncidentStatus $status, ?IncidentResolution $resolution = null): void
     {
         $this->status = $status;
         if (IncidentStatus::Resolved === $status) {
             $this->resolvedAt = new DateTimeImmutable();
+            $this->resolution = $resolution ?? IncidentResolution::Confirmed;
         }
+    }
+
+    public function getResolution(): ?IncidentResolution
+    {
+        return $this->resolution;
     }
 
     public function getConfidenceScore(): float

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Incident\Service;
 
 use App\Incident\Entity\Incident;
+use App\Incident\Enum\IncidentEventType;
 use App\Incident\Repository\IncidentRepository;
 use App\Reporting\Entity\Report;
 use App\Shared\Geo\H3;
@@ -18,6 +19,7 @@ final readonly class IncidentClusterer
     public function __construct(
         private IncidentRepository $incidents,
         private AreaCalculator $areaCalculator,
+        private IncidentTimeline $timeline,
         private H3 $h3,
         private int $clusterRadiusMeters,
         private int $clusterWindowMinutes,
@@ -44,6 +46,12 @@ final readonly class IncidentClusterer
 
         $this->recenter($incident);
         $this->areaCalculator->recompute($incident);
+
+        $this->timeline->record(
+            $incident,
+            $created ? IncidentEventType::Created : IncidentEventType::ReportAttached,
+            ['reports' => $incident->getReports()->count(), 'cell' => $report->getH3Cell(), 'ring' => $ring],
+        );
 
         return ['incident' => $incident, 'created' => $created];
     }

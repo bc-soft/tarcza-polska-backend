@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Verification\MessageHandler;
 
+use App\Incident\Enum\IncidentResolution;
 use App\Incident\Enum\IncidentStatus;
 use App\Incident\Message\IncidentUpdated;
 use App\Incident\Repository\IncidentRepository;
@@ -51,7 +52,7 @@ final readonly class VerificationTickHandler
         $cutoff = new DateTimeImmutable(\sprintf('-%d minutes', max($this->clusterWindowMinutes * 2, self::STALE_AFTER_HOURS * 60)));
         foreach ($this->incidents->findOpen() as $incident) {
             if ($incident->getLastActivityAt() < $cutoff) {
-                $incident->setStatus(IncidentStatus::Resolved);
+                $incident->setStatus(IncidentStatus::Resolved, IncidentResolution::Expired);
                 $this->em->flush();
                 $this->bus->dispatch(new IncidentUpdated($incident->getId()->toRfc4122(), 'resolved'));
             }

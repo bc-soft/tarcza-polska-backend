@@ -6,7 +6,10 @@ namespace App\Incident\Controller;
 
 use App\Incident\Entity\Incident;
 use App\Incident\Repository\IncidentRepository;
+use App\Incident\Service\IncidentTimeline;
 use App\Incident\View\IncidentPublicView;
+use App\Incident\View\IncidentTimelineView;
+use App\Shared\Api\ConditionalJsonResponse;
 use App\Shared\Geo\Point;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,8 +20,10 @@ use Symfony\Component\Routing\Attribute\Route;
 #[OA\Tag(name: 'Incidents')]
 final class IncidentController
 {
-    public function __construct(private readonly IncidentRepository $incidents)
-    {
+    public function __construct(
+        private readonly IncidentRepository $incidents,
+        private readonly IncidentTimeline $timeline,
+    ) {
     }
 
     #[Route('', name: 'api_incident_list', methods: ['GET'])]
@@ -44,5 +49,13 @@ final class IncidentController
     public function show(Incident $incident): JsonResponse
     {
         return new JsonResponse(IncidentPublicView::toArray($incident));
+    }
+
+    #[Route('/{id}/timeline', name: 'api_incident_timeline', methods: ['GET'])]
+    #[OA\Get(summary: 'History of an incident: detection, verification waves, area changes, confidence changes, confirmations, alerts')]
+    #[OA\Response(response: 200, description: 'Timeline entries, oldest first (supports ETag / 304)', content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/IncidentTimelineEntry')))]
+    public function timeline(Incident $incident, Request $request): JsonResponse
+    {
+        return ConditionalJsonResponse::create($request, IncidentTimelineView::list($this->timeline->entries($incident, publicOnly: true)));
     }
 }

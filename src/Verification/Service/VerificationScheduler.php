@@ -6,8 +6,10 @@ namespace App\Verification\Service;
 
 use App\Identity\Repository\DeviceRepository;
 use App\Incident\Entity\Incident;
+use App\Incident\Enum\IncidentEventType;
 use App\Incident\Enum\IncidentStatus;
 use App\Incident\Service\AreaCalculator;
+use App\Incident\Service\IncidentTimeline;
 use App\Notification\PushMessage;
 use App\Notification\PushSenderInterface;
 use App\Shared\Geo\H3;
@@ -34,6 +36,7 @@ final readonly class VerificationScheduler
         private VerificationWaveRepository $waves,
         private DeviceRepository $devices,
         private AreaCalculator $areaCalculator,
+        private IncidentTimeline $timeline,
         private PushSenderInterface $push,
         private EntityManagerInterface $em,
         private H3 $h3,
@@ -92,6 +95,11 @@ final readonly class VerificationScheduler
         $incident->setCurrentRing($ring);
         $incident->setStatus(IncidentStatus::Verifying);
         $incident->touch();
+        $this->timeline->record($incident, IncidentEventType::WaveStarted, [
+            'ring' => $ring,
+            'cells' => \count($targets),
+            'devices' => \count($requests),
+        ]);
         $this->em->flush();
 
         foreach ($requests as $request) {

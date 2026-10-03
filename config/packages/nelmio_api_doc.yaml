@@ -133,6 +133,20 @@ nelmio_api_doc:
                                   nullable: true
                                   allOf: [{ $ref: '#/components/schemas/GeoJsonGeometry' }]
                                   description: Polygon / MultiPolygon of verified cells; null while the incident is only detected
+                IncidentTimelineEntry:
+                    type: object
+                    description: One entry of the public incident history. `details` holds small, type-specific facts (counts, levels), never positions.
+                    required: [type, label, at, details]
+                    properties:
+                        type:
+                            type: string
+                            enum: [created, wave_started, wave_closed, area_changed, confidence_changed, research_completed, source_added, alert_published, photo_attached, resolved]
+                        label: { type: string, description: 'Polish, ready to display' }
+                        at: { type: string, format: date-time }
+                        details:
+                            type: object
+                            additionalProperties: { nullable: true, oneOf: [{ type: string }, { type: number }, { type: integer }, { type: boolean }] }
+                            description: 'e.g. {reports} for created, {ring, cells, devices} for wave_started, {positiveCells, negativeCells, unknownCells, yes, no} for area_changed, {from, to, score} for confidence_changed'
                 IncidentFeatureProperties:
                     allOf:
                         - { $ref: '#/components/schemas/IncidentSummary' }

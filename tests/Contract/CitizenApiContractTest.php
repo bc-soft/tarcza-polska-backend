@@ -10,7 +10,10 @@ use App\Identity\Entity\Device;
 use App\Identity\Enum\LocationSource;
 use App\Identity\View\DeviceProfileView;
 use App\Incident\Entity\Incident;
+use App\Incident\Enum\IncidentEventType;
+use App\Incident\Model\TimelineEntry;
 use App\Incident\View\IncidentPublicView;
+use App\Incident\View\IncidentTimelineView;
 use App\Reporting\Entity\Report;
 use App\Reporting\Enum\ReportType;
 use App\Reporting\View\ReportStatusView;
@@ -111,6 +114,21 @@ final class CitizenApiContractTest extends KernelTestCase
         $withArea->setArea($this->polygon());
         $this->assertMatches('IncidentView', IncidentPublicView::toArray($withArea));
         $this->assertMatches('MapFeature', IncidentPublicView::toFeature($withArea));
+    }
+
+    public function testIncidentTimelineEntry(): void
+    {
+        $entries = [
+            new TimelineEntry(IncidentEventType::Created, new DateTimeImmutable(), ['reports' => 1, 'cell' => self::CELL, 'ring' => 0]),
+            new TimelineEntry(IncidentEventType::WaveStarted, new DateTimeImmutable(), ['ring' => 0, 'cells' => 7, 'devices' => 3]),
+            new TimelineEntry(IncidentEventType::AreaChanged, new DateTimeImmutable(), ['positiveCells' => 4, 'negativeCells' => 2, 'unknownCells' => 5, 'yes' => 6, 'no' => 2]),
+            new TimelineEntry(IncidentEventType::ConfidenceChanged, new DateTimeImmutable(), ['from' => 'likely', 'to' => 'high', 'score' => 0.612, 'reason' => 'verification_response']),
+            new TimelineEntry(IncidentEventType::ResearchCompleted, new DateTimeImmutable(), ['hasSummary' => true]),
+            new TimelineEntry(IncidentEventType::Resolved, new DateTimeImmutable(), ['resolution' => null]),
+        ];
+        foreach (IncidentTimelineView::list($entries) as $entry) {
+            $this->assertMatches('IncidentTimelineEntry', $entry);
+        }
     }
 
     public function testShelterViewAndFeature(): void
