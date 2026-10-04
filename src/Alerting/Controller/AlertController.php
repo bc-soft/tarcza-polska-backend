@@ -9,6 +9,7 @@ use App\Alerting\Repository\AlertRepository;
 use App\Alerting\View\AlertView;
 use App\Shared\Api\ConditionalJsonResponse;
 use App\Shared\Geo\Point;
+use InvalidArgumentException;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -35,7 +36,11 @@ final class AlertController
         if (!$request->query->has('lat') || !$request->query->has('lng')) {
             throw new BadRequestHttpException('lat and lng are required');
         }
-        $point = new Point((float) $request->query->get('lat'), (float) $request->query->get('lng'));
+        try {
+            $point = new Point((float) $request->query->get('lat'), (float) $request->query->get('lng'));
+        } catch (InvalidArgumentException $e) {
+            throw new BadRequestHttpException($e->getMessage(), $e);
+        }
 
         return ConditionalJsonResponse::create($request, array_map(static fn (Alert $a) => AlertView::toArray($a, false), $this->alerts->findActiveContaining($point)));
     }
