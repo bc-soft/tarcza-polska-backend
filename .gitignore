@@ -38,3 +38,7 @@
 /.idea/
 /.vscode/
 ###< ide ###
+
+###> claude code ###
+/.claude/
+###< claude code ###
