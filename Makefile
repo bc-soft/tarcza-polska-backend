@@ -14,6 +14,18 @@ build: ## Build docker images
 up: ## Start the whole stack in background
 	$(DC) up -d --remove-orphans
 
+demo: ## ONE COMMAND: build + start the stack, import shelters and fuel stations (offline snapshots), seed operators, load demo data
+	$(DC) up -d --build --remove-orphans --wait
+	$(CONSOLE) tarcza:shelters:import --offline
+	$(CONSOLE) tarcza:fuel-stations:import --from-file=data/osm/fuel-stations-poznan.json
+	$(CONSOLE) tarcza:seed
+	$(CONSOLE) tarcza:fixtures:load --reset
+	@echo ""
+	@echo "  Command Center:  https://localhost/command   (operator@tarcza.local / tarcza-demo, admin@tarcza.local for operators + audit)"
+	@echo "  Swagger:         https://localhost/api/doc"
+	@echo "  Live scenario:   make simulate   (700 virtual devices, power outage in Jeżyce; watch it with: make worker)"
+	@echo "  Accept the local Caddy certificate in the browser on first visit."
+
 lan: ## Start with plain HTTP enabled and print the URL for devices on the same Wi-Fi (Flutter devs)
 	SERVER_NAME="localhost, :80" $(DC) up -d --remove-orphans
 	@IP=$$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $$1}'); \
@@ -75,4 +87,4 @@ openapi: ## Dump the OpenAPI spec for the Flutter team
 push-test: ## Verify Firebase credentials; make push-test t=<fcm-token> sends a test push
 	$(CONSOLE) tarcza:push:test $(t)
 
-.PHONY: help build up lan down reset logs worker sh console migration migrate seed simulate test test-db phpstan cs cs-check lint qa openapi push-test
+.PHONY: help build up demo lan down reset logs worker sh console migration migrate seed simulate test test-db phpstan cs cs-check lint qa openapi push-test

@@ -25,6 +25,14 @@ services:
       MERCURE_EXTRA_DIRECTIVES: cors_origins *
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       TRUSTED_HOSTS: ${TRUSTED_HOSTS:-^${SERVER_NAME:-localhost}|php$$}
+    # The image healthcheck probes Caddy, which starts only after the entrypoint installed vendors (first run)
+    # and ran migrations; give that a generous grace period so `docker compose up --wait` (make demo) holds on.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2019/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 300s
     volumes:
       - ./:/app
       - caddy_data:/data
