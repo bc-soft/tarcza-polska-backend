@@ -10,6 +10,11 @@ framework:
             policy: sliding_window
             limit: 20
             interval: '10 minutes'
+        # Anonymous device registration is the only unauthenticated write: bound it per client IP
+        device_registration:
+            policy: sliding_window
+            limit: 30
+            interval: '1 hour'
         # Location pings: generous, but bounded
         location_update:
             policy: token_bucket

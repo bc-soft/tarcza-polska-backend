@@ -39,8 +39,15 @@ final class DeviceController extends AbstractController
     #[OA\Post(summary: 'Register an anonymous device and obtain a JWT', security: [])]
     #[OA\RequestBody(content: new OA\JsonContent(ref: new \Nelmio\ApiDocBundle\Attribute\Model(type: RegisterDeviceRequest::class)))]
     #[OA\Response(response: 201, description: 'Device created', content: new OA\JsonContent(ref: '#/components/schemas/DeviceRegistered'))]
-    public function register(#[MapRequestPayload] RegisterDeviceRequest $request, DeviceRegistrar $registrar): JsonResponse
-    {
+    #[OA\Response(response: 429, description: 'More than 30 registrations an hour from this IP (error.code: too_many_requests, Retry-After header)')]
+    public function register(
+        #[MapRequestPayload]
+        RegisterDeviceRequest $request,
+        Request $httpRequest,
+        DeviceRegistrar $registrar,
+        RateLimiterFactory $deviceRegistrationLimiter,
+    ): JsonResponse {
+        $deviceRegistrationLimiter->create($httpRequest->getClientIp() ?? 'unknown')->consume()->ensureAccepted();
         $result = $registrar->register($request);
 
         return new JsonResponse([

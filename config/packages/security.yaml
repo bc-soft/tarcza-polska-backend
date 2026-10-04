@@ -39,6 +39,9 @@ security:
                 password_path: password
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
+            login_throttling:
+                max_attempts: 5
+                interval: '5 minutes'
 
         api_command:
             pattern: ^/api/command
@@ -62,6 +65,9 @@ security:
                 check_path: command_login
                 default_target_path: command_dashboard
                 enable_csrf: true
+            login_throttling:
+                max_attempts: 5
+                interval: '5 minutes'
             logout:
                 path: command_logout
                 target: command_login
