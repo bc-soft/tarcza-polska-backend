@@ -11,9 +11,11 @@ use App\Incident\View\IncidentPublicView;
 use App\Incident\View\IncidentTimelineView;
 use App\Shared\Api\ConditionalJsonResponse;
 use App\Shared\Geo\Point;
+use InvalidArgumentException;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/v1/incidents')]
@@ -34,7 +36,11 @@ final class IncidentController
     public function list(Request $request): JsonResponse
     {
         if ($request->query->has('lat') && $request->query->has('lng')) {
-            $point = new Point((float) $request->query->get('lat'), (float) $request->query->get('lng'));
+            try {
+                $point = new Point((float) $request->query->get('lat'), (float) $request->query->get('lng'));
+            } catch (InvalidArgumentException $e) {
+                throw new BadRequestHttpException($e->getMessage(), $e);
+            }
             $items = $this->incidents->findOpenContaining($point);
         } else {
             $items = $this->incidents->findOpen();
@@ -56,6 +62,6 @@ final class IncidentController
     #[OA\Response(response: 200, description: 'Timeline entries, oldest first (supports ETag / 304)', content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/IncidentTimelineEntry')))]
     public function timeline(Incident $incident, Request $request): JsonResponse
     {
-        return ConditionalJsonResponse::create($request, IncidentTimelineView::list($this->timeline->entries($incident, publicOnly: true)));
+        return ConditionalJsonResponse::create($request, IncidentTimelineView::list($this->timeline->entries($incident, publicOnly: true), public: true));
     }
 }

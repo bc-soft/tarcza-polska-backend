@@ -44,4 +44,18 @@ final class IncidentTimelineViewTest extends TestCase
         self::assertSame(['from' => 'likely', 'to' => 'high', 'score' => 0.612], $row['details']);
         self::assertCount(1, IncidentTimelineView::list([$entry]));
     }
+
+    #[Test]
+    public function publicViewDropsOperatorAndReporterInternals(): void
+    {
+        $at = new DateTimeImmutable('2026-10-03T14:44:11+02:00');
+        $alert = new TimelineEntry(IncidentEventType::AlertPublished, $at, ['alertId' => 'a1', 'severity' => 'warning', 'devices' => 12, 'createdBy' => 'operator@tarcza.local']);
+        $created = new TimelineEntry(IncidentEventType::Created, $at, ['reports' => 1, 'cell' => '891e24a14cfffff', 'ring' => 0]);
+
+        $public = IncidentTimelineView::list([$alert, $created], public: true);
+
+        self::assertSame(['alertId' => 'a1', 'severity' => 'warning', 'devices' => 12], $public[0]['details']);
+        self::assertSame(['reports' => 1, 'ring' => 0], $public[1]['details']);
+        self::assertArrayHasKey('createdBy', IncidentTimelineView::toArray($alert)['details']);
+    }
 }
