@@ -11,6 +11,7 @@ use App\Shelter\Entity\Shelter;
 use App\Shelter\Enum\ShelterAvailability;
 use App\Shelter\Repository\ShelterRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -18,12 +19,15 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Throwable;
 
 /**
  * Imports "Punkty schronienia w Polsce" (dane.gov.pl dataset 28058, ~86 500 rows, CSV with BOM) into Shelter.
  * Upserts by the public identifier; citizen confirmations (status, occupancy) are never overwritten.
+ * A region import falls back to the committed snapshot (app.shelter.register_snapshot) when the download fails.
  *
  *   bin/console tarcza:shelters:import                                   # the configured region (Poznań, app.region.*)
+ *   bin/console tarcza:shelters:import --offline                         # the committed snapshot of the region, no network
  *   bin/console tarcza:shelters:import --wojewodztwo=wielkopolskie
  *   bin/console tarcza:shelters:import --around=52.4121,16.9012 --radius-km=20
  *   bin/console tarcza:shelters:import --bbox=16.70,52.30,17.15,52.55 --limit=500
@@ -54,6 +58,7 @@ final class ShelterImportCommand extends Command
         private readonly ShelterRepository $shelters,
         private readonly EntityManagerInterface $em,
         private readonly Region $region,
+        private readonly string $shelterRegisterSnapshot,
     ) {
         parent::__construct();
     }
@@ -63,6 +68,7 @@ final class ShelterImportCommand extends Command
         $this
             ->addOption('url', null, InputOption::VALUE_REQUIRED, 'CSV resource URL', self::DEFAULT_URL)
             ->addOption('file', null, InputOption::VALUE_REQUIRED, 'Local CSV file instead of downloading')
+            ->addOption('offline', null, InputOption::VALUE_NONE, 'Use the committed snapshot of the region instead of downloading')
             ->addOption('wojewodztwo', null, InputOption::VALUE_REQUIRED, 'Only this voivodeship (e.g. wielkopolskie); without any filter the configured region is used')
             ->addOption('around', null, InputOption::VALUE_REQUIRED, 'Center "lat,lng" (with --radius-km)')
             ->addOption('radius-km', null, InputOption::VALUE_REQUIRED, 'Radius around the center', '20')
@@ -75,18 +81,21 @@ final class ShelterImportCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $path = $this->resolveFile($input, $io);
-        if (null === $path) {
-            return Command::FAILURE;
-        }
-
         /** @var string|null $voivodeship */
         $voivodeship = $input->getOption('wojewodztwo');
         $voivodeship = null === $voivodeship ? null : mb_strtolower(trim($voivodeship));
         $bbox = $this->resolveBbox($input);
-        if (null === $bbox && null === $voivodeship) {
+        $regionImport = null === $bbox && null === $voivodeship;
+        if ($regionImport) {
             $bbox = $this->region->boundingBox();
             $io->text(\sprintf('No filter given: importing the configured region %s (%d km around %.4f,%.4f)', $this->region->name, $this->region->radiusKm, $this->region->center->lat, $this->region->center->lng));
+        }
+
+        $path = $this->resolveFile($input, $io, $regionImport);
+        if (null === $path) {
+            $io->error('No CSV to import (download failed and no usable snapshot).');
+
+            return Command::FAILURE;
         }
         $limit = (int) $input->getOption('limit');
         $dryRun = (bool) $input->getOption('dry-run');
@@ -195,23 +204,55 @@ final class ShelterImportCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function resolveFile(InputInterface $input, SymfonyStyle $io): ?string
+    /** Local file, the committed region snapshot, or a fresh download (falling back to the snapshot for a region import). */
+    private function resolveFile(InputInterface $input, SymfonyStyle $io, bool $regionImport): ?string
     {
         /** @var string|null $file */
         $file = $input->getOption('file');
         if (null !== $file) {
             return is_file($file) ? $file : null;
         }
+        if ($input->getOption('offline')) {
+            return $this->snapshot($io);
+        }
         /** @var string $url */
         $url = $input->getOption('url');
         $io->text('Downloading '.$url);
+        try {
+            return $this->download($url, $io);
+        } catch (Throwable $e) {
+            if (!$regionImport) {
+                $io->error($e->getMessage());
+
+                return null;
+            }
+            $io->warning($e->getMessage()."\nFalling back to the committed snapshot of the region.");
+
+            return $this->snapshot($io);
+        }
+    }
+
+    private function snapshot(SymfonyStyle $io): ?string
+    {
+        if (!is_file($this->shelterRegisterSnapshot)) {
+            $io->error('Snapshot not found: '.$this->shelterRegisterSnapshot);
+
+            return null;
+        }
+        $io->text('Snapshot '.$this->shelterRegisterSnapshot);
+
+        return $this->shelterRegisterSnapshot;
+    }
+
+    private function download(string $url, SymfonyStyle $io): string
+    {
         $tmp = tempnam(sys_get_temp_dir(), 'shelters-');
         if (false === $tmp) {
-            return null;
+            throw new RuntimeException('Cannot create a temporary file');
         }
         $out = fopen($tmp, 'w');
         if (false === $out) {
-            return null;
+            throw new RuntimeException('Cannot write '.$tmp);
         }
         $response = $this->httpClient->request('GET', $url, ['timeout' => 120]);
         foreach ($this->httpClient->stream($response) as $chunk) {

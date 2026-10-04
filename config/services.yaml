@@ -21,6 +21,8 @@ parameters:
     app.overpass_url: '%env(OVERPASS_URL)%'
     # Overpass answer for the pilot region, committed so the import works when every public mirror is down.
     app.fuel.osm_snapshot: '%kernel.project_dir%/data/osm/fuel-stations-poznan.json'
+    # Rows of the national shelter register (dane.gov.pl) for the pilot region, committed so the import works offline.
+    app.shelter.register_snapshot: '%kernel.project_dir%/data/shelters/punkty-schronienia-poznan.csv'
 
 services:
     _defaults:
@@ -43,6 +45,7 @@ services:
             string $autoAlertLevel: '%app.alerting.auto_alert_level%'
             string $overpassUrl: '%app.overpass_url%'
             string $fuelOsmSnapshot: '%app.fuel.osm_snapshot%'
+            string $shelterRegisterSnapshot: '%app.shelter.register_snapshot%'
             array $externalSourceFeeds: '%app.external_sources.feeds%'
             int $externalSourcesPollMinutes: '%app.external_sources.poll_minutes%'
 
