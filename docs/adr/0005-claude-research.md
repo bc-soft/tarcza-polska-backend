@@ -14,8 +14,7 @@ ustrukturyzowanej listy źródeł. Pisanie własnych scraperów i adapterów RSS
 * Prompt, schema, lista domen i parser są wspólne (`ResearchPrompt`); dostawcy różnią się tylko klientem:
   `OpenAiResearcher` (Responses API, `web_search`, `json_schema` strict) i `ClaudeResearcher`
   (`messages.create`, `web_search_20260209`, `output_config.format`).
-* Dostawcę wybiera `RESEARCH_PROVIDER` (`openai` domyślnie, bo zespół ma wykupione tokeny OpenAI;
-  `anthropic`; `none`) przez `ResearcherFactory` zarejestrowaną jako fabrykę `ResearcherInterface`.
+* Dostawcę wybiera `RESEARCH_PROVIDER` (`openai` domyślnie; `anthropic`; `none`) przez `ResearcherFactory` zarejestrowaną jako fabrykę `ResearcherInterface`.
 * Prompt po polsku, w roli analityka CZK; model ma zwrócić pustą listę, gdy nic nie znajdzie.
 * Wywołanie w handlerze Messengera, z retry; brak klucza = pominięcie z logiem.
 

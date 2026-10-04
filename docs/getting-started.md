@@ -5,20 +5,35 @@
 Docker Desktop (lub Docker Engine + Compose v2). Lokalne PHP 8.4 i Composer są przydatne do IDE,
 PHPStan i testów jednostkowych, ale nie są wymagane: wszystko działa w kontenerach.
 
-## Pierwsze uruchomienie
+## Pierwsze uruchomienie: jedna komenda
 
 ```bash
-echo 'OPENAI_API_KEY=sk-...' > .env.local   # sekrety tylko tu (plik ignorowany przez git), nigdy w .env
-make build                        # obrazy: FrankenPHP + PostGIS/H3
-make up                           # https://localhost  (zaakceptuj lokalny certyfikat Caddy)
-make seed                         # konta operatorów + schrony w Poznaniu
-make simulate                     # scenariusz demo: 700 wirtualnych urządzeń, awaria prądu na Jeżycach
-make worker                       # podgląd pracy silników
+make demo
 ```
+
+`make demo` buduje obrazy (FrankenPHP + PostGIS/H3), startuje stack i czeka, aż będzie zdrowy (entrypoint
+wykonuje migracje i generuje klucze JWT), importuje schrony i stacje paliw Poznania ze zrzutów w `data/`
+(bez sieci), zakłada konta operatorów i ładuje dane demo do panelu: 8 dzielnic, wszystkie typy zgłoszeń
+i stany incydentów, fale weryfikacji, źródła, alerty, zdjęcia i historia. Pierwsze uruchomienie trwa kilka
+minut (budowa obrazów, `composer install`); kolejne kilkadziesiąt sekund. Komenda jest idempotentna:
+importy robią upsert, konta nie są duplikowane, dane demo są ładowane od nowa (ten sam seed = te same dane).
+
+Potem opcjonalnie:
+
+```bash
+make simulate                     # scenariusz na żywo: 700 wirtualnych urządzeń, awaria prądu na Jeżycach
+make worker                       # podgląd pracy silników (klastrowanie, fale, research, pushe)
+echo 'OPENAI_API_KEY=sk-...' > .env.local   # research AI; sekrety tylko tu (plik ignorowany przez git), nigdy w .env
+```
+
+Ręcznie, krok po kroku, to samo co `make demo`: `make build`, `make up`, `make console c="tarcza:shelters:import --offline"`,
+`make console c="tarcza:fuel-stations:import --from-file=data/osm/fuel-stations-poznan.json"`, `make seed`,
+`make console c="tarcza:fixtures:load --reset"`.
 
 Następnie:
 
-* Command Center: https://localhost/command (`operator@tarcza.local` / `tarcza-demo`)
+* Command Center: https://localhost/command (`operator@tarcza.local` / `tarcza-demo`; `admin@tarcza.local` widzi też
+  dziennik audytu i konta operatorów, `analyst@tarcza.local` ma tylko odczyt; hasło wspólne)
 * Swagger: https://localhost/api/doc
 * Zdrowie: `curl -k https://localhost/api/v1/health`
 
@@ -89,11 +104,11 @@ działają bez Dockera (platforma Composera jest przypięta do rozszerzeń konte
 | `VERIFICATION_MAX_RING` | 6 | maksymalny ring od centrum |
 | `VERIFICATION_DEVICES_PER_CELL` | 5 | ile urządzeń pytamy w jednej komórce |
 | `VERIFICATION_COOLDOWN_MIN` | 10 | minimalna przerwa między pytaniami do tego samego urządzenia |
-| `OVERPASS_URL` | 3 publiczne serwery | lista adresów Overpass rozdzielona przecinkami, próbowane po kolei (25 s na sondę, 60 s na zapytanie); główny `overpass-api.de` bywa niedostępny, więc dopisz działający mirror w `.env.local` |
+| `OVERPASS_URL` | 3 publiczne serwery | lista adresów Overpass rozdzielona przecinkami, odpytywane równolegle (25 s na sondę, 60 s na zapytanie); bez odpowiedzi import regionu bierze zrzut z `data/osm` |
 | `AUTO_ALERT_LEVEL` | `confirmed` | poziom, przy którym system sam wysyła alert do obszaru (`confirmed`, `high`, `likely`; `off` wyłącza) |
 
 Kanały RSS/Atom dla External Sources Engine konfiguruje się w `config/packages/external_sources.yaml`
-(nazwa, URL, rodzaj, wiarygodność, interwał). Zdjęcia lądują w `var/storage/photos` (`config/packages/flysystem.yaml`;
+(nazwa, URL, rodzaj, wiarygodność; wspólny interwał `poll_minutes`). Zdjęcia lądują w `var/storage/photos` (`config/packages/flysystem.yaml`;
 na produkcji podmień adapter na S3/R2 i zachowaj nazwę `photos.storage`).
 
 ## Research AI: test i koszty
@@ -105,7 +120,7 @@ make console c="tarcza:research --again"     # pełna ścieżka: zapis źródeł
 
 Zmierzone na `gpt-5` z niskim poziomem rozumowania: 25–35 s na incydent, 5 wyszukiwań, ~27 tys. tokenów
 wejścia i ~2 tys. wyjścia, czyli rząd 10 centów za research. Research uruchamia się automatycznie raz na
-incydent (po osiągnięciu poziomu „prawdopodobne”), więc 9 USD wystarczy na kilkadziesiąt incydentów.
+incydent (po osiągnięciu poziomu „prawdopodobne”), więc kilkadziesiąt incydentów to rząd kilku dolarów.
 
 Sekrety (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FIREBASE_CREDENTIALS`) trzymaj w `.env.local`. Plik jest
 ignorowany przez git i bind-mountowany do kontenerów; `compose.yaml` celowo nie wymienia tych zmiennych,
@@ -131,6 +146,7 @@ Zgłoszenia spoza regionu nie są odrzucane; API je przyjmie, ale nie pojawią s
 
 ```bash
 make console c="tarcza:shelters:import"                                      # rejestr krajowy z dane.gov.pl (CSV, ~15 MB), tylko region
+make console c="tarcza:shelters:import --offline"                            # to samo ze zrzutu data/shelters (bez sieci; tak robi make demo)
 make console c="tarcza:shelters:import --wojewodztwo=wielkopolskie"          # szerzej: całe województwo
 make console c="tarcza:shelters:import --dry-run"                             # tylko policz, nic nie zapisuj
 make console c="tarcza:fuel-stations:import"                                 # OpenStreetMap przez Overpass (OVERPASS_URL), tylko region
@@ -142,7 +158,8 @@ Import stacji wysyła zapytanie równolegle do wszystkich mirrorów z `OVERPASS_
 Gdy żaden nie odpowie (publiczne instancje Overpass bywają przeciążone), import regionu wczytuje zrzut
 `data/osm/fuel-stations-poznan.json` (dane © OpenStreetMap, ODbL). Zrzut odświeża się zapisaniem odpowiedzi Overpass dla regionu.
 
-Import schronów jest idempotentny (upsert po identyfikatorze publicznym) i nie nadpisuje potwierdzeń obywateli.
+Import schronów jest idempotentny (upsert po identyfikatorze publicznym) i nie nadpisuje potwierdzeń obywateli;
+gdy pobranie się nie uda, import regionu sam sięga po zrzut `data/shelters/punkty-schronienia-poznan.csv`.
 `tarcza:fixtures:load --reset` czyści incydenty, zgłoszenia, alerty, źródła, zdjęcia, symulowane urządzenia oraz
 stacje i schrony oznaczone jako `fixture`; zaimportowane schrony i stacje zostają i są używane przez fikstury,
 jeśli leżą w promieniu 3 km od centrum dzielnicy (po imporcie OSM i dane.gov.pl fikstury nie tworzą już własnych).

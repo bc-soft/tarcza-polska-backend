@@ -4,11 +4,11 @@ Cel: pokazać pętlę DETECT → VERIFY → MAP → INFORM i to, że system sam 
 
 ## Przygotowanie (przed wejściem na scenę)
 
-1. `make up && make seed`, panel otwarty na https://localhost/command, zalogowany operator.
+1. `make demo` (stack, schrony, stacje, konta, dane demo), panel otwarty na https://localhost/command, zalogowany operator.
 2. Worker działa (`make worker` w drugim oknie, warto pokazać logi).
 3. Dwa telefony z aplikacją zarejestrowane i z lokalizacją ustawioną na Jeżyce (52.4121, 16.9012).
-4. Jeśli jest internet i klucz API: `ANTHROPIC_API_KEY` w `.env.local`. Jeśli nie: przygotuj
-   `bin/console tarcza:simulate:confirm` w terminalu.
+4. Jeśli jest internet i klucz API: `OPENAI_API_KEY` w `.env.local` (albo `ANTHROPIC_API_KEY` z
+   `RESEARCH_PROVIDER=anthropic`). Jeśli nie: przygotuj `make console c="tarcza:simulate:confirm"` w terminalu.
 
 ## Przebieg
 
@@ -31,6 +31,6 @@ Cel: pokazać pętlę DETECT → VERIFY → MAP → INFORM i to, że system sam 
 ## Reset między próbami
 
 ```bash
-make console c="dbal:run-sql 'TRUNCATE report, incident, verification_wave, verification_request, external_source, alert, simulation_scenario CASCADE'"
-make console c="dbal:run-sql \"DELETE FROM device WHERE simulated\""
+make console c="tarcza:fixtures:load --reset"   # czyści incydenty, zgłoszenia, fale, alerty, symulowane urządzenia i wgrywa dane demo od nowa
+make simulate                                   # i scenariusz na żywo jeszcze raz
 ```

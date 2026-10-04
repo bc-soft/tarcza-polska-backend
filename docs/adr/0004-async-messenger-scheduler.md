@@ -11,8 +11,9 @@ Pętla DETECT→VERIFY→MAP→INFORM ma kroki długie (research AI, wysyłka pu
 
 * Wszystkie wiadomości `App\*\Message\*` idą asynchronicznie przez Redis; kontrolery tylko zapisują i emitują.
 * Zdarzenia domenowe mają wielu odbiorców (`IncidentUpdated` obsługują Confidence i Verification niezależnie).
-* Symfony Scheduler (`#[AsSchedule('tarcza')]`) emituje `VerificationTick` co 20 s i `SimulatedCrowdTick`
-  co 10 s; jeden worker konsumuje `async` i `scheduler_tarcza`.
+* Symfony Scheduler (`#[AsSchedule('tarcza')]`) emituje `VerificationTick` co 20 s, `SimulatedCrowdTick`
+  co 10 s, `ExternalSourcesTick` co 5 min i `LocationRefreshTick` co 15 min; jeden worker konsumuje
+  `async` i `scheduler_tarcza`.
 * Transport `failed` na Doctrine do inspekcji błędów.
 
 ## Konsekwencje

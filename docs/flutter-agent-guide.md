@@ -1,6 +1,6 @@
 # Tarcza Polska: przewodnik integracyjny dla repo aplikacji Flutter
 
-Ten plik jest pisany dla agenta (i ludzi) pracujących w repozytorium aplikacji mobilnej **Tarcza Citizen**.
+Ten plik jest dla zespołu pracującego w repozytorium aplikacji mobilnej **Tarcza Citizen**.
 Zawiera wszystko, co trzeba wiedzieć o backendzie, żeby zbudować aplikację bez zaglądania do kodu PHP.
 Źródłem prawdy dla kształtu endpointów jest [`openapi.json`](openapi.json) (OpenAPI 3) i Swagger UI pod `/api/doc`.
 
@@ -396,7 +396,7 @@ dart pub global activate openapi_generator_cli
 openapi-generator generate -i ../tarcza-polska-backend/docs/openapi.json -g dart-dio -o packages/tarcza_api
 ```
 
-Alternatywa, która na hackathonie bywa szybsza: ręczne modele dla ~8 odpowiedzi opisanych wyżej i jeden
+Alternatywa, która bywa szybsza: ręczne modele dla ~8 odpowiedzi opisanych wyżej i jeden
 klient `Dio` z interceptorem dodającym `Authorization` i mapującym `error.code` na wyjątki.
 
 Minimalny interceptor:
@@ -445,8 +445,7 @@ Alert testowy: w panelu operatora wejdź w incydent i użyj formularza „Wyśli
 Reset danych demo (w repo backendu):
 
 ```bash
-make console c="dbal:run-sql 'TRUNCATE report, incident, verification_wave, verification_request, external_source, alert, simulation_scenario CASCADE'"
-make console c="dbal:run-sql \"DELETE FROM device WHERE simulated\""
+make console c="tarcza:fixtures:load --reset"   # dane demo od nowa (prawdziwe urządzenia zostają)
 ```
 
 ---
@@ -463,7 +462,7 @@ make console c="dbal:run-sql \"DELETE FROM device WHERE simulated\""
   (`geocoding`), do API trafiają tylko `lat`/`lng`.
 
 Jeśli czegoś brakuje w API, najkrótsza droga to zgłoszenie w repo backendu z przykładowym żądaniem i oczekiwaną
-odpowiedzią; dodanie endpointu w istniejącym module to zwykle kilkanaście minut.
+odpowiedzią.
 
 ---
 

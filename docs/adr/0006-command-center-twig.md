@@ -1,11 +1,11 @@
 # ADR 0006: Command Center w Twig + MapLibre + Mercure
 
-Status: zaakceptowane, 2026-10-03 (do rewizji, jeśli pojawi się osoba frontendowa)
+Status: zaakceptowane, 2026-10-03
 
 ## Kontekst
 
 Panel operatora musi pokazać mapę, hexy, confidence z rozbiciem, źródła i pozwolić wysłać alert.
-Zespół jest backendowy; design to 20% oceny.
+Zespół jest backendowy, a panel ma wyglądać i działać jak produkt, nie jak narzędzie administracyjne.
 
 ## Decyzja
 
@@ -21,15 +21,17 @@ z CSRF pod `/command/...`. Równolegle istnieje pełne API `/api/command/*` z JW
 
 ## Uzupełnienie (2026-10-03): design system i zakres panelu
 
-Panel używa tokenów design systemu Tarcza współdzielonych z aplikacją mobilną: Primary `#D4213D`,
-Secondary `#14213D`, Tertiary `#1B4DB1`, Neutral `#0F172A`, tło lawendowe, font Inter, karty `rounded-2xl`,
-przyciski i filtry w formie pigułek. Tokeny są zdefiniowane raz w `templates/base.html.twig`
-(`tailwind.config` + `window.TARCZA`), komponenty (odznaki, paski, statystyki, ikony) w `templates/command/_macros.html.twig`.
-Mapa korzysta z jasnego stylu OpenFreeMap `positron`; paleta confidence: potwierdzone = tertiary (niebieski),
-wysoka pewność = pomarańcz, prawdopodobne = bursztyn, niezweryfikowane = szary - tak jak legenda w aplikacji.
+Panel używa tokenów design systemu Tarcza współdzielonych z aplikacją mobilną i prezentacją: ciemne tło
+„civil resilience” (`#0D0E10`, powierzchnie `#15171A`–`#22252A`), Primary czerwień `#E0262F`, akcenty
+ok / warn / high / tertiary, fonty Barlow Condensed (nagłówki), Inter (tekst) i JetBrains Mono (etykiety).
+Tokeny są zdefiniowane raz w `templates/base.html.twig` (`tailwind.config` + `window.TARCZA`), komponenty
+(odznaki, paski, statystyki, ikony) w `templates/command/_macros.html.twig`. Mapa korzysta z ciemnego stylu
+OpenFreeMap; paleta confidence: potwierdzone = czerwień, wysoka pewność = pomarańcz, prawdopodobne = bursztyn,
+niezweryfikowane = szary, tak jak legenda w aplikacji.
 
 Zakres panelu: mapa sytuacyjna (warstwy incydentów, schronów i komunikatów), lista incydentów z filtrami,
 detal z akcjami operatora (komunikat, ręczne źródło, ponowny research AI, zamknięcie) i osią czasu,
-komunikaty, rejestr schronów (CRUD + status operatora), dziennik audytu i konta operatorów (admin).
+komunikaty, schrony i stacje paliw jako warstwy mapy (CRUD schronów przez `/api/command/shelters`),
+dziennik audytu i konta operatorów (admin).
 Kontrolery webowe mapują formularze na DTO i wołają serwisy modułów (`ShelterManager`, `OperatorManager`,
 `ResearchRequester`, `AlertPublisher`); walidacja DTO wraca jako flash (`WebFormValidator`).

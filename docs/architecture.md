@@ -8,11 +8,12 @@ decyzje projektowe w [adr/](adr/), uruchomienie w [getting-started.md](getting-s
 
 Modularny monolit w Symfony 7.4 LTS na PHP 8.4, uruchamiany na FrankenPHP, z PostgreSQL 16 + PostGIS + H3
 jako jedyną bazą, Redisem pod kolejki, Mercure do czasu rzeczywistego, Firebase Cloud Messaging do pushy
-i Claude API jako silnikiem researchu. Całość w jednym `docker compose`, na jednym VPS w UE.
+i modelem językowym z web search (OpenAI lub Claude) jako silnikiem researchu. Całość w jednym `docker compose`,
+na jednym VPS w UE.
 
-Mikroserwisy, Kafka czy Kubernetes na hackathonie to strata czasu. Monolit z wyraźnie oddzielonymi
-modułami i asynchronicznymi handlerami daje tę samą historię architektoniczną dla jury, a pozwala
-dowieźć działający mechanizm end-to-end w 48 godzin.
+Mikroserwisy, Kafka czy Kubernetes nie wnoszą tu wartości. Monolit z wyraźnie oddzielonymi modułami
+i asynchronicznymi handlerami daje te same granice co osobne usługi, a pozwala dowieźć działający
+mechanizm end-to-end i uruchomić go jedną komendą.
 
 ## 2. Stack technologiczny
 
@@ -22,7 +23,7 @@ dowieźć działający mechanizm end-to-end w 48 godzin.
 | Baza | PostgreSQL 16 + PostGIS 3.5 + h3-pg | zapytania przestrzenne, poligony, komórki H3 liczone w SQL |
 | ORM | Doctrine ORM 3 + własne typy `geo_point` / `geo_geometry` | geometria PostGIS mapowana przez GeoJSON, bez zewnętrznej biblioteki |
 | Kolejki | Symfony Messenger, transport Redis | asynchroniczny clustering, fale weryfikacji, research AI, pushe |
-| Zadania cykliczne | Symfony Scheduler (`scheduler_tarcza`) | tick silnika weryfikacji co 20 s, symulowany tłum co 10 s |
+| Zadania cykliczne | Symfony Scheduler (`scheduler_tarcza`) | weryfikacja co 20 s, symulowany tłum co 10 s, kanały RSS co 5 min, przypomnienia o lokalizacji co 15 min |
 | Realtime | Mercure (SSE) | live mapa i lista incydentów w Command Center bez pollingu |
 | Push | Firebase Cloud Messaging (`kreait/firebase-php`) | prompty weryfikacyjne i alerty na Flutterze, iOS i Android |
 | Auth | LexikJWTAuthenticationBundle | anonimowa tożsamość urządzenia (Citizen) i konta operatorów (Command) |
@@ -33,8 +34,6 @@ dowieźć działający mechanizm end-to-end w 48 godzin.
 | Jakość | PHPStan poziom 8, php-cs-fixer, PHPUnit 13, Foundry | `make qa` = pełna bramka lokalna, to samo w GitHub Actions |
 | Hosting | Hetzner (DE/FI) lub inny VPS w UE, `compose.prod.yaml`, Caddy auto-TLS | jedna maszyna, jeden plik, deploy w 2 minuty |
 
-Alternatywa dla panelu: Next.js + MapLibre na tym samym API, jeśli w zespole jest osoba od frontu.
-Design to 20% oceny, więc warto to rozważyć tylko wtedy, gdy ta osoba realnie istnieje.
 
 ## 3. Architektura wewnętrzna: modularny monolit
 
@@ -50,9 +49,11 @@ src/
 ├── Incident/        Incident, IncidentCell, klastrowanie, AreaCalculator -> emituje IncidentUpdated
 ├── Verification/    VerificationWave, VerificationRequest, silnik fal, odpowiedzi TAK/NIE/NIE WIEM
 ├── Confidence/      deterministyczny ConfidenceCalculator               -> emituje IncidentConfidenceUpdated
-├── Intelligence/    ExternalSource, ClaudeResearcher (web search + JSON schema)
+├── Intelligence/    ExternalSource, ResearcherInterface (OpenAiResearcher / ClaudeResearcher), External Sources Engine (RSS)
 ├── Alerting/        Alert przypisany do poligonu, dostarczanie pushem
-├── Shelter/         Shelter, potwierdzenia statusu
+├── Shelter/         Shelter (import z rejestru dane.gov.pl), potwierdzenia statusu i zapełnienia
+├── Fuel/            FuelStation (import z OpenStreetMap), dostępność per rodzaj paliwa
+├── Guidance/        procedury (listy kontrolne) i paczka offline
 ├── Notification/    PushSenderInterface: FCM albo logger (gdy brak credentiali)
 ├── Command/         API operatora, panel Twig, publikacja do Mercure, audit-logowane widoki
 ├── Audit/           AuditLogEntry, AuditLogger
@@ -72,7 +73,7 @@ POST /api/v1/reports
                                           ├─► Confidence\IncidentUpdatedHandler  (przelicz score/level)
                                           │     ├─ IncidentConfidenceUpdated ──► Command\…Handler ──► Mercure
                                           │     └─ (level >= LIKELY && !researched) ResearchIncident
-                                          │           └─► Intelligence\ResearchIncidentHandler (Claude + web search)
+                                          │           └─► Intelligence\ResearchIncidentHandler (LLM + web search)
                                           │                 └─ ExternalSource(y) ──► IncidentUpdated('research_completed')
                                           └─► Verification\IncidentUpdatedHandler (>= 2 raporty)
                                                 └─ ScheduleVerificationWave ──► VerificationScheduler.planNextWave()
@@ -110,8 +111,8 @@ w pozostałych wypadkach -> unknown   (pytamy)
 * Fala kończy się po `VERIFICATION_WAVE_TTL_SEC` (90 s). Gdy granica się wyczerpie albo ring
   przekroczy `VERIFICATION_MAX_RING`, incydent przechodzi w `active` (granica stabilna).
 
-Plan B, gdyby h3-pg nie wstał: geohash o precyzji 7 liczony w PHP. Hexy wyglądają lepiej, więc
-najpierw próbujemy H3 (obraz `docker/postgres/Dockerfile` instaluje `postgresql-16-h3` z PGDG).
+Obraz `docker/postgres/Dockerfile` instaluje h3-pg, a skrypt `docker/postgres/initdb` tworzy rozszerzenia
+`postgis`, `h3` i `h3_postgis` przy pierwszym starcie wolumenu.
 
 ### 3.3 Confidence
 
@@ -131,7 +132,7 @@ CONFIRMED wymaga dodatkowo źródła zewnętrznego o wiarygodności >= 0.5
 ```
 
 Rozbicie na składowe zapisujemy w `incident.confidence_breakdown` i pokazujemy operatorowi.
-To jest argument dla jury, że AI nie jest arbitrem prawdziwości. Testy w
+AI nie jest arbitrem prawdziwości: operator widzi, skąd wzięła się liczba. Testy w
 `tests/Unit/Confidence/ConfidenceCalculatorTest.php` pilnują kształtu krzywej.
 
 ### 3.4 AI jako research & correlation engine
@@ -159,7 +160,9 @@ internetu: `bin/console tarcza:simulate:confirm`.
 * Citizen widzi tylko agregaty: poligon obszaru, poziom confidence, odsetek zgodności. Nigdy surowych
   punktów raportów (`IncidentPublicView` vs `IncidentCommandView`).
 * Urządzenie przechowuje jedną aktualną lokalizację, bez historii. Brak jakichkolwiek danych osobowych.
-* Rate limiter na `POST /api/v1/reports` (10 / 10 min / urządzenie) i na aktualizację lokalizacji.
+* Rate limiter na `POST /api/v1/reports` (10 / 10 min / urządzenie), zdjęcia, aktualizację lokalizacji
+  i rejestrację urządzeń (30 / h / IP); throttling logowania operatorów (5 prób / 5 min).
+* Publiczna oś czasu incydentu pomija dane wewnętrzne (e-mail operatora, komórkę pierwszego zgłoszenia, identyfikatory zdjęć).
 * Odczyt szczegółów incydentu w Command Center i każda akcja operatora trafiają do `audit_log`.
   Administrator przegląda dziennik w panelu (`/command/audit`) i zarządza kontami (`/command/operators`).
 * Mercure: publikacja tylko z backendu (JWT), subskrypcja anonimowa na tematy `incidents` i `incidents/{id}`,
@@ -210,7 +213,8 @@ Kod: `Shared\Poi` (abstrakcja obiektów), moduł `Fuel` (stacje, dostępność p
 
 Dane: `tarcza:shelters:import` (rejestr krajowy, 86 tys. punktów, filtry po województwie / obszarze),
 `tarcza:fuel-stations:import` (Overpass, `--around` / `--bbox`), `tarcza:fixtures:load --reset`
-(deterministyczne dane demo: 4 miasta, wszystkie typy i stany, stacje, schrony, fale, źródła, alerty, zdjęcia, historia).
+(deterministyczne dane demo: 8 dzielnic Poznania, wszystkie typy i stany, fale, źródła, alerty, zdjęcia, historia).
+Oba importy mają zrzuty offline w `data/` (`--offline`, `--from-file`), więc `make demo` nie potrzebuje sieci.
 
 ## 4. Infrastruktura
 
@@ -218,20 +222,25 @@ Dane: `tarcza:shelters:import` (rejestr krajowy, 86 tys. punktów, filtry po woj
 compose.yaml
 ├── php        FrankenPHP (Caddy + PHP 8.4 + Mercure), https://localhost, bind-mount ./ -> /app
 ├── worker     ten sam obraz: messenger:consume async scheduler_tarcza
-├── database   postgis/postgis:16-3.5 + postgresql-16-h3 (docker/postgres)
+├── database   imresamu/postgis:16-3.5 + h3-pg (docker/postgres)
 └── redis      redis:7-alpine (Messenger)
 ```
 
-Entrypoint kontenera php czeka na bazę, wykonuje migracje i generuje parę kluczy JWT, więc
-`make up` wystarcza do działającego środowiska. Produkcja: `compose.prod.yaml` (obraz z wbudowanym
+Entrypoint kontenera php czeka na bazę, wykonuje migracje i generuje parę kluczy JWT; `make demo`
+dokłada import obiektów, konta i dane demo, więc jedna komenda daje gotowe środowisko. Produkcja: `compose.prod.yaml` (obraz z wbudowanym
 kodem, worker mode FrankenPHP, Caddy wystawia TLS dla `SERVER_NAME`).
 
-## 5. Ryzyka i decyzje na start
+## 5. Znane ograniczenia i dalsze kroki
 
-* Czy h3-pg wstaje w Dockerze w pierwszej godzinie. Jeśli nie, od razu geohash, bez walki.
-* Firebase wymaga projektu i `google-services.json` po stronie Fluttera; załóżcie to w pierwszej godzinie,
-  bo blokuje całą fazę 2. Backend działa bez FCM (pushe są logowane, aplikacja polluje `/verifications/pending`).
-* Tło lokalizacji na iOS jest kapryśne. Na demo wystarczy lokalizacja z foregroundu plus symulator.
-* Klucz do OpenAI lub Claude: koszt przy kilkudziesięciu incydentach jest pomijalny; limit 6 wyszukiwań na research.
-* Command Center w Twig jest świadomym kompromisem na rzecz czasu; API `/api/command/*` jest gotowe,
-  gdyby ktoś chciał dołożyć osobny front.
+* Pushe wymagają konta serwisowego Firebase (`FIREBASE_CREDENTIALS`); bez niego są logowane, a aplikacja
+  odpytuje `/verifications/pending`.
+* Lokalizacja w tle na iOS jest ograniczona przez system; model zakłada ostatnią znaną pozycję i przypomnienie
+  o jej odświeżeniu (`location_refresh`).
+* Research AI wymaga klucza API (OpenAI lub Anthropic); bez klucza działa wszystko poza researchem,
+  a operator może dodać źródło ręcznie. Limit 6 wyszukiwań na incydent trzyma koszt na poziomie centów.
+* Jedna instalacja obsługuje jeden region (ADR 0011); wiele regionów to konfiguracja per instancja albo
+  tabela regionów w kolejnej iteracji.
+* Listy API nie mają paginacji (z założenia krótkie: bbox, najbliższe, pending); produkcja wymagałaby jej dla miast
+  większych niż pilotaż.
+* Command Center w Twig jest świadomym kompromisem; API `/api/command/*` i Mercure są gotowe pod osobny front.
+* Tailwind z CDN w panelu należałoby na produkcji zbudować statycznie (AssetMapper).
